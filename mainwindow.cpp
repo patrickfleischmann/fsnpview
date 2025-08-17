@@ -3,8 +3,11 @@
 #include <Eigen/Dense>
 #include <math.h>
 #include <QVector>
+#include "parser_touchstone.h"
 
 using namespace Eigen;
+using ts::TouchstoneData;
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -20,17 +23,30 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_pushButtonPlot_clicked()
 {
-    VectorXd xValues, yValues;
+    std::cout << "on_pushButtonPlot_clicked()" << std::endl;
+
+    ArrayXd xValues, yValues;
+
+ /*
     xValues.setLinSpaced(1000,-2,2);
     int size_xValues=xValues.size();
     yValues.setZero(size_xValues,1);
-
     for(int i=0;i<size_xValues;i++)
     {
         yValues(i)=pow(xValues(i),2);
     }
+*/
 
 
+    auto data = ts::parse_touchstone("test.s2p");
+
+    xValues = data.freq;
+    yValues = data.sparams.col(1).abs().log10() * 20; //s21 dB
+
+    // for(int i=0;i<xValues.size();i++)
+    // {
+    //     std::cout << yValues(i) << std::endl;
+    // }
 
     // convert the Eigen objects into the std::vector form
     // .data() returns the pointer to the first memory location of the first entry of the stored object
@@ -52,15 +68,19 @@ void MainWindow::on_pushButtonPlot_clicked()
     double x_minValue=xValues.minCoeff();
 
     // this is necessary for seting the axes limits
-    double y_maxValue=xValues.maxCoeff();
+    double y_maxValue=yValues.maxCoeff();
     double y_minValue=yValues.minCoeff();
 
 
     QCustomPlot *customPlot=ui->widgetGraph;
 
+    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    //customPlot->axisRect()->setupFullAxesBox(); // Optional: to show full axes box
+
     // create graph and assign data to it:
     customPlot->addGraph();
     customPlot->graph(0)->setData(xValuesQVector, yValuesQVector);
+    customPlot->graph(0)->setAntialiased(true);
     // give the axes some labels:
     customPlot->xAxis->setLabel("x");
     customPlot->yAxis->setLabel("y");

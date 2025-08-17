@@ -15,6 +15,7 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
+    parser_touchstone.h \
     qcustomplot.h
 
 FORMS += \
