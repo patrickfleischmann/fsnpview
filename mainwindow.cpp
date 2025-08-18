@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <iostream>
 #include <Eigen/Dense>
 #include <math.h>
 #include <QVector>
