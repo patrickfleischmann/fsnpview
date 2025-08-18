@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
-     <widget class="QPushButton" name="pushButtonPlot">
+     <widget class="QPushButton" name="pushButtonAutoscale">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
         <horstretch>0</horstretch>
@@ -24,7 +24,7 @@
        </sizepolicy>
       </property>
       <property name="text">
-       <string>Plot</string>
+       <string>Autoscale</string>
       </property>
      </widget>
     </item>

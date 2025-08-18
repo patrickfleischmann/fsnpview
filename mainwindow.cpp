@@ -43,8 +43,9 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->replot();
 }
 
-void MainWindow::on_pushButtonPlot_clicked()
+void MainWindow::on_pushButtonAutoscale_clicked()
 {
-    // This button is now disabled as plotting is handled via command line.
+    ui->widgetGraph->rescaleAxes();
+    ui->widgetGraph->replot();
 }
 

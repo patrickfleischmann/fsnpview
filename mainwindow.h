@@ -21,7 +21,7 @@ public:
     void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color);
 
 private slots:
-    void on_pushButtonPlot_clicked();
+    void on_pushButtonAutoscale_clicked();
 
 private:
     Ui::MainWindow *ui;
