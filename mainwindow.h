@@ -2,7 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QString>
+#include <QVector>
+#include <QColor>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -17,7 +18,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plotFile(const QString &filePath);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color);
 
 private slots:
     void on_pushButtonPlot_clicked();
