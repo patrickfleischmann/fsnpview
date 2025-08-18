@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QColor>
 #include <QVector>
+#include <QList>
 #include <map>
 #include <string>
 #include <memory>
@@ -13,6 +14,22 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     MainWindow w;
     w.show();
+
+    QList<QColor> colors;
+    colors.append(QColor::fromRgbF(0, 0.4470, 0.7410));
+    colors.append(QColor::fromRgbF(0.8500, 0.3250, 0.0980));
+    colors.append(QColor::fromRgbF(0.9290, 0.6940, 0.1250));
+    colors.append(QColor::fromRgbF(0.4940, 0.1840, 0.5560));
+    colors.append(QColor::fromRgbF(0.4660, 0.6740, 0.1880));
+    colors.append(QColor::fromRgbF(0.3010, 0.7450, 0.9330));
+    colors.append(QColor::fromRgbF(0.6350, 0.0780, 0.1840));
+    colors.append(QColor::fromRgbF(0, 0, 1.0000));
+    colors.append(QColor::fromRgbF(0, 0.5000, 0));
+    colors.append(QColor::fromRgbF(1.0000, 0, 0));
+    colors.append(QColor::fromRgbF(0, 0.7500, 0.7500));
+    colors.append(QColor::fromRgbF(0.7500, 0, 0.7500));
+    colors.append(QColor::fromRgbF(0.7500, 0.7500, 0));
+    colors.append(QColor::fromRgbF(0.2500, 0.2500, 0.2500));
 
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
 
@@ -31,7 +48,7 @@ int main(int argc, char *argv[])
             QVector<double> xValuesQVector = QVector<double>(xValuesStdVector.begin(), xValuesStdVector.end());
             QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
 
-            QColor color = QColor::fromHsv(((i - 1) * 60) % 360, 255, 255);
+            QColor color = colors.at((i - 1) % colors.size());
 
             w.plot(xValuesQVector, yValuesQVector, color);
 
