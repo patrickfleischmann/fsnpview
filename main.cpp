@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
             args.append(QString::fromLocal8Bit(argv[i]));
         }
         stream << args;
-        socket.waitForBytesWritten(1000);
+        if (socket.waitForBytesWritten()) {
+            socket.flush();
+            socket.waitForDisconnected();
+        }
         return 0;
     }
 

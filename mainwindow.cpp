@@ -124,6 +124,7 @@ void MainWindow::readyRead()
         if (stream.commitTransaction()) {
             std::cout << "Received files from new instance: " << files.join(", ").toStdString() << std::endl;
             processFiles(files);
+            socket->disconnectFromServer();
         }
     }
 }
