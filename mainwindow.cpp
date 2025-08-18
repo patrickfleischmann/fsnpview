@@ -13,8 +13,19 @@ using ts::TouchstoneData;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , localServer(nullptr)
 {
     ui->setupUi(this);
+
+    const QString serverName = "fsnpview-server";
+    localServer = new QLocalServer(this);
+    if (!localServer->listen(serverName)) {
+        if (localServer->serverError() == QAbstractSocket::AddressInUseError) {
+            QLocalServer::removeServer(serverName);
+            localServer->listen(serverName);
+        }
+    }
+    connect(localServer, &QLocalServer::newConnection, this, &MainWindow::newConnection);
 }
 
 MainWindow::~MainWindow()
@@ -43,9 +54,73 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->replot();
 }
 
+void MainWindow::processFiles(const QStringList &files)
+{
+    QList<QColor> colors;
+    colors.append(QColor::fromRgbF(0, 0.4470, 0.7410));
+    colors.append(QColor::fromRgbF(0.8500, 0.3250, 0.0980));
+    colors.append(QColor::fromRgbF(0.9290, 0.6940, 0.1250));
+    colors.append(QColor::fromRgbF(0.4940, 0.1840, 0.5560));
+    colors.append(QColor::fromRgbF(0.4660, 0.6740, 0.1880));
+    colors.append(QColor::fromRgbF(0.3010, 0.7450, 0.9330));
+    colors.append(QColor::fromRgbF(0.6350, 0.0780, 0.1840));
+    colors.append(QColor::fromRgbF(0, 0, 1.0000));
+    colors.append(QColor::fromRgbF(0, 0.5000, 0));
+    colors.append(QColor::fromRgbF(1.0000, 0, 0));
+    colors.append(QColor::fromRgbF(0, 0.7500, 0.7500));
+    colors.append(QColor::fromRgbF(0.7500, 0, 0.7500));
+    colors.append(QColor::fromRgbF(0.7500, 0.7500, 0));
+    colors.append(QColor::fromRgbF(0.2500, 0.2500, 0.2500));
+
+    for (int i = 0; i < files.size(); ++i) {
+        try {
+            std::string path = files.at(i).toStdString();
+            auto data = std::make_unique<ts::TouchstoneData>(ts::parse_touchstone(path));
+
+            Eigen::ArrayXd xValues = data->freq;
+            Eigen::ArrayXd yValues = data->sparams.col(1).abs().log10() * 20; // s21 dB
+
+            std::vector<double> xValuesStdVector(xValues.data(), xValues.data() + xValues.rows() * xValues.cols());
+            std::vector<double> yValuesStdVector(yValues.data(), yValues.data() + yValues.rows() * yValues.cols());
+
+            QVector<double> xValuesQVector = QVector<double>(xValuesStdVector.begin(), xValuesStdVector.end());
+            QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
+
+            QColor color = colors.at(parsed_data.size() % colors.size());
+
+            plot(xValuesQVector, yValuesQVector, color);
+
+            parsed_data[path] = std::move(data);
+        } catch (const std::exception& e) {
+            std::cerr << "Error processing file " << files.at(i).toStdString() << ": " << e.what() << std::endl;
+        }
+    }
+}
+
 void MainWindow::on_pushButtonAutoscale_clicked()
 {
     ui->widgetGraph->rescaleAxes();
     ui->widgetGraph->replot();
 }
 
+void MainWindow::newConnection()
+{
+    QLocalSocket *socket = localServer->nextPendingConnection();
+    if (socket) {
+        connect(socket, &QLocalSocket::readyRead, this, &MainWindow::readyRead);
+        connect(socket, &QLocalSocket::disconnected, socket, &QLocalSocket::deleteLater);
+        std::cout << "New connection received." << std::endl;
+    }
+}
+
+void MainWindow::readyRead()
+{
+    QLocalSocket *socket = qobject_cast<QLocalSocket*>(sender());
+    if (socket) {
+        QDataStream stream(socket);
+        QStringList files;
+        stream >> files;
+        std::cout << "Received files from new instance: " << files.join(", ").toStdString() << std::endl;
+        processFiles(files);
+    }
+}
