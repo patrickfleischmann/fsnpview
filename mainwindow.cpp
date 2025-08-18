@@ -118,9 +118,12 @@ void MainWindow::readyRead()
     QLocalSocket *socket = qobject_cast<QLocalSocket*>(sender());
     if (socket) {
         QDataStream stream(socket);
+        stream.startTransaction();
         QStringList files;
         stream >> files;
-        std::cout << "Received files from new instance: " << files.join(", ").toStdString() << std::endl;
-        processFiles(files);
+        if (stream.commitTransaction()) {
+            std::cout << "Received files from new instance: " << files.join(", ").toStdString() << std::endl;
+            processFiles(files);
+        }
     }
 }
