@@ -80,3 +80,7 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+
+# My additions
+fsnpview
+moc_predefs.h
