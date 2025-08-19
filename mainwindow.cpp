@@ -128,3 +128,21 @@ void MainWindow::readyRead()
         }
     }
 }
+
+void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxCursor1_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxCurosr2_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
