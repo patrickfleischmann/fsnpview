@@ -18,21 +18,34 @@
     <item row="0" column="1">
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QCheckBox" name="checkBox">
+       <widget class="QPushButton" name="pushButtonAutoscale">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Autoscale</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxCursorA">
         <property name="text">
          <string>Cursor A</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkBox_2">
+       <widget class="QCheckBox" name="checkBoxCursorB">
         <property name="text">
          <string>Cursor B</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkBox_3">
+       <widget class="QCheckBox" name="checkBoxLegend">
         <property name="text">
          <string>Legend</string>
         </property>
@@ -52,19 +65,6 @@
        </spacer>
       </item>
      </layout>
-    </item>
-    <item row="1" column="0">
-     <widget class="QPushButton" name="pushButtonPlot">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>Plot</string>
-      </property>
-     </widget>
     </item>
     <item row="1" column="1">
      <widget class="QCustomPlot" name="widgetGraph" native="true">

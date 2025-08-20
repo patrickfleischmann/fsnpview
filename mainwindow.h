@@ -33,6 +33,12 @@ private slots:
     void newConnection();
     void readyRead();
 
+    void on_checkBoxCursorA_checkStateChanged(const Qt::CheckState &arg1);
+
+    void on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1);
+
+    void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
+
 private:
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;

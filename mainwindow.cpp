@@ -44,12 +44,18 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->graph(graphCount)->setData(x, y);
     customPlot->graph(graphCount)->setAntialiased(true);
 
-    QPen pen;
-    pen.setColor(color);
-    customPlot->graph(graphCount)->setPen(pen);
+   // QPen pen;
+   // pen.setColor(color);
+    customPlot->graph(graphCount)->setPen(QPen(color,2));
 
     customPlot->xAxis->setLabel("Frequency");
     customPlot->yAxis->setLabel("S21 (dB)");
+
+    customPlot->xAxis->grid()->setPen(QPen(Qt::lightGray, 0)); //0 -> defaults to cosmetic pen -> always drawn with exactly 1 pixel
+    customPlot->yAxis->grid()->setPen(QPen(Qt::lightGray, 0));
+
+    customPlot->xAxis->grid()->setSubGridVisible(true);
+    customPlot->yAxis->grid()->setSubGridVisible(true);
 
     customPlot->rescaleAxes();
     customPlot->replot();
@@ -129,3 +135,21 @@ void MainWindow::readyRead()
         }
     }
 }
+
+void MainWindow::on_checkBoxCursorA_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
