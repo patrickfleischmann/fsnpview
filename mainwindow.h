@@ -11,6 +11,7 @@
 #include <memory>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QMouseEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -28,6 +29,12 @@ public:
     void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name);
     void processFiles(const QStringList &files);
 
+public slots:
+    void mousePress(QMouseEvent *event);
+    void mouseMove(QMouseEvent *event);
+    void mouseRelease(QMouseEvent *event);
+    void mouseDoubleClick(QMouseEvent *event);
+
 private slots:
     void on_pushButtonAutoscale_clicked();
     void newConnection();
@@ -43,5 +50,7 @@ private:
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
     QLocalServer *localServer;
+    bool mIsDragging;
+    QPointF mLastMousePos;
 };
 #endif // MAINWINDOW_H

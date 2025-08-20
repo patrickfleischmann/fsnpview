@@ -15,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , localServer(nullptr)
+    , mIsDragging(false)
 {
     ui->setupUi(this);
 
@@ -30,6 +31,11 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     connect(localServer, &QLocalServer::newConnection, this, &MainWindow::newConnection);
+
+    connect(ui->widgetGraph, &QCustomPlot::mousePress, this, &MainWindow::mousePress);
+    connect(ui->widgetGraph, &QCustomPlot::mouseMove, this, &MainWindow::mouseMove);
+    connect(ui->widgetGraph, &QCustomPlot::mouseRelease, this, &MainWindow::mouseRelease);
+    connect(ui->widgetGraph, &QCustomPlot::mouseDoubleClick, this, &MainWindow::mouseDoubleClick);
 }
 
 MainWindow::~MainWindow()
@@ -40,7 +46,7 @@ MainWindow::~MainWindow()
 void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
-    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+    customPlot->setInteractions(QCP::iRangeZoom | QCP::iSelectPlottables);
     customPlot->setSelectionRectMode(QCP::srmZoom);
 
     int graphCount = customPlot->graphCount();
@@ -164,3 +170,44 @@ void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
     ui->widgetGraph->replot();
 }
 
+void MainWindow::mousePress(QMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton)
+    {
+        mIsDragging = true;
+        mLastMousePos = event->pos();
+    }
+}
+
+void MainWindow::mouseMove(QMouseEvent *event)
+{
+    if (mIsDragging)
+    {
+        double x_diff = ui->widgetGraph->xAxis->pixelToCoord(mLastMousePos.x()) - ui->widgetGraph->xAxis->pixelToCoord(event->pos().x());
+        double y_diff = ui->widgetGraph->yAxis->pixelToCoord(mLastMousePos.y()) - ui->widgetGraph->yAxis->pixelToCoord(event->pos().y());
+
+        ui->widgetGraph->xAxis->moveRange(x_diff);
+        ui->widgetGraph->yAxis->moveRange(y_diff);
+
+        mLastMousePos = event->pos();
+
+        ui->widgetGraph->replot();
+    }
+}
+
+void MainWindow::mouseRelease(QMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton)
+    {
+        mIsDragging = false;
+    }
+}
+
+void MainWindow::mouseDoubleClick(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        ui->widgetGraph->rescaleAxes();
+        ui->widgetGraph->replot();
+    }
+}
