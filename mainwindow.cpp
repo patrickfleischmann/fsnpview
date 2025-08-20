@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "qcustomplot.h"
 #include <iostream>
 #include <Eigen/Dense>
 #include <math.h>
@@ -14,8 +15,19 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , localServer(nullptr)
+    , m_cursorA_ver_line(nullptr)
+    , m_cursorA_hor_line(nullptr)
+    , m_cursorA_text(nullptr)
+    , m_cursorA_graph(nullptr)
+    , m_cursorA_dragging(false)
+    , m_cursorB_ver_line(nullptr)
+    , m_cursorB_hor_line(nullptr)
+    , m_cursorB_text(nullptr)
+    , m_cursorB_graph(nullptr)
+    , m_cursorB_dragging(false)
 {
     ui->setupUi(this);
+    ui->widgetGraph->installEventFilter(this);
 
     const QString serverName = "fsnpview-server";
     localServer = new QLocalServer(this);
@@ -138,13 +150,81 @@ void MainWindow::readyRead()
 
 void MainWindow::on_checkBoxCursorA_checkStateChanged(const Qt::CheckState &arg1)
 {
+    if (arg1 == Qt::Checked) {
+        if (ui->widgetGraph->graphCount() == 0) {
+            ui->checkBoxCursorA->setChecked(false);
+            return;
+        }
 
+        // The cursor will be attached to the selected graph, or the first graph if none is selected.
+        QList<QCPGraph*> selected_graphs = ui->widgetGraph->selectedGraphs();
+        if (!selected_graphs.empty()) {
+            m_cursorA_graph = selected_graphs.first();
+        } else {
+            m_cursorA_graph = ui->widgetGraph->graph(0);
+        }
+
+        m_cursorA_ver_line = new QCPItemLine(ui->widgetGraph);
+        m_cursorA_hor_line = new QCPItemLine(ui->widgetGraph);
+        m_cursorA_text = new QCPItemText(ui->widgetGraph);
+
+        m_cursorA_ver_line->setPen(QPen(Qt::red));
+        m_cursorA_hor_line->setPen(QPen(Qt::red));
+        m_cursorA_text->setColor(Qt::red);
+        m_cursorA_text->setFont(QFont(font().family(), 8));
+        m_cursorA_text->setPen(QPen(Qt::black));
+
+        double initial_x = ui->widgetGraph->xAxis->range().center();
+        updateCursor(m_cursorA_graph, m_cursorA_ver_line, m_cursorA_hor_line, m_cursorA_text, initial_x);
+        ui->widgetGraph->replot();
+
+    } else {
+        if (m_cursorA_ver_line) { ui->widgetGraph->removeItem(m_cursorA_ver_line); m_cursorA_ver_line = nullptr; }
+        if (m_cursorA_hor_line) { ui->widgetGraph->removeItem(m_cursorA_hor_line); m_cursorA_hor_line = nullptr; }
+        if (m_cursorA_text) { ui->widgetGraph->removeItem(m_cursorA_text); m_cursorA_text = nullptr; }
+        m_cursorA_graph = nullptr;
+        ui->widgetGraph->replot();
+    }
 }
 
 
 void MainWindow::on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1)
 {
+    if (arg1 == Qt::Checked) {
+        if (ui->widgetGraph->graphCount() == 0) {
+            ui->checkBoxCursorB->setChecked(false);
+            return;
+        }
 
+        // The cursor will be attached to the selected graph, or the first graph if none is selected.
+        QList<QCPGraph*> selected_graphs = ui->widgetGraph->selectedGraphs();
+        if (!selected_graphs.empty()) {
+            m_cursorB_graph = selected_graphs.first();
+        } else {
+            m_cursorB_graph = ui->widgetGraph->graph(0);
+        }
+
+        m_cursorB_ver_line = new QCPItemLine(ui->widgetGraph);
+        m_cursorB_hor_line = new QCPItemLine(ui->widgetGraph);
+        m_cursorB_text = new QCPItemText(ui->widgetGraph);
+
+        m_cursorB_ver_line->setPen(QPen(Qt::blue));
+        m_cursorB_hor_line->setPen(QPen(Qt::blue));
+        m_cursorB_text->setColor(Qt::blue);
+        m_cursorB_text->setFont(QFont(font().family(), 8));
+        m_cursorB_text->setPen(QPen(Qt::black));
+
+        double initial_x = ui->widgetGraph->xAxis->range().center();
+        updateCursor(m_cursorB_graph, m_cursorB_ver_line, m_cursorB_hor_line, m_cursorB_text, initial_x);
+        ui->widgetGraph->replot();
+
+    } else {
+        if (m_cursorB_ver_line) { ui->widgetGraph->removeItem(m_cursorB_ver_line); m_cursorB_ver_line = nullptr; }
+        if (m_cursorB_hor_line) { ui->widgetGraph->removeItem(m_cursorB_hor_line); m_cursorB_hor_line = nullptr; }
+        if (m_cursorB_text) { ui->widgetGraph->removeItem(m_cursorB_text); m_cursorB_text = nullptr; }
+        m_cursorB_graph = nullptr;
+        ui->widgetGraph->replot();
+    }
 }
 
 
@@ -153,3 +233,74 @@ void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
 
 }
 
+void MainWindow::updateCursor(QCPGraph *graph, QCPItemLine *ver_line, QCPItemLine *hor_line, QCPItemText *text, double x)
+{
+    QCustomPlot *customPlot = graph->parentPlot();
+    if (!customPlot) return;
+
+    QCPGraphDataContainer::const_iterator it = graph->data()->findBegin(x);
+    double y = 0;
+    if (it != graph->data()->constEnd()) {
+        if (it == graph->data()->constBegin()) {
+            y = it->value;
+        } else {
+            QCPGraphDataContainer::const_iterator itLeft = it - 1;
+            if (it->key - itLeft->key > 0) {
+                y = itLeft->value + (x - itLeft->key)*(it->value - itLeft->value)/(it->key - itLeft->key);
+            } else {
+                y = it->value;
+            }
+        }
+    }
+
+    ver_line->start->setCoords(x, customPlot->yAxis->range().lower);
+    ver_line->end->setCoords(x, customPlot->yAxis->range().upper);
+
+    hor_line->start->setCoords(customPlot->xAxis->range().lower, y);
+    hor_line->end->setCoords(customPlot->xAxis->range().upper, y);
+
+    text->setText(QString::number(y, 'f', 2));
+    text->position->setCoords(x, y);
+    text->setTextAlignment(Qt::AlignLeft | Qt::AlignBottom);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == ui->widgetGraph) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+            double x = ui->widgetGraph->xAxis->pixelToCoord(mouseEvent->pos().x());
+
+            if (ui->checkBoxCursorA->isChecked() && m_cursorA_ver_line) {
+                if (qAbs(x - m_cursorA_ver_line->start->coords().x()) < (ui->widgetGraph->xAxis->pixelToCoord(5) - ui->widgetGraph->xAxis->pixelToCoord(0))) {
+                    m_cursorA_dragging = true;
+                    return true;
+                }
+            }
+            if (ui->checkBoxCursorB->isChecked() && m_cursorB_ver_line) {
+                if (qAbs(x - m_cursorB_ver_line->start->coords().x()) < (ui->widgetGraph->xAxis->pixelToCoord(5) - ui->widgetGraph->xAxis->pixelToCoord(0))) {
+                    m_cursorB_dragging = true;
+                    return true;
+                }
+            }
+        } else if (event->type() == QEvent::MouseMove) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+            if (m_cursorA_dragging) {
+                double x = ui->widgetGraph->xAxis->pixelToCoord(mouseEvent->pos().x());
+                updateCursor(m_cursorA_graph, m_cursorA_ver_line, m_cursorA_hor_line, m_cursorA_text, x);
+                ui->widgetGraph->replot();
+                return true;
+            }
+            if (m_cursorB_dragging) {
+                double x = ui->widgetGraph->xAxis->pixelToCoord(mouseEvent->pos().x());
+                updateCursor(m_cursorB_graph, m_cursorB_ver_line, m_cursorB_hor_line, m_cursorB_text, x);
+                ui->widgetGraph->replot();
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            m_cursorA_dragging = false;
+            m_cursorB_dragging = false;
+        }
+    }
+    return QObject::eventFilter(obj, event);
+}
