@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <math.h>
 #include <QVector>
+#include <QFileInfo>
 #include "parser_touchstone.h"
 
 using namespace Eigen;
@@ -16,6 +17,9 @@ MainWindow::MainWindow(QWidget *parent)
     , localServer(nullptr)
 {
     ui->setupUi(this);
+
+    ui->widgetGraph->legend->setVisible(false);
+    ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems);
 
     const QString serverName = "fsnpview-server";
     localServer = new QLocalServer(this);
@@ -33,7 +37,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color)
+void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
     customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
@@ -47,6 +51,8 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
    // QPen pen;
    // pen.setColor(color);
     customPlot->graph(graphCount)->setPen(QPen(color,2));
+    customPlot->graph(graphCount)->setName(name);
+    customPlot->graph(graphCount)->addToLegend();
 
     customPlot->xAxis->setLabel("Frequency");
     customPlot->yAxis->setLabel("S21 (dB)");
@@ -81,7 +87,11 @@ void MainWindow::processFiles(const QStringList &files)
 
     for (int i = 0; i < files.size(); ++i) {
         try {
-            std::string path = files.at(i).toStdString();
+            QString s_path = files.at(i);
+            QFileInfo fileInfo(s_path);
+            QString filename = fileInfo.fileName();
+
+            std::string path = s_path.toStdString();
             auto data = std::make_unique<ts::TouchstoneData>(ts::parse_touchstone(path));
 
             Eigen::ArrayXd xValues = data->freq;
@@ -95,7 +105,7 @@ void MainWindow::processFiles(const QStringList &files)
 
             QColor color = colors.at(parsed_data.size() % colors.size());
 
-            plot(xValuesQVector, yValuesQVector, color);
+            plot(xValuesQVector, yValuesQVector, color, filename);
 
             parsed_data[path] = std::move(data);
         } catch (const std::exception& e) {
@@ -150,6 +160,7 @@ void MainWindow::on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1
 
 void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
 {
-
+    ui->widgetGraph->legend->setVisible(arg1 == Qt::Checked);
+    ui->widgetGraph->replot();
 }
 

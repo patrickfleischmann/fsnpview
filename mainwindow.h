@@ -25,7 +25,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name);
     void processFiles(const QStringList &files);
 
 private slots:
