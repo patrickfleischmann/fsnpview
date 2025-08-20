@@ -74,7 +74,8 @@ void MainWindow::on_pushButtonPlot_clicked()
 
     QCustomPlot *customPlot=ui->widgetGraph;
 
-    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+    customPlot->setSelectionRectMode(QCP::srmZoom);
     //customPlot->axisRect()->setupFullAxesBox(); // Optional: to show full axes box
 
     // create graph and assign data to it:

@@ -21,7 +21,7 @@ HEADERS += \
 FORMS += \
     mainwindow.ui
 
-INCLUDEPATH += "C:\home\projekte\Qt\eigen-3.4.0"
+INCLUDEPATH += /usr/include/eigen3
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
