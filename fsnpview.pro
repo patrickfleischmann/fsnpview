@@ -1,8 +1,10 @@
-QT       += core gui
+
+
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
-CONFIG += c++17
+CONFIG += c++17 console
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -11,7 +13,8 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    qcustomplot.cpp
+    qcustomplot.cpp \
+    parser_touchstone.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -21,6 +24,7 @@ HEADERS += \
 FORMS += \
     mainwindow.ui
 
+INCLUDEPATH += /usr/include/eigen3
 INCLUDEPATH += "C:\home\projekte\Qt\eigen-3.4.0"
 
 # Default rules for deployment.
