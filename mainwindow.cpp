@@ -32,6 +32,36 @@ MainWindow::MainWindow(QWidget *parent)
     connect(localServer, &QLocalServer::newConnection, this, &MainWindow::newConnection);
 
     connect(ui->widgetGraph, &QCustomPlot::mouseDoubleClick, this, &MainWindow::mouseDoubleClick);
+    connect(ui->widgetGraph, &QCustomPlot::mousePress, this, &MainWindow::mousePress);
+    connect(ui->widgetGraph, &QCustomPlot::mouseMove, this, &MainWindow::mouseMove);
+    connect(ui->widgetGraph, &QCustomPlot::mouseRelease, this, &MainWindow::mouseRelease);
+
+    mTracerA = new QCPItemTracer(ui->widgetGraph);
+    mTracerA->setPen(QPen(Qt::red));
+    mTracerA->setBrush(Qt::NoBrush);
+    mTracerA->setStyle(QCPItemTracer::tsCrosshair);
+    mTracerA->setVisible(false);
+    mTracerA->setInterpolating(true);
+
+    mTracerTextA = new QCPItemText(ui->widgetGraph);
+    mTracerTextA->setColor(Qt::red);
+    mTracerTextA->setVisible(false);
+    mTracerTextA->setBrush(QColor(255, 255, 255, 190));
+
+
+    mTracerB = new QCPItemTracer(ui->widgetGraph);
+    mTracerB->setPen(QPen(Qt::blue));
+    mTracerB->setBrush(Qt::NoBrush);
+    mTracerB->setStyle(QCPItemTracer::tsCrosshair);
+    mTracerB->setVisible(false);
+    mTracerB->setInterpolating(true);
+
+    mTracerTextB = new QCPItemText(ui->widgetGraph);
+    mTracerTextB->setColor(Qt::blue);
+    mTracerTextB->setVisible(false);
+    mTracerTextB->setBrush(QColor(255, 255, 255, 190));
+
+    mDraggedTracer = nullptr;
 }
 
 MainWindow::~MainWindow()
@@ -116,6 +146,7 @@ void MainWindow::processFiles(const QStringList &files)
             std::cerr << "Error processing file " << files.at(i).toStdString() << ": " << e.what() << std::endl;
         }
     }
+
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
@@ -150,19 +181,51 @@ void MainWindow::readyRead()
     }
 }
 
-void MainWindow::on_checkBoxCursorA_checkStateChanged(const Qt::CheckState &arg1)
+void MainWindow::on_checkBoxCursorA_stateChanged(int arg1)
 {
+    if (ui->widgetGraph->graphCount() == 0)
+    {
+        ui->checkBoxCursorA->setCheckState(Qt::Unchecked);
+        return;
+    }
 
+    mTracerA->setVisible(arg1 == Qt::Checked);
+    mTracerTextA->setVisible(arg1 == Qt::Checked);
+
+    if (arg1 == Qt::Checked)
+    {
+        QCPGraph *graph = ui->widgetGraph->graph(0);
+        mTracerA->setGraph(graph);
+        mTracerA->setGraphKey(ui->widgetGraph->xAxis->range().center());
+        updateTracerText(mTracerA, mTracerTextA);
+    }
+    ui->widgetGraph->replot();
 }
 
 
-void MainWindow::on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1)
+void MainWindow::on_checkBoxCursorB_stateChanged(int arg1)
 {
+    if (ui->widgetGraph->graphCount() == 0)
+    {
+        ui->checkBoxCursorB->setCheckState(Qt::Unchecked);
+        return;
+    }
 
+    mTracerB->setVisible(arg1 == Qt::Checked);
+    mTracerTextB->setVisible(arg1 == Qt::Checked);
+
+    if (arg1 == Qt::Checked)
+    {
+        QCPGraph *graph = ui->widgetGraph->graph(0);
+        mTracerB->setGraph(graph);
+        mTracerB->setGraphKey(ui->widgetGraph->xAxis->range().center());
+        updateTracerText(mTracerB, mTracerTextB);
+    }
+    ui->widgetGraph->replot();
 }
 
 
-void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
+void MainWindow::on_checkBoxLegend_stateChanged(int arg1)
 {
     ui->widgetGraph->legend->setVisible(arg1 == Qt::Checked);
     ui->widgetGraph->replot();
@@ -175,4 +238,69 @@ void MainWindow::mouseDoubleClick(QMouseEvent *event)
         ui->widgetGraph->rescaleAxes();
         ui->widgetGraph->replot();
     }
+}
+
+void MainWindow::mousePress(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        if (mTracerA->visible())
+        {
+            double x_px = mTracerA->position->pixelPosition().x();
+            if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
+            {
+                mDraggedTracer = mTracerA;
+                return;
+            }
+        }
+        if (mTracerB->visible())
+        {
+            double x_px = mTracerB->position->pixelPosition().x();
+            if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
+            {
+                mDraggedTracer = mTracerB;
+                return;
+            }
+        }
+    }
+}
+
+void MainWindow::mouseMove(QMouseEvent *event)
+{
+    if (mDraggedTracer)
+    {
+        double key = ui->widgetGraph->xAxis->pixelToCoord(event->pos().x());
+        mDraggedTracer->setGraphKey(key);
+
+        if (mDraggedTracer == mTracerA)
+            updateTracerText(mTracerA, mTracerTextA);
+        else if (mDraggedTracer == mTracerB)
+            updateTracerText(mTracerB, mTracerTextB);
+
+        ui->widgetGraph->replot();
+    }
+}
+
+void MainWindow::mouseRelease(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        mDraggedTracer = nullptr;
+    }
+}
+
+void MainWindow::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
+{
+    if (!tracer->visible() || !tracer->graph())
+        return;
+
+    tracer->updatePosition();
+    double key = tracer->position->coords().x();
+    double value = tracer->position->coords().y();
+
+    text->setText(QString::number(value, 'f', 2));
+    text->position->setCoords(key, value);
+    text->position->setType(QCPItemPosition::ptPlotCoords);
+    text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    text->setPadding(QMargins(5, 0, 0, 0));
 }
