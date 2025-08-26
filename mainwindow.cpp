@@ -62,6 +62,7 @@ MainWindow::MainWindow(QWidget *parent)
     mTracerTextB->setBrush(QColor(255, 255, 255, 190));
 
     mDraggedTracer = nullptr;
+    mDragMode = DragMode::None;
 }
 
 MainWindow::~MainWindow()
@@ -225,7 +226,7 @@ void MainWindow::on_checkBoxCursorB_stateChanged(int arg1)
 }
 
 
-void MainWindow::on_checkBoxLegend_stateChanged(int arg1)
+void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
 {
     ui->widgetGraph->legend->setVisible(arg1 == Qt::Checked);
     ui->widgetGraph->replot();
@@ -244,35 +245,44 @@ void MainWindow::mousePress(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
+        mDraggedTracer = nullptr;
+        mDragMode = DragMode::None;
 
-        QCPItemTracer* tracer = nullptr;
-
+        // Check for tracer A
         if (mTracerA->visible())
         {
-            double x_px = mTracerA->position->pixelPosition().x();
-            if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
+            const QPointF tracerPos = mTracerA->position->pixelPosition();
+            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
             {
-
-                tracer = mTracerA;
+                mDraggedTracer = mTracerA;
+                mDragMode = DragMode::Vertical;
+            }
+            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
+            {
+                mDraggedTracer = mTracerA;
+                mDragMode = DragMode::Horizontal;
             }
         }
-        if (!tracer && mTracerB->visible())
-
+        // Check for tracer B if A was not hit
+        if (!mDraggedTracer && mTracerB->visible())
         {
-            double x_px = mTracerB->position->pixelPosition().x();
-            if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
+            const QPointF tracerPos = mTracerB->position->pixelPosition();
+            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
             {
-
-                tracer = mTracerB;
+                mDraggedTracer = mTracerB;
+                mDragMode = DragMode::Vertical;
+            }
+            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
+            {
+                mDraggedTracer = mTracerB;
+                mDragMode = DragMode::Horizontal;
             }
         }
 
-        if (tracer)
+        if (mDraggedTracer)
         {
-            mDraggedTracer = tracer;
             ui->widgetGraph->setSelectionRectMode(QCP::srmNone);
         }
-
     }
 }
 
@@ -280,8 +290,21 @@ void MainWindow::mouseMove(QMouseEvent *event)
 {
     if (mDraggedTracer)
     {
-        double key = ui->widgetGraph->xAxis->pixelToCoord(event->pos().x());
-        mDraggedTracer->setGraphKey(key);
+        if (mDragMode == DragMode::Vertical)
+        {
+            double key = ui->widgetGraph->xAxis->pixelToCoord(event->pos().x());
+            mDraggedTracer->setGraphKey(key);
+        }
+        else if (mDragMode == DragMode::Horizontal)
+        {
+            QCPGraph *graph = qobject_cast<QCPGraph*>(ui->widgetGraph->plottableAt(event->pos(), true));
+            if (graph && graph != mDraggedTracer->graph())
+            {
+                mDraggedTracer->setGraph(graph);
+            }
+            double key = ui->widgetGraph->xAxis->pixelToCoord(event->pos().x());
+            mDraggedTracer->setGraphKey(key);
+        }
 
         if (mDraggedTracer == mTracerA)
             updateTracerText(mTracerA, mTracerTextA);
@@ -296,13 +319,12 @@ void MainWindow::mouseRelease(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-
         if (mDraggedTracer)
         {
             mDraggedTracer = nullptr;
+            mDragMode = DragMode::None;
             ui->widgetGraph->setSelectionRectMode(QCP::srmZoom);
         }
-
     }
 }
 
