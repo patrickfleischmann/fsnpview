@@ -19,6 +19,9 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+class QCPItemTracer;
+class QCPItemText;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -31,21 +34,30 @@ public:
 
 public slots:
     void mouseDoubleClick(QMouseEvent *event);
+    void mousePress(QMouseEvent *event);
+    void mouseMove(QMouseEvent *event);
+    void mouseRelease(QMouseEvent *event);
 
 private slots:
     void on_pushButtonAutoscale_clicked();
     void newConnection();
     void readyRead();
 
-    void on_checkBoxCursorA_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxCursorA_stateChanged(int arg1);
 
-    void on_checkBoxCursorB_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxCursorB_stateChanged(int arg1);
 
-    void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxLegend_stateChanged(int arg1);
 
 private:
+    void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
     QLocalServer *localServer;
+    QCPItemTracer *mTracerA;
+    QCPItemText *mTracerTextA;
+    QCPItemTracer *mTracerB;
+    QCPItemText *mTracerTextB;
+    QCPItemTracer *mDraggedTracer;
 };
 #endif // MAINWINDOW_H
