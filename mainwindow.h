@@ -47,9 +47,10 @@ private slots:
 
     void on_checkBoxCursorB_stateChanged(int arg1);
 
-    void on_checkBoxLegend_stateChanged(int arg1);
+    void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
 
 private:
+    enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
@@ -59,5 +60,6 @@ private:
     QCPItemTracer *mTracerB;
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
+    DragMode mDragMode;
 };
 #endif // MAINWINDOW_H
