@@ -244,24 +244,35 @@ void MainWindow::mousePress(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
+
+        QCPItemTracer* tracer = nullptr;
+
         if (mTracerA->visible())
         {
             double x_px = mTracerA->position->pixelPosition().x();
             if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
             {
-                mDraggedTracer = mTracerA;
-                return;
+
+                tracer = mTracerA;
             }
         }
-        if (mTracerB->visible())
+        if (!tracer && mTracerB->visible())
+
         {
             double x_px = mTracerB->position->pixelPosition().x();
             if (qAbs(event->pos().x() - x_px) < 5) // 5px tolerance
             {
-                mDraggedTracer = mTracerB;
-                return;
+
+                tracer = mTracerB;
             }
         }
+
+        if (tracer)
+        {
+            mDraggedTracer = tracer;
+            ui->widgetGraph->setSelectionRectMode(QCP::srmNone);
+        }
+
     }
 }
 
@@ -285,7 +296,13 @@ void MainWindow::mouseRelease(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        mDraggedTracer = nullptr;
+
+        if (mDraggedTracer)
+        {
+            mDraggedTracer = nullptr;
+            ui->widgetGraph->setSelectionRectMode(QCP::srmZoom);
+        }
+
     }
 }
 
