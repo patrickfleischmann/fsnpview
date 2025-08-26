@@ -30,9 +30,6 @@ public:
     void processFiles(const QStringList &files);
 
 public slots:
-    void mousePress(QMouseEvent *event);
-    void mouseMove(QMouseEvent *event);
-    void mouseRelease(QMouseEvent *event);
     void mouseDoubleClick(QMouseEvent *event);
 
 private slots:
@@ -50,7 +47,5 @@ private:
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
     QLocalServer *localServer;
-    bool mIsDragging;
-    QPointF mLastMousePos;
 };
 #endif // MAINWINDOW_H

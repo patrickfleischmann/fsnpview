@@ -13625,6 +13625,8 @@ QCustomPlot::QCustomPlot(QWidget *parent) :
   mReplotQueued(false),
   mReplotTime(0),
   mReplotTimeAverage(0),
+  mRangeDragButton(Qt::LeftButton),
+  mSelectionRectButton(Qt::LeftButton),
   mOpenGlMultisamples(16),
   mOpenGlAntialiasedElementsBackup(QCP::aeNone),
   mOpenGlCacheLabelsBackup(true)
@@ -13984,7 +13986,7 @@ void QCustomPlot::setSelectionRectMode(QCP::SelectionRectMode mode)
   {
     if (mode == QCP::srmNone)
       mSelectionRect->cancel(); // when switching to none, we immediately want to abort a potentially active selection rect
-    
+
     // disconnect old connections:
     if (mSelectionRectMode == QCP::srmSelect)
       disconnect(mSelectionRect, SIGNAL(accepted(QRect,QMouseEvent*)), this, SLOT(processRectSelection(QRect,QMouseEvent*)));
@@ -13999,6 +14001,26 @@ void QCustomPlot::setSelectionRectMode(QCP::SelectionRectMode mode)
   }
   
   mSelectionRectMode = mode;
+}
+
+/*!
+  Sets the mouse button that is used to drag axis ranges.
+
+  \see setSelectionRectButton, setInteractions
+*/
+void QCustomPlot::setRangeDragButton(Qt::MouseButton button)
+{
+  mRangeDragButton = button;
+}
+
+/*!
+  Sets the mouse button that is used to create a selection rect.
+
+  \see setRangeDragButton, setSelectionRectMode
+*/
+void QCustomPlot::setSelectionRectButton(Qt::MouseButton button)
+{
+  mSelectionRectButton = button;
 }
 
 /*!
@@ -15580,7 +15602,7 @@ void QCustomPlot::mousePressEvent(QMouseEvent *event)
   mMouseHasMoved = false;
   mMousePressPos = event->pos();
   
-  if (mSelectionRect && mSelectionRectMode != QCP::srmNone)
+  if (mSelectionRect && mSelectionRectMode != QCP::srmNone && event->button() == mSelectionRectButton)
   {
     if (mSelectionRectMode != QCP::srmZoom || qobject_cast<QCPAxisRect*>(axisRectAt(mMousePressPos))) // in zoom mode only activate selection rect if on an axis rect
       mSelectionRect->startSelection(event);
@@ -18543,7 +18565,7 @@ void QCPAxisRect::layoutChanged()
 void QCPAxisRect::mousePressEvent(QMouseEvent *event, const QVariant &details)
 {
   Q_UNUSED(details)
-  if (event->buttons() & Qt::LeftButton)
+  if (event->button() == mParentPlot->rangeDragButton())
   {
     mDragging = true;
     // initialize antialiasing backup in case we start dragging:
