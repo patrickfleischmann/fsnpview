@@ -47,7 +47,7 @@ private slots:
 
     void on_checkBoxCursorB_stateChanged(int arg1);
 
-    void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxLegend_stateChanged(int arg1);
 
 private:
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
