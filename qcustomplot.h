@@ -3845,8 +3845,10 @@ public:
   Qt::KeyboardModifier multiSelectModifier() const { return mMultiSelectModifier; }
   QCP::SelectionRectMode selectionRectMode() const { return mSelectionRectMode; }
   QCPSelectionRect *selectionRect() const { return mSelectionRect; }
+  Qt::MouseButton rangeDragButton() const { return mRangeDragButton; }
+  Qt::MouseButton selectionRectButton() const { return mSelectionRectButton; }
   bool openGl() const { return mOpenGl; }
-  
+
   // setters:
   void setViewport(const QRect &rect);
   void setBufferDevicePixelRatio(double ratio);
@@ -3869,8 +3871,10 @@ public:
   void setMultiSelectModifier(Qt::KeyboardModifier modifier);
   void setSelectionRectMode(QCP::SelectionRectMode mode);
   void setSelectionRect(QCPSelectionRect *selectionRect);
+  void setRangeDragButton(Qt::MouseButton button);
+  void setSelectionRectButton(Qt::MouseButton button);
   void setOpenGl(bool enabled, int multisampling=16);
-  
+
   // non-property methods:
   // plottable interface:
   QCPAbstractPlottable *plottable(int index);
@@ -3989,8 +3993,10 @@ protected:
   Qt::KeyboardModifier mMultiSelectModifier;
   QCP::SelectionRectMode mSelectionRectMode;
   QCPSelectionRect *mSelectionRect;
+  Qt::MouseButton mRangeDragButton;
+  Qt::MouseButton mSelectionRectButton;
   bool mOpenGl;
-  
+
   // non-property members:
   QList<QSharedPointer<QCPAbstractPaintBuffer> > mPaintBuffers;
   QPoint mMousePressPos;
