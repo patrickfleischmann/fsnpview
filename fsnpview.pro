@@ -32,6 +32,7 @@ win32 {
        # QMAKE_POST_LINK = windeployqt --compiler-runtime --release "C:\home\projekte\Qt\fsnpview\build\fsnpview"
         DESTDIR = $$PWD/bin
         QMAKE_POST_LINK +=  windeployqt --compiler-runtime --release $$shell_path($$DESTDIR/$${TARGET}.exe) $$escape_expand(\n\t)
+        RC_ICONS = fsnpview.ico
     }
 }
 unix {
