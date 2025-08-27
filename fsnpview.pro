@@ -4,7 +4,8 @@ QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
-CONFIG += c++17 console
+#add console for debut outputs with release
+CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -24,7 +25,18 @@ HEADERS += \
 FORMS += \
     mainwindow.ui
 
-INCLUDEPATH += /usr/include/eigen3
+
+win32 {
+    INCLUDEPATH += C:\home\projekte\Qt\eigen-3.4.0
+    release {
+       # QMAKE_POST_LINK = windeployqt --compiler-runtime --release "C:\home\projekte\Qt\fsnpview\build\fsnpview"
+        DESTDIR = $$PWD/bin
+        QMAKE_POST_LINK +=  windeployqt --compiler-runtime --release $$shell_path($$DESTDIR/$${TARGET}.exe) $$escape_expand(\n\t)
+    }
+}
+unix {
+    INCLUDEPATH += /usr/include/eigen3
+}
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

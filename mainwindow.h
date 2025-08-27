@@ -49,6 +49,8 @@ private slots:
 
     void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_checkBox_checkStateChanged(const Qt::CheckState &arg1);
+
 private:
     enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);

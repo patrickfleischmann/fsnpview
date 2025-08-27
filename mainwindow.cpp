@@ -225,7 +225,6 @@ void MainWindow::on_checkBoxCursorB_stateChanged(int arg1)
     ui->widgetGraph->replot();
 }
 
-
 void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
 {
     ui->widgetGraph->legend->setVisible(arg1 == Qt::Checked);
@@ -343,3 +342,18 @@ void MainWindow::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
     text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     text->setPadding(QMargins(5, 0, 0, 0));
 }
+
+void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
+{
+    if(arg1 == Qt::Checked){
+        std::cout << "set to freqLog" << std::endl;
+        ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLogarithmic);
+        //ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerLog>(new QCPAxisTickerLog));
+    } else {
+        std::cout << "set to freqLin" << std::endl;
+        ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLinear);
+        //ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerFixed>(new QCPAxisTickerFixed));
+    }
+    ui->widgetGraph->replot();
+}
+
