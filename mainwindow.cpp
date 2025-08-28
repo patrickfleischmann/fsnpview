@@ -199,9 +199,8 @@ void MainWindow::on_checkBoxCursorA_stateChanged(int arg1)
         QCPGraph *graph = ui->widgetGraph->graph(0);
         mTracerA->setGraph(graph);
         mTracerA->setGraphKey(ui->widgetGraph->xAxis->range().center());
-        updateTracerText(mTracerA, mTracerTextA);
     }
-    ui->widgetGraph->replot();
+    updateTracers();
 }
 
 
@@ -221,9 +220,8 @@ void MainWindow::on_checkBoxCursorB_stateChanged(int arg1)
         QCPGraph *graph = ui->widgetGraph->graph(0);
         mTracerB->setGraph(graph);
         mTracerB->setGraphKey(ui->widgetGraph->xAxis->range().center());
-        updateTracerText(mTracerB, mTracerTextB);
     }
-    ui->widgetGraph->replot();
+    updateTracers();
 }
 
 void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
@@ -306,12 +304,7 @@ void MainWindow::mouseMove(QMouseEvent *event)
             mDraggedTracer->setGraphKey(key);
         }
 
-        if (mDraggedTracer == mTracerA)
-            updateTracerText(mTracerA, mTracerTextA);
-        else if (mDraggedTracer == mTracerB)
-            updateTracerText(mTracerB, mTracerTextB);
-
-        ui->widgetGraph->replot();
+        updateTracers();
     }
 }
 
@@ -334,14 +327,36 @@ void MainWindow::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         return;
 
     tracer->updatePosition();
-    double freq = tracer->position->coords().x();
-    double value = tracer->position->coords().y();
+    double x = tracer->position->coords().x();
+    double y = tracer->position->coords().y();
 
-    text->setText(QString::number(freq, 'g', 4) + "Hz " + QString::number(value, 'f', 2));
-    text->position->setCoords(freq, value);
+    QString labelText = QString::number(x, 'g', 4) + "Hz " + QString::number(y, 'f', 2);
+
+    if (tracer == mTracerB && mTracerA->visible())
+    {
+        mTracerA->updatePosition();
+        double xA = mTracerA->position->coords().x();
+        double yA = mTracerA->position->coords().y();
+        double dx = x - xA;
+        double dy = y - yA;
+        labelText += QString("\nΔx: %1Hz\nΔy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
+    }
+
+    text->setText(labelText);
+    text->position->setCoords(x, y);
     text->position->setType(QCPItemPosition::ptPlotCoords);
     text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     text->setPadding(QMargins(5, 0, 0, 15));
+}
+
+void MainWindow::updateTracers()
+{
+    if (mTracerA && mTracerA->visible())
+        updateTracerText(mTracerA, mTracerTextA);
+    if (mTracerB && mTracerB->visible())
+        updateTracerText(mTracerB, mTracerTextB);
+
+    ui->widgetGraph->replot();
 }
 
 void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)

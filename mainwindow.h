@@ -63,6 +63,7 @@ private:
     void updateSparamPlot(const QString &paramName, int s_param_idx, const QColor &color, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
+    void updateTracers();
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
     QLocalServer *localServer;
