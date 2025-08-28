@@ -10,7 +10,6 @@
 using namespace Eigen;
 using ts::TouchstoneData;
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -20,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->widgetGraph->legend->setVisible(false);
     ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems);
+
+    ui->widgetGraph->setOpenGl(true);
 
     const QString serverName = "fsnpview-server";
     localServer = new QLocalServer(this);
@@ -37,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->widgetGraph, &QCustomPlot::mouseRelease, this, &MainWindow::mouseRelease);
 
     mTracerA = new QCPItemTracer(ui->widgetGraph);
-    mTracerA->setPen(QPen(Qt::red));
+    mTracerA->setPen(QPen(Qt::black,0));
     mTracerA->setBrush(Qt::NoBrush);
     mTracerA->setStyle(QCPItemTracer::tsCrosshair);
     mTracerA->setVisible(false);
@@ -46,11 +47,11 @@ MainWindow::MainWindow(QWidget *parent)
     mTracerTextA = new QCPItemText(ui->widgetGraph);
     mTracerTextA->setColor(Qt::red);
     mTracerTextA->setVisible(false);
-    mTracerTextA->setBrush(QColor(255, 255, 255, 190));
+   // mTracerTextA->setBrush(QColor(255, 255, 255, 190));
 
 
     mTracerB = new QCPItemTracer(ui->widgetGraph);
-    mTracerB->setPen(QPen(Qt::blue));
+    mTracerB->setPen(QPen(Qt::darkGray,0));
     mTracerB->setBrush(Qt::NoBrush);
     mTracerB->setStyle(QCPItemTracer::tsCrosshair);
     mTracerB->setVisible(false);
@@ -59,7 +60,7 @@ MainWindow::MainWindow(QWidget *parent)
     mTracerTextB = new QCPItemText(ui->widgetGraph);
     mTracerTextB->setColor(Qt::blue);
     mTracerTextB->setVisible(false);
-    mTracerTextB->setBrush(QColor(255, 255, 255, 190));
+    //mTracerTextB->setBrush(QColor(255, 255, 255, 190));
 
     mDraggedTracer = nullptr;
     mDragMode = DragMode::None;
@@ -85,7 +86,7 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
 
    // QPen pen;
    // pen.setColor(color);
-    customPlot->graph(graphCount)->setPen(QPen(color,2));
+    customPlot->graph(graphCount)->setPen(QPen(color,0));
     customPlot->graph(graphCount)->setName(name);
     customPlot->graph(graphCount)->addToLegend();
 
@@ -333,14 +334,14 @@ void MainWindow::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         return;
 
     tracer->updatePosition();
-    double key = tracer->position->coords().x();
+    double freq = tracer->position->coords().x();
     double value = tracer->position->coords().y();
 
-    text->setText(QString::number(value, 'f', 2));
-    text->position->setCoords(key, value);
+    text->setText(QString::number(freq, 'g', 4) + "Hz " + QString::number(value, 'f', 2));
+    text->position->setCoords(freq, value);
     text->position->setType(QCPItemPosition::ptPlotCoords);
     text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    text->setPadding(QMargins(5, 0, 0, 0));
+    text->setPadding(QMargins(5, 0, 0, 15));
 }
 
 void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
@@ -355,5 +356,29 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
         //ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerFixed>(new QCPAxisTickerFixed));
     }
     ui->widgetGraph->replot();
+}
+
+
+void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxS_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
+
+void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
+{
+
 }
 
