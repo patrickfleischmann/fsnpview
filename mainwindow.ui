@@ -31,6 +31,34 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxS11">
+        <property name="text">
+         <string>s11</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxS21">
+        <property name="text">
+         <string>s21</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxS12">
+        <property name="text">
+         <string>s12</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxS22">
+        <property name="text">
+         <string>s22</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxCursorA">
         <property name="text">
          <string>Cursor A</string>

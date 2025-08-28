@@ -359,26 +359,53 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 }
 
 
+void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const QColor &color, const Qt::CheckState &checkState)
+{
+    if (checkState == Qt::Checked) {
+        for (auto const& [path, data] : parsed_data) {
+            Eigen::ArrayXd xValues = data->freq;
+            Eigen::ArrayXd yValues = data->sparams.col(s_param_idx).abs().log10() * 20;
+
+            std::vector<double> xValuesStdVector(xValues.data(), xValues.data() + xValues.rows() * xValues.cols());
+            std::vector<double> yValuesStdVector(yValues.data(), yValues.data() + yValues.rows() * yValues.cols());
+
+            QVector<double> xValuesQVector = QVector<double>(xValuesStdVector.begin(), xValuesStdVector.end());
+            QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
+
+            QFileInfo fileInfo(QString::fromStdString(path));
+            QString filename = fileInfo.fileName();
+            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName);
+        }
+    } else {
+        for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+            if (ui->widgetGraph->graph(i)->name().endsWith(" " + paramName)) {
+                ui->widgetGraph->removeGraph(i);
+            }
+        }
+    }
+    ui->widgetGraph->replot();
+}
+
 void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
 {
-
+    updateSparamPlot("S11", 0, Qt::blue, arg1);
 }
 
 
 void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
 {
-
+    updateSparamPlot("S21", 1, Qt::red, arg1);
 }
 
 
-void MainWindow::on_checkBoxS_checkStateChanged(const Qt::CheckState &arg1)
+void MainWindow::on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1)
 {
-
+    updateSparamPlot("S12", 2, Qt::green, arg1);
 }
 
 
 void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 {
-
+    updateSparamPlot("S22", 3, Qt::black, arg1);
 }
 

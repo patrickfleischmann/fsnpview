@@ -51,7 +51,16 @@ private slots:
 
     void on_checkBox_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1);
+
+    void on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1);
+
+    void on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1);
+
+    void on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1);
+
 private:
+    void updateSparamPlot(const QString &paramName, int s_param_idx, const QColor &color, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     Ui::MainWindow *ui;
