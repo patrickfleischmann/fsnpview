@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QFileInfo>
 #include "parser_touchstone.h"
+#include "qcustomplot.h"
 
 using namespace Eigen;
 using ts::TouchstoneData;
@@ -16,11 +17,19 @@ MainWindow::MainWindow(QWidget *parent)
     , localServer(nullptr)
 {
     ui->setupUi(this);
+#ifdef QCUSTOMPLOT_USE_OPENGL
+    ui->widgetGraph->setOpenGl(true);
+#endif
+
+    if(ui->widgetGraph->openGl()){
+        std::cout << "openGl on" << std::endl;
+    } else {
+        std::cout << "openGl off" << std::endl;
+    }
 
     ui->widgetGraph->legend->setVisible(false);
     ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems);
 
-    ui->widgetGraph->setOpenGl(true);
 
     const QString serverName = "fsnpview-server";
     localServer = new QLocalServer(this);

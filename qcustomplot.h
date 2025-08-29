@@ -4007,7 +4007,8 @@ protected:
   QVariant mMouseSignalLayerableDetails;
   bool mReplotting;
   bool mReplotQueued;
-  double mReplotTime, mReplotTimeAverage;
+  double mReplotTime;
+  double mReplotTimeAverage;
   int mOpenGlMultisamples;
   QCP::AntialiasedElements mOpenGlAntialiasedElementsBackup;
   bool mOpenGlCacheLabelsBackup;

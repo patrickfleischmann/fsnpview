@@ -1,12 +1,16 @@
 
 
-QT       += core gui network opengl
+QT       += core gui network #openglwidgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
-#add console for debut outputs with release
+#add console for debug outputs with release
 CONFIG += c++17
-DEFINES += QCUSTOMPLOT_USE_OPENGL
+
+#DEFINES += QCUSTOMPLOT_USE_OPENGL
+#LIBS += -lopengl32
+
+QMAKE_CXXFLAGS += -Wa,-mbig-obj #fix "too many sections" error
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -15,8 +19,8 @@ DEFINES += QCUSTOMPLOT_USE_OPENGL
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    qcustomplot.cpp \
-    parser_touchstone.cpp
+    parser_touchstone.cpp \
+    qcustomplot.cpp
 
 HEADERS += \
     mainwindow.h \
