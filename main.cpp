@@ -6,6 +6,10 @@
 #include <QtSystemDetection>
 #include <QtGlobal>
 #include <windows.h>
+#include <chrono>
+#include <thread>
+
+using namespace std;
 
 #ifdef Q_OS_WIN
     #define OSWIN true
@@ -19,22 +23,23 @@ int main(int argc, char *argv[])
 
     bool isSecondInstance = true; //assume true to work on non-windows systems
 
-    // HANDLE hMutex;
-    // if (OSWIN){
-    //     //Using mutex should safer and may be faster for detecting other instances on windows
-    //     //using only the socket-server based method didnt entirely prevent multiple instances
-    //     hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
-    //     if (GetLastError() == ERROR_ALREADY_EXISTS) {
-    //         std::cout << "Another instance of the program is already running." << std::endl;
-    //     } else {
-    //         isSecondInstance = false;
-    //         std::cout << "This is the first instance" << std::endl;
-    //     }
-    // }
+    HANDLE hMutex;
+    if (OSWIN){
+        //Using mutex should safer and may be faster for detecting other instances on windows
+        //using only the socket-server based method didnt entirely prevent multiple instances
+        hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            std::cout << "Another instance of the program is already running." << std::endl;
+        } else {
+            isSecondInstance = false;
+            std::cout << "This is the first instance" << std::endl;
+        }
+    }
 
     if(isSecondInstance){
         const QString serverName = "fsnpview-server";
         QLocalSocket socket;
+        this_thread::sleep_for(chrono::milliseconds(100)); //debugging..
         socket.connectToServer(serverName);
 
         if (socket.waitForConnected(500)) {
@@ -51,6 +56,7 @@ int main(int argc, char *argv[])
             }
             return 0;
         }
+        return 1;
     }
 
     QApplication a(argc, argv);
@@ -63,8 +69,8 @@ int main(int argc, char *argv[])
 
     a.exec();
 
-    // ReleaseMutex(hMutex);
-    // CloseHandle(hMutex);
+    ReleaseMutex(hMutex);
+    CloseHandle(hMutex);
 
     return 0;
 }

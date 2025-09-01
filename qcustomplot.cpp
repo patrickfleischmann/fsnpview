@@ -32960,8 +32960,9 @@ QCPPolarAxisAngular::SelectablePart QCPPolarAxisAngular::getPartAt(const QPointF
 {
   Q_UNUSED(pos) // TODO remove later
   
-  if (!mVisible)
+  if (!mVisible) {
     return spNone;
+  }
   
   /*
     TODO:
@@ -32972,7 +32973,7 @@ QCPPolarAxisAngular::SelectablePart QCPPolarAxisAngular::getPartAt(const QPointF
   else if (mAxisPainter->labelSelectionBox().contains(pos.toPoint()))
     return spAxisLabel;
   else */
-    return spNone;
+  return spNone;
 }
 
 /* inherits documentation from base class */

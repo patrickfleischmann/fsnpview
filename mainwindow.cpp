@@ -91,7 +91,7 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(true);
+    customPlot->graph(graphCount)->setAntialiased(false);
 
    // QPen pen;
    // pen.setColor(color);
@@ -99,6 +99,8 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->graph(graphCount)->setName(name);
     customPlot->graph(graphCount)->addToLegend();
 
+    customPlot->xAxis->setNumberFormat("g");
+    customPlot->xAxis->setNumberPrecision(3);
     customPlot->xAxis->setLabel("Frequency");
     customPlot->yAxis->setLabel("S21 (dB)");
 

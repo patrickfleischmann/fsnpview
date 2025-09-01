@@ -6,6 +6,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 #add console for debug outputs with release
 CONFIG += c++17
+#CONFIG += console
 
 #DEFINES += QCUSTOMPLOT_USE_OPENGL
 #LIBS += -lopengl32
