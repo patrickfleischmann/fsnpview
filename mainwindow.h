@@ -29,7 +29,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style = Qt::SolidLine);
     void processFiles(const QStringList &files);
 
 public slots:
@@ -60,12 +60,13 @@ private slots:
     void on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1);
 
 private:
-    void updateSparamPlot(const QString &paramName, int s_param_idx, const QColor &color, const Qt::CheckState &checkState);
+    void updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
     Ui::MainWindow *ui;
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
+    std::map<std::string, QColor> m_file_colors;
     QLocalServer *localServer;
     QCPItemTracer *mTracerA;
     QCPItemText *mTracerTextA;

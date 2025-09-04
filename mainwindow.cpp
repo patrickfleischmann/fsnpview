@@ -56,7 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
     mTracerTextA = new QCPItemText(ui->widgetGraph);
     mTracerTextA->setColor(Qt::red);
     mTracerTextA->setVisible(false);
-   // mTracerTextA->setBrush(QColor(255, 255, 255, 190));
+    // mTracerTextA->setBrush(QColor(255, 255, 255, 190));
 
 
     mTracerB = new QCPItemTracer(ui->widgetGraph);
@@ -80,7 +80,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name)
+void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
     customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
@@ -93,9 +93,9 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->graph(graphCount)->setData(x, y);
     customPlot->graph(graphCount)->setAntialiased(false);
 
-   // QPen pen;
-   // pen.setColor(color);
-    customPlot->graph(graphCount)->setPen(QPen(color,0));
+    QPen pen(color,0);
+    pen.setStyle(style);
+    customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
     customPlot->graph(graphCount)->addToLegend();
 
@@ -151,6 +151,7 @@ void MainWindow::processFiles(const QStringList &files)
             QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
 
             QColor color = colors.at(parsed_data.size() % colors.size());
+            m_file_colors[path] = color;
 
             plot(xValuesQVector, yValuesQVector, color, filename);
 
@@ -385,7 +386,7 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 }
 
 
-void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const QColor &color, const Qt::CheckState &checkState)
+void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState)
 {
     if (checkState == Qt::Checked) {
         for (auto const& [path, data] : parsed_data) {
@@ -400,7 +401,18 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
 
             QFileInfo fileInfo(QString::fromStdString(path));
             QString filename = fileInfo.fileName();
-            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName);
+
+            QColor color = m_file_colors.at(path);
+            Qt::PenStyle style = Qt::SolidLine;
+            if (paramName == "S11") {
+                style = Qt::DashLine;
+            } else if (paramName == "S22") {
+                style = Qt::DotLine;
+            } else if (paramName == "S12") {
+                style = Qt::DashDotLine;
+            }
+
+            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName, style);
         }
     } else {
         for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
@@ -414,24 +426,23 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
 
 void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S11", 0, Qt::blue, arg1);
+    updateSparamPlot("S11", 0, arg1);
 }
 
 
 void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S21", 1, Qt::red, arg1);
+    updateSparamPlot("S21", 1, arg1);
 }
 
 
 void MainWindow::on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S12", 2, Qt::green, arg1);
+    updateSparamPlot("S12", 2, arg1);
 }
 
 
 void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S22", 3, Qt::black, arg1);
+    updateSparamPlot("S22", 3, arg1);
 }
-
