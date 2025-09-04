@@ -22,27 +22,11 @@ int main(int argc, char *argv[])
 {
     std::cout << "fsnpview start" << std::endl;
 
-    bool isSecondInstance = true; //assume true to work on non-windows systems
-
 #ifdef Q_OS_WIN
-    HANDLE hMutex;
-    if (OSWIN){
-        //Using mutex should safer and may be faster for detecting other instances on windows
-        //using only the socket-server based method didnt entirely prevent multiple instances
-        hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
-        if (GetLastError() == ERROR_ALREADY_EXISTS) {
-            std::cout << "Another instance of the program is already running." << std::endl;
-        } else {
-            isSecondInstance = false;
-            std::cout << "This is the first instance" << std::endl;
-        }
-    }
-#endif
-
-    if(isSecondInstance){
+    HANDLE hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
         const QString serverName = "fsnpview-server";
         QLocalSocket socket;
-        this_thread::sleep_for(chrono::milliseconds(100)); //debugging..
         socket.connectToServer(serverName);
 
         if (socket.waitForConnected(500)) {
@@ -57,10 +41,29 @@ int main(int argc, char *argv[])
                 socket.flush();
                 socket.waitForDisconnected();
             }
-            return 0;
         }
-        return 1;
+        return 0;
     }
+#else
+    const QString serverName = "fsnpview-server";
+    QLocalSocket socket;
+    socket.connectToServer(serverName);
+
+    if (socket.waitForConnected(500)) {
+        std::cout << "Sending arguments to first instance" << std::endl;
+        QDataStream stream(&socket);
+        QStringList args;
+        for (int i = 1; i < argc; ++i) {
+            args.append(QString::fromLocal8Bit(argv[i]));
+        }
+        stream << args;
+        if (socket.waitForBytesWritten()) {
+            socket.flush();
+            socket.waitForDisconnected();
+        }
+        return 0;
+    }
+#endif
 
     QApplication a(argc, argv);
     MainWindow w;
@@ -70,12 +73,12 @@ int main(int argc, char *argv[])
     args.removeFirst(); // remove the program name
     w.processFiles(args);
 
-    a.exec();
+    int result = a.exec();
 
 #ifdef Q_OS_WIN
     ReleaseMutex(hMutex);
     CloseHandle(hMutex);
 #endif
 
-    return 0;
+    return result;
 }
