@@ -12,6 +12,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMouseEvent>
+#include <QKeyEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -29,7 +30,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style = Qt::SolidLine);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, Qt::PenStyle style = Qt::SolidLine);
     void processFiles(const QStringList &files);
 
 public slots:
@@ -37,6 +38,9 @@ public slots:
     void mousePress(QMouseEvent *event);
     void mouseMove(QMouseEvent *event);
     void mouseRelease(QMouseEvent *event);
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void on_pushButtonAutoscale_clicked();
