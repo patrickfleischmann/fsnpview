@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include <iostream>
 #include <Eigen/Dense>
+#include <unsupported/Eigen/MatrixFunctions>
 #include <math.h>
 #include <QVector>
 #include <QFileInfo>
@@ -387,6 +388,25 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 }
 
 
+// Function to unwrap phase angles in an Eigen Array
+Eigen::ArrayXd unwrap(const Eigen::ArrayXd& phase)
+{
+    Eigen::ArrayXd unwrapped_phase = phase;
+    for (int i = 1; i < phase.size(); ++i) {
+        double diff = unwrapped_phase(i) - unwrapped_phase(i - 1);
+        if (diff > M_PI) {
+            for (int j = i; j < phase.size(); ++j) {
+                unwrapped_phase(j) -= 2 * M_PI;
+            }
+        } else if (diff < -M_PI) {
+            for (int j = i; j < phase.size(); ++j) {
+                unwrapped_phase(j) += 2 * M_PI;
+            }
+        }
+    }
+    return unwrapped_phase;
+}
+
 void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState)
 {
     for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
@@ -398,7 +418,20 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
     if (checkState == Qt::Checked) {
         for (auto const& [path, data] : parsed_data) {
             Eigen::ArrayXd xValues = data->freq;
-            Eigen::ArrayXd yValues = data->sparams.col(s_param_idx).abs().log10() * 20;
+            Eigen::ArrayXd yValues;
+
+            if (ui->checkBoxPhase->isChecked()) {
+                // Calculate phase in degrees
+                Eigen::ArrayXcd s_param_col = data->sparams.col(s_param_idx);
+                Eigen::ArrayXd phase_rad = s_param_col.arg();
+                Eigen::ArrayXd unwrapped_phase_rad = unwrap(phase_rad);
+                yValues = unwrapped_phase_rad * (180.0 / M_PI);
+                ui->widgetGraph->yAxis->setLabel("Phase (deg)");
+            } else {
+                // Calculate magnitude in dB
+                yValues = data->sparams.col(s_param_idx).abs().log10() * 20;
+                ui->widgetGraph->yAxis->setLabel("Amplitude (dB)");
+            }
 
             std::vector<double> xValuesStdVector(xValues.data(), xValues.data() + xValues.rows() * xValues.cols());
             std::vector<double> yValuesStdVector(yValues.data(), yValues.data() + yValues.rows() * yValues.cols());
@@ -450,5 +483,25 @@ void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 
 void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
 {
+    // When the phase checkbox is toggled, we need to replot all active s-params
+    updateSparamPlot("s11", 0, ui->checkBoxS11->checkState());
+    updateSparamPlot("s21", 1, ui->checkBoxS21->checkState());
+    updateSparamPlot("s12", 2, ui->checkBoxS12->checkState());
+    updateSparamPlot("s22", 3, ui->checkBoxS22->checkState());
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Delete) {
+        QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
+        if (!selection.isEmpty()) {
+            for (QCPAbstractPlottable* plottable : selection) {
+                ui->widgetGraph->removePlottable(plottable);
+            }
+            ui->widgetGraph->replot();
+        }
+    } else {
+        QMainWindow::keyPressEvent(event);
+    }
 }
 

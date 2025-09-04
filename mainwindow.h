@@ -12,6 +12,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMouseEvent>
+#include <QKeyEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -37,6 +38,9 @@ public slots:
     void mousePress(QMouseEvent *event);
     void mouseMove(QMouseEvent *event);
     void mouseRelease(QMouseEvent *event);
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void on_pushButtonAutoscale_clicked();
