@@ -82,7 +82,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style)
+void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, Qt::PenStyle style)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
     customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
@@ -94,6 +94,7 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
     customPlot->graph(graphCount)->setAntialiased(false);
+    customPlot->graph(graphCount)->setProperty("filePath", filePath);
 
     QPen pen(color,0);
     pen.setStyle(style);
@@ -155,7 +156,7 @@ void MainWindow::processFiles(const QStringList &files)
             QColor color = colors.at(parsed_data.size() % colors.size());
             m_file_colors[path] = color;
 
-            plot(xValuesQVector, yValuesQVector, color, filename + " s21");
+            plot(xValuesQVector, yValuesQVector, color, filename + " s21", s_path);
 
             parsed_data[path] = std::move(data);
         } catch (const std::exception& e) {
@@ -452,7 +453,7 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
                 style = Qt::DashDotLine;
             }
 
-            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName, style);
+            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName, QString::fromStdString(path), style);
         }
     }
     ui->widgetGraph->replot();
@@ -495,10 +496,22 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Delete) {
         QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
         if (!selection.isEmpty()) {
-            for (QCPAbstractPlottable* plottable : selection) {
-                ui->widgetGraph->removePlottable(plottable);
+            // Get the file path from the first selected plottable
+            QString filePath = selection.first()->property("filePath").toString();
+
+            if (!filePath.isEmpty()) {
+                // Remove data from maps
+                parsed_data.erase(filePath.toStdString());
+                m_file_colors.erase(filePath.toStdString());
+
+                // Remove all graphs associated with this file path
+                for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+                    if (ui->widgetGraph->graph(i)->property("filePath").toString() == filePath) {
+                        ui->widgetGraph->removeGraph(i);
+                    }
+                }
+                ui->widgetGraph->replot();
             }
-            ui->widgetGraph->replot();
         }
     } else {
         QMainWindow::keyPressEvent(event);
