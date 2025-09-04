@@ -446,3 +446,9 @@ void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 {
     updateSparamPlot("S22", 3, arg1);
 }
+
+void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
+{
+
+}
+
