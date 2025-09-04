@@ -59,6 +59,8 @@ private slots:
 
     void on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
+
 private:
     void updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
