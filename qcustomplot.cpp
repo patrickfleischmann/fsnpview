@@ -20645,7 +20645,7 @@ void QCPColorScaleAxisRectPrivate::draw(QCPPainter *painter)
   }
   //painter->drawImage(rect().adjusted(0, -1, 0, -1), mGradientImage.mirrored(mirrorHorz, mirrorVert));
   auto orientation = (mirrorHorz ? Qt::Horizontal : Qt::Orientations()) | (mirrorVert   ? Qt::Vertical   : Qt::Orientations());
-  painter->drawImage(rect().adjusted(0, -1, 0, -1), mGradientImage.flipped(orientation));
+  painter->drawImage(rect().adjusted(0, -1, 0, -1), mGradientImage.mirrored(orientation == Qt::Horizontal, orientation == Qt::Vertical));
   QCPAxisRect::draw(painter);
 }
 
@@ -26684,7 +26684,7 @@ void QCPColorMap::updateLegendIcon(Qt::TransformationMode transformMode, const Q
     bool mirrorX = (keyAxis()->orientation() == Qt::Horizontal ? keyAxis() : valueAxis())->rangeReversed();
     bool mirrorY = (valueAxis()->orientation() == Qt::Vertical ? valueAxis() : keyAxis())->rangeReversed();
     auto orientation = (mirrorX ? Qt::Horizontal : Qt::Orientations()) | (mirrorY   ? Qt::Vertical   : Qt::Orientations());
-    mLegendIcon = QPixmap::fromImage(mMapImage.flipped(orientation)).scaled(thumbSize, Qt::KeepAspectRatio, transformMode);
+    mLegendIcon = QPixmap::fromImage(mMapImage.mirrored(orientation == Qt::Horizontal, orientation == Qt::Vertical)).scaled(thumbSize, Qt::KeepAspectRatio, transformMode);
   }
 }
 
@@ -26913,7 +26913,7 @@ void QCPColorMap::draw(QCPPainter *painter)
     localPainter->setClipRect(tightClipRect, Qt::IntersectClip);
   }
   auto orientation = (mirrorX ? Qt::Horizontal : Qt::Orientations()) | (mirrorY   ? Qt::Vertical   : Qt::Orientations());
-  localPainter->drawImage(imageRect, mMapImage.flipped(orientation));
+  localPainter->drawImage(imageRect, mMapImage.mirrored(orientation == Qt::Horizontal, orientation == Qt::Vertical));
   if (mTightBoundary)
     localPainter->setClipRegion(clipBackup);
   localPainter->setRenderHint(QPainter::SmoothPixmapTransform, smoothBackup);
@@ -30339,7 +30339,7 @@ void QCPItemPixmap::updateScaledPixmap(QRect finalRect, bool flipHorz, bool flip
       mScaledPixmap = mPixmap.scaled(finalRect.size()*devicePixelRatio, mAspectRatioMode, mTransformationMode);
       if (flipHorz || flipVert) {
         auto orientation = (flipHorz ? Qt::Horizontal : Qt::Orientations()) | (flipVert   ? Qt::Vertical   : Qt::Orientations());
-        mScaledPixmap = QPixmap::fromImage(mScaledPixmap.toImage().flipped(orientation));
+        mScaledPixmap = QPixmap::fromImage(mScaledPixmap.toImage().mirrored(orientation == Qt::Horizontal, orientation == Qt::Vertical));
       }
 #ifdef QCP_DEVICEPIXELRATIO_SUPPORTED
       mScaledPixmap.setDevicePixelRatio(devicePixelRatio);

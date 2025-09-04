@@ -3,38 +3,35 @@
 #include <QLocalSocket>
 #include <QDataStream>
 #include <iostream>
-#include <QtSystemDetection>
 #include <QtGlobal>
-#include <windows.h>
 #include <chrono>
 #include <thread>
 
-using namespace std;
-
 #ifdef Q_OS_WIN
-    #define OSWIN true
-#else
-    #define OSWIN false
+#include <windows.h>
 #endif
+
+using namespace std;
 
 int main(int argc, char *argv[])
 {
     std::cout << "fsnpview start" << std::endl;
 
-    bool isSecondInstance = true; //assume true to work on non-windows systems
+    bool isSecondInstance = true;
 
-    HANDLE hMutex;
-    if (OSWIN){
-        //Using mutex should safer and may be faster for detecting other instances on windows
-        //using only the socket-server based method didnt entirely prevent multiple instances
-        hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
-        if (GetLastError() == ERROR_ALREADY_EXISTS) {
-            std::cout << "Another instance of the program is already running." << std::endl;
-        } else {
-            isSecondInstance = false;
-            std::cout << "This is the first instance" << std::endl;
-        }
+#ifdef Q_OS_WIN
+    HANDLE hMutex = CreateMutexA(NULL, TRUE, "MutexFsnpview");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::cout << "Another instance of the program is already running." << std::endl;
+    } else {
+        isSecondInstance = false;
+        std::cout << "This is the first instance" << std::endl;
     }
+#else
+    // On non-Windows systems, we just assume it's the first instance for now.
+    // A more robust solution would use a different IPC mechanism, like QSharedMemory or lock files.
+    isSecondInstance = false;
+#endif
 
     if(isSecondInstance){
         const QString serverName = "fsnpview-server";
@@ -69,8 +66,10 @@ int main(int argc, char *argv[])
 
     a.exec();
 
+#ifdef Q_OS_WIN
     ReleaseMutex(hMutex);
     CloseHandle(hMutex);
+#endif
 
     return 0;
 }
