@@ -10,7 +10,7 @@ This project requires a C++ compiler, Qt6 development tools, and the Eigen3 libr
 On a Debian-based system (like Ubuntu), you can install these dependencies using the following command:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y build-essential qt6-qmake qtbase6-dev libeigen3-dev
+sudo apt-get update && sudo apt-get install -y build-essential qt6-base-dev libeigen3-dev
 ```
 
 ## 2. Building the Application
@@ -19,7 +19,7 @@ Once the dependencies are installed, you can build the application using the fol
 
 1.  **Generate the Makefile:**
     ```bash
-    qmake
+    qmake6
     ```
 
 2.  **Compile the project:**

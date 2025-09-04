@@ -3,18 +3,19 @@
 #include <QLocalSocket>
 #include <QDataStream>
 #include <iostream>
-#include <QtSystemDetection>
 #include <QtGlobal>
+#ifdef Q_OS_WIN
 #include <windows.h>
+#endif
 #include <chrono>
 #include <thread>
 
 using namespace std;
 
 #ifdef Q_OS_WIN
-    #define OSWIN true
+#define OSWIN true
 #else
-    #define OSWIN false
+#define OSWIN false
 #endif
 
 int main(int argc, char *argv[])
@@ -23,6 +24,7 @@ int main(int argc, char *argv[])
 
     bool isSecondInstance = true; //assume true to work on non-windows systems
 
+#ifdef Q_OS_WIN
     HANDLE hMutex;
     if (OSWIN){
         //Using mutex should safer and may be faster for detecting other instances on windows
@@ -35,6 +37,7 @@ int main(int argc, char *argv[])
             std::cout << "This is the first instance" << std::endl;
         }
     }
+#endif
 
     if(isSecondInstance){
         const QString serverName = "fsnpview-server";
@@ -69,8 +72,10 @@ int main(int argc, char *argv[])
 
     a.exec();
 
+#ifdef Q_OS_WIN
     ReleaseMutex(hMutex);
     CloseHandle(hMutex);
+#endif
 
     return 0;
 }
