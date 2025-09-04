@@ -4,12 +4,12 @@ This document provides instructions for setting up the build environment and com
 
 ## 1. Dependencies
 
-This project requires a C++ compiler, Qt5 development tools, and the Eigen3 library.
+This project requires a C++ compiler, Qt6 development tools, and the Eigen3 library.
 
 On a Debian-based system (like Ubuntu), you can install these dependencies using the following command:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y build-essential qt5-qmake qtbase5-dev libeigen3-dev
+sudo apt-get update && sudo apt-get install -y build-essential qt6-qmake qtbase6-dev libeigen3-dev
 ```
 
 ## 2. Building the Application
