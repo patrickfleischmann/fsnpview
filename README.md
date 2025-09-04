@@ -5,7 +5,7 @@ fast snp (touchstone) file viewer
 
 This project has the following dependencies:
 
-*   **Qt5** or **Qt6**: A C++ cross-platform development framework. You will need the following modules:
+*   **Qt6**: A C++ cross-platform development framework. You will need the following modules:
     *   Core
     *   GUI
     *   Widgets
