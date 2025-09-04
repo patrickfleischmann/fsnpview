@@ -17,6 +17,7 @@ MainWindow::MainWindow(QWidget *parent)
     , localServer(nullptr)
 {
     ui->setupUi(this);
+    ui->checkBoxS21->setChecked(true);
 #ifdef QCUSTOMPLOT_USE_OPENGL
     ui->widgetGraph->setOpenGl(true);
 #endif
@@ -91,9 +92,9 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(false);
+    customPlot->graph(graphCount)->setAntialiased(true);
 
-    QPen pen(color,0);
+    QPen pen(color,1);
     pen.setStyle(style);
     customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
@@ -153,7 +154,7 @@ void MainWindow::processFiles(const QStringList &files)
             QColor color = colors.at(parsed_data.size() % colors.size());
             m_file_colors[path] = color;
 
-            plot(xValuesQVector, yValuesQVector, color, filename);
+            plot(xValuesQVector, yValuesQVector, color, filename + " s21");
 
             parsed_data[path] = std::move(data);
         } catch (const std::exception& e) {
@@ -388,6 +389,12 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 
 void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState)
 {
+    for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+        if (ui->widgetGraph->graph(i)->name().endsWith(" " + paramName)) {
+            ui->widgetGraph->removeGraph(i);
+        }
+    }
+
     if (checkState == Qt::Checked) {
         for (auto const& [path, data] : parsed_data) {
             Eigen::ArrayXd xValues = data->freq;
@@ -404,21 +411,15 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
 
             QColor color = m_file_colors.at(path);
             Qt::PenStyle style = Qt::SolidLine;
-            if (paramName == "S11") {
+            if (paramName == "s11") {
                 style = Qt::DashLine;
-            } else if (paramName == "S22") {
+            } else if (paramName == "s22") {
                 style = Qt::DotLine;
-            } else if (paramName == "S12") {
+            } else if (paramName == "s12") {
                 style = Qt::DashDotLine;
             }
 
             plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName, style);
-        }
-    } else {
-        for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
-            if (ui->widgetGraph->graph(i)->name().endsWith(" " + paramName)) {
-                ui->widgetGraph->removeGraph(i);
-            }
         }
     }
     ui->widgetGraph->replot();
@@ -426,29 +427,28 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
 
 void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S11", 0, arg1);
+    updateSparamPlot("s11", 0, arg1);
 }
 
 
 void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S21", 1, arg1);
+    updateSparamPlot("s21", 1, arg1);
 }
 
 
 void MainWindow::on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S12", 2, arg1);
+    updateSparamPlot("s12", 2, arg1);
 }
 
 
 void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("S22", 3, arg1);
+    updateSparamPlot("s22", 3, arg1);
 }
 
 void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
 {
-
 }
 
