@@ -92,9 +92,9 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(true);
+    customPlot->graph(graphCount)->setAntialiased(false);
 
-    QPen pen(color,1);
+    QPen pen(color,0);
     pen.setStyle(style);
     customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
