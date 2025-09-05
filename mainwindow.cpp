@@ -1,21 +1,18 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "server.h"
+#include "networks.h"
 #include <iostream>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/MatrixFunctions>
 #include <math.h>
 #include <QVector>
 #include <QFileInfo>
-#include "parser_touchstone.h"
 #include "qcustomplot.h"
-
-using namespace Eigen;
-using ts::TouchstoneData;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , localServer(nullptr)
+    , m_server(new Server(this))
+    , m_networks(new Networks(this))
 {
     ui->setupUi(this);
     ui->checkBoxS21->setChecked(true);
@@ -32,17 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->widgetGraph->legend->setVisible(false);
     ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems);
 
-
-    const QString serverName = "fsnpview-server";
-    localServer = new QLocalServer(this);
-    if (!localServer->listen(serverName)) {
-        if (localServer->serverError() == QAbstractSocket::AddressInUseError) {
-            QLocalServer::removeServer(serverName);
-            localServer->listen(serverName);
-        }
-    }
-    connect(localServer, &QLocalServer::newConnection, this, &MainWindow::newConnection);
-
+    connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
     connect(ui->widgetGraph, &QCustomPlot::mouseDoubleClick, this, &MainWindow::mouseDoubleClick);
     connect(ui->widgetGraph, &QCustomPlot::mousePress, this, &MainWindow::mousePress);
     connect(ui->widgetGraph, &QCustomPlot::mouseMove, this, &MainWindow::mouseMove);
@@ -119,51 +106,14 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
 
 void MainWindow::processFiles(const QStringList &files)
 {
-    QList<QColor> colors;
-    colors.append(QColor::fromRgbF(0, 0.4470, 0.7410));
-    colors.append(QColor::fromRgbF(0.8500, 0.3250, 0.0980));
-    colors.append(QColor::fromRgbF(0.9290, 0.6940, 0.1250));
-    colors.append(QColor::fromRgbF(0.4940, 0.1840, 0.5560));
-    colors.append(QColor::fromRgbF(0.4660, 0.6740, 0.1880));
-    colors.append(QColor::fromRgbF(0.3010, 0.7450, 0.9330));
-    colors.append(QColor::fromRgbF(0.6350, 0.0780, 0.1840));
-    colors.append(QColor::fromRgbF(0, 0, 1.0000));
-    colors.append(QColor::fromRgbF(0, 0.5000, 0));
-    colors.append(QColor::fromRgbF(1.0000, 0, 0));
-    colors.append(QColor::fromRgbF(0, 0.7500, 0.7500));
-    colors.append(QColor::fromRgbF(0.7500, 0, 0.7500));
-    colors.append(QColor::fromRgbF(0.7500, 0.7500, 0));
-    colors.append(QColor::fromRgbF(0.2500, 0.2500, 0.2500));
-
-    for (int i = 0; i < files.size(); ++i) {
-        try {
-            QString s_path = files.at(i);
-            QFileInfo fileInfo(s_path);
-            QString filename = fileInfo.fileName();
-
-            std::string path = s_path.toStdString();
-            auto data = std::make_unique<ts::TouchstoneData>(ts::parse_touchstone(path));
-
-            Eigen::ArrayXd xValues = data->freq;
-            Eigen::ArrayXd yValues = data->sparams.col(1).abs().log10() * 20; // s21 dB
-
-            std::vector<double> xValuesStdVector(xValues.data(), xValues.data() + xValues.rows() * xValues.cols());
-            std::vector<double> yValuesStdVector(yValues.data(), yValues.data() + yValues.rows() * yValues.cols());
-
-            QVector<double> xValuesQVector = QVector<double>(xValuesStdVector.begin(), xValuesStdVector.end());
-            QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
-
-            QColor color = colors.at(parsed_data.size() % colors.size());
-            m_file_colors[path] = color;
-
-            plot(xValuesQVector, yValuesQVector, color, filename + " s21", s_path);
-
-            parsed_data[path] = std::move(data);
-        } catch (const std::exception& e) {
-            std::cerr << "Error processing file " << files.at(i).toStdString() << ": " << e.what() << std::endl;
-        }
+    for (const QString &filePath : files) {
+        m_networks->addFile(filePath);
+        int s21_idx = m_networks->getSparamIndex("s21");
+        QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(filePath, s21_idx, false);
+        QColor color = m_networks->getFileColor(filePath);
+        QString filename = m_networks->getFileName(filePath);
+        plot(plotData.first, plotData.second, color, filename + " s21", filePath);
     }
-
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
@@ -172,30 +122,9 @@ void MainWindow::on_pushButtonAutoscale_clicked()
     ui->widgetGraph->replot();
 }
 
-void MainWindow::newConnection()
+void MainWindow::onFilesReceived(const QStringList &files)
 {
-    QLocalSocket *socket = localServer->nextPendingConnection();
-    if (socket) {
-        connect(socket, &QLocalSocket::readyRead, this, &MainWindow::readyRead);
-        connect(socket, &QLocalSocket::disconnected, socket, &QLocalSocket::deleteLater);
-        std::cout << "New connection received." << std::endl;
-    }
-}
-
-void MainWindow::readyRead()
-{
-    QLocalSocket *socket = qobject_cast<QLocalSocket*>(sender());
-    if (socket) {
-        QDataStream stream(socket);
-        stream.startTransaction();
-        QStringList files;
-        stream >> files;
-        if (stream.commitTransaction()) {
-            std::cout << "Received files from new instance: " << files.join(", ").toStdString() << std::endl;
-            processFiles(files);
-            socket->disconnectFromServer();
-        }
-    }
+    processFiles(files);
 }
 
 void MainWindow::on_checkBoxCursorA_stateChanged(int arg1)
@@ -389,26 +318,7 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 }
 
 
-// Function to unwrap phase angles in an Eigen Array
-Eigen::ArrayXd unwrap(const Eigen::ArrayXd& phase)
-{
-    Eigen::ArrayXd unwrapped_phase = phase;
-    for (int i = 1; i < phase.size(); ++i) {
-        double diff = unwrapped_phase(i) - unwrapped_phase(i - 1);
-        if (diff > M_PI) {
-            for (int j = i; j < phase.size(); ++j) {
-                unwrapped_phase(j) -= 2 * M_PI;
-            }
-        } else if (diff < -M_PI) {
-            for (int j = i; j < phase.size(); ++j) {
-                unwrapped_phase(j) += 2 * M_PI;
-            }
-        }
-    }
-    return unwrapped_phase;
-}
-
-void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState)
+void MainWindow::updateSparamPlot(const QString &paramName, const Qt::CheckState &checkState)
 {
     for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
         if (ui->widgetGraph->graph(i)->name().endsWith(" " + paramName)) {
@@ -417,33 +327,22 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
     }
 
     if (checkState == Qt::Checked) {
-        for (auto const& [path, data] : parsed_data) {
-            Eigen::ArrayXd xValues = data->freq;
-            Eigen::ArrayXd yValues;
+        const QStringList filePaths = m_networks->getFilePaths();
+        for (const QString &filePath : filePaths) {
+            int s_param_idx = m_networks->getSparamIndex(paramName);
+            if(s_param_idx == -1) continue;
 
-            if (ui->checkBoxPhase->isChecked()) {
-                // Calculate phase in degrees
-                Eigen::ArrayXcd s_param_col = data->sparams.col(s_param_idx);
-                Eigen::ArrayXd phase_rad = s_param_col.arg();
-                Eigen::ArrayXd unwrapped_phase_rad = unwrap(phase_rad);
-                yValues = unwrapped_phase_rad * (180.0 / M_PI);
+            bool isPhase = ui->checkBoxPhase->isChecked();
+            QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(filePath, s_param_idx, isPhase);
+
+            if (isPhase) {
                 ui->widgetGraph->yAxis->setLabel("Phase (deg)");
             } else {
-                // Calculate magnitude in dB
-                yValues = data->sparams.col(s_param_idx).abs().log10() * 20;
                 ui->widgetGraph->yAxis->setLabel("Amplitude (dB)");
             }
 
-            std::vector<double> xValuesStdVector(xValues.data(), xValues.data() + xValues.rows() * xValues.cols());
-            std::vector<double> yValuesStdVector(yValues.data(), yValues.data() + yValues.rows() * yValues.cols());
-
-            QVector<double> xValuesQVector = QVector<double>(xValuesStdVector.begin(), xValuesStdVector.end());
-            QVector<double> yValuesQVector = QVector<double>(yValuesStdVector.begin(), yValuesStdVector.end());
-
-            QFileInfo fileInfo(QString::fromStdString(path));
-            QString filename = fileInfo.fileName();
-
-            QColor color = m_file_colors.at(path);
+            QString filename = m_networks->getFileName(filePath);
+            QColor color = m_networks->getFileColor(filePath);
             Qt::PenStyle style = Qt::SolidLine;
             if (paramName == "s11") {
                 style = Qt::DashLine;
@@ -453,7 +352,7 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
                 style = Qt::DashDotLine;
             }
 
-            plot(xValuesQVector, yValuesQVector, color, filename + " " + paramName, QString::fromStdString(path), style);
+            plot(plotData.first, plotData.second, color, filename + " " + paramName, filePath, style);
         }
     }
     ui->widgetGraph->replot();
@@ -461,34 +360,35 @@ void MainWindow::updateSparamPlot(const QString &paramName, int s_param_idx, con
 
 void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("s11", 0, arg1);
+    updateSparamPlot("s11", arg1);
 }
 
 
 void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("s21", 1, arg1);
+    updateSparamPlot("s21", arg1);
 }
 
 
 void MainWindow::on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("s12", 2, arg1);
+    updateSparamPlot("s12", arg1);
 }
 
 
 void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 {
-    updateSparamPlot("s22", 3, arg1);
+    updateSparamPlot("s22", arg1);
 }
 
 void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
 {
+    Q_UNUSED(arg1);
     // When the phase checkbox is toggled, we need to replot all active s-params
-    updateSparamPlot("s11", 0, ui->checkBoxS11->checkState());
-    updateSparamPlot("s21", 1, ui->checkBoxS21->checkState());
-    updateSparamPlot("s12", 2, ui->checkBoxS12->checkState());
-    updateSparamPlot("s22", 3, ui->checkBoxS22->checkState());
+    updateSparamPlot("s11", ui->checkBoxS11->checkState());
+    updateSparamPlot("s21", ui->checkBoxS21->checkState());
+    updateSparamPlot("s12", ui->checkBoxS12->checkState());
+    updateSparamPlot("s22", ui->checkBoxS22->checkState());
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
@@ -500,9 +400,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             QString filePath = selection.first()->property("filePath").toString();
 
             if (!filePath.isEmpty()) {
-                // Remove data from maps
-                parsed_data.erase(filePath.toStdString());
-                m_file_colors.erase(filePath.toStdString());
+                // Remove data from network handler
+                m_networks->removeFile(filePath);
 
                 // Remove all graphs associated with this file path
                 for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {

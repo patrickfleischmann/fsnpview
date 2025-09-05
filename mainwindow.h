@@ -1,16 +1,10 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "parser_touchstone.h"
 #include <QMainWindow>
 #include <QVector>
 #include <QColor>
 #include <QStringList>
-#include <map>
-#include <string>
-#include <memory>
-#include <QLocalServer>
-#include <QLocalSocket>
 #include <QMouseEvent>
 #include <QKeyEvent>
 
@@ -22,6 +16,8 @@ QT_END_NAMESPACE
 
 class QCPItemTracer;
 class QCPItemText;
+class Server;
+class Networks;
 
 class MainWindow : public QMainWindow
 {
@@ -44,8 +40,7 @@ protected:
 
 private slots:
     void on_pushButtonAutoscale_clicked();
-    void newConnection();
-    void readyRead();
+    void onFilesReceived(const QStringList &files);
 
     void on_checkBoxCursorA_stateChanged(int arg1);
 
@@ -66,14 +61,13 @@ private slots:
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
 
 private:
-    void updateSparamPlot(const QString &paramName, int s_param_idx, const Qt::CheckState &checkState);
+    void updateSparamPlot(const QString &paramName, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
     Ui::MainWindow *ui;
-    std::map<std::string, std::unique_ptr<ts::TouchstoneData>> parsed_data;
-    std::map<std::string, QColor> m_file_colors;
-    QLocalServer *localServer;
+    Server *m_server;
+    Networks *m_networks;
     QCPItemTracer *mTracerA;
     QCPItemText *mTracerTextA;
     QCPItemTracer *mTracerB;
