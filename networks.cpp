@@ -26,7 +26,7 @@ void Networks::addFile(const QString &filePath)
     try {
         std::string path = filePath.toStdString();
         auto data = std::make_unique<ts::TouchstoneData>(ts::parse_touchstone(path));
-        QColor color = m_colors.at((m_parsed_data.size() + m_math_data.size()) % m_colors.size());
+        QColor color = m_colors.at(m_parsed_data.size() % m_colors.size());
         m_file_colors[path] = color;
         m_parsed_data[path] = std::move(data);
     } catch (const std::exception& e) {
@@ -34,47 +34,16 @@ void Networks::addFile(const QString &filePath)
     }
 }
 
-void Networks::removeFile(const QString &name)
+void Networks::removeFile(const QString &filePath)
 {
-    if (isMathNetwork(name)) {
-        m_math_data.erase(name.toStdString());
-    } else {
-        m_parsed_data.erase(name.toStdString());
-    }
-    m_file_colors.erase(name.toStdString());
+    m_parsed_data.erase(filePath.toStdString());
+    m_file_colors.erase(filePath.toStdString());
 }
 
-void Networks::addMathNetwork(const QString &name, const QVector<double> &freq, const Eigen::ArrayXcd &data)
+QPair<QVector<double>, QVector<double>> Networks::getPlotData(const QString &filePath, int s_param_idx, bool isPhase)
 {
-    MathNetwork math_net;
-    math_net.freq = freq;
-    math_net.data = data;
-    std::string net_name = name.toStdString();
-    m_math_data[net_name] = math_net;
-    QColor color = m_colors.at((m_parsed_data.size() + m_math_data.size()) % m_colors.size());
-    m_file_colors[net_name] = color;
-}
-
-QPair<QVector<double>, QVector<double>> Networks::getPlotData(const QString &name, int s_param_idx, bool isPhase)
-{
-    if (isMathNetwork(name)) {
-        auto it = m_math_data.find(name.toStdString());
-        if (it == m_math_data.end()) {
-            return QPair<QVector<double>, QVector<double>>();
-        }
-        const auto& data = it->second;
-        Eigen::ArrayXd yValues;
-        if (isPhase) {
-            Eigen::ArrayXd phase_rad = data.data.arg();
-            Eigen::ArrayXd unwrapped_phase_rad = unwrap(phase_rad);
-            yValues = unwrapped_phase_rad * (180.0 / M_PI);
-        } else {
-            yValues = data.data.abs().log10() * 20;
-        }
-        return qMakePair(data.freq, QVector<double>(yValues.data(), yValues.data() + yValues.size()));
-    }
-
-    auto it = m_parsed_data.find(name.toStdString());
+    std::string path = filePath.toStdString();
+    auto it = m_parsed_data.find(path);
     if (it == m_parsed_data.end()) {
         return QPair<QVector<double>, QVector<double>>();
     }
@@ -98,55 +67,20 @@ QPair<QVector<double>, QVector<double>> Networks::getPlotData(const QString &nam
     return qMakePair(xValuesQVector, yValuesQVector);
 }
 
-QPair<QVector<double>, Eigen::ArrayXcd> Networks::getComplexSparamData(const QString &name, int s_param_idx)
+QColor Networks::getFileColor(const QString &filePath)
 {
-    if (isMathNetwork(name)) {
-        auto it = m_math_data.find(name.toStdString());
-        if (it == m_math_data.end()) {
-            return QPair<QVector<double>, Eigen::ArrayXcd>();
-        }
-        const auto& data = it->second;
-        return qMakePair(data.freq, data.data);
-    }
-
-    auto it = m_parsed_data.find(name.toStdString());
-    if (it == m_parsed_data.end()) {
-        return QPair<QVector<double>, Eigen::ArrayXcd>();
-    }
-
-    const auto& data = it->second;
-    Eigen::ArrayXd xValues = data->freq;
-    Eigen::ArrayXcd s_param_col = data->sparams.col(s_param_idx);
-
-    QVector<double> xValuesQVector = QVector<double>(xValues.data(), xValues.data() + xValues.size());
-
-    return qMakePair(xValuesQVector, s_param_col);
+    return m_file_colors.at(filePath.toStdString());
 }
 
-QColor Networks::getFileColor(const QString &name)
+QString Networks::getFileName(const QString &filePath)
 {
-    return m_file_colors.at(name.toStdString());
+    return QFileInfo(filePath).fileName();
 }
 
-QString Networks::getFileName(const QString &name)
+QVector<double> Networks::getFrequencies(const QString &filePath)
 {
-    if (isMathNetwork(name)) {
-        return name;
-    }
-    return QFileInfo(name).fileName();
-}
-
-QVector<double> Networks::getFrequencies(const QString &name)
-{
-    if (isMathNetwork(name)) {
-        auto it = m_math_data.find(name.toStdString());
-        if (it != m_math_data.end()) {
-            return it->second.freq;
-        }
-        return QVector<double>();
-    }
-
-    auto it = m_parsed_data.find(name.toStdString());
+    std::string path = filePath.toStdString();
+    auto it = m_parsed_data.find(path);
     if (it == m_parsed_data.end()) {
         return QVector<double>();
     }
@@ -157,7 +91,6 @@ QVector<double> Networks::getFrequencies(const QString &name)
 
 int Networks::getSparamIndex(const QString &sparam)
 {
-    if (sparam.startsWith("math")) return 0;
     if (sparam == "s11") return 0;
     if (sparam == "s21") return 1;
     if (sparam == "s12") return 2;
@@ -172,20 +105,6 @@ QStringList Networks::getFilePaths() const
         paths.append(QString::fromStdString(pair.first));
     }
     return paths;
-}
-
-QStringList Networks::getMathNetworkNames() const
-{
-    QStringList names;
-    for (const auto& pair : m_math_data) {
-        names.append(QString::fromStdString(pair.first));
-    }
-    return names;
-}
-
-bool Networks::isMathNetwork(const QString &name) const
-{
-    return name.startsWith("math:");
 }
 
 Eigen::ArrayXd Networks::unwrap(const Eigen::ArrayXd& phase)

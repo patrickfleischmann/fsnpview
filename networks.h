@@ -20,26 +20,17 @@ public:
 
     void addFile(const QString &filePath);
     void removeFile(const QString &filePath);
-    void addMathNetwork(const QString &name, const QVector<double> &freq, const Eigen::ArrayXcd &data);
 
-    QPair<QVector<double>, QVector<double>> getPlotData(const QString &name, int s_param_idx, bool isPhase);
-    QPair<QVector<double>, Eigen::ArrayXcd> getComplexSparamData(const QString &name, int s_param_idx);
-    QColor getFileColor(const QString &name);
-    QString getFileName(const QString &name);
-    QVector<double> getFrequencies(const QString &name);
+    QPair<QVector<double>, QVector<double>> getPlotData(const QString &filePath, int s_param_idx, bool isPhase);
+    QColor getFileColor(const QString &filePath);
+    QString getFileName(const QString &filePath);
+    QVector<double> getFrequencies(const QString &filePath);
     int getSparamIndex(const QString &sparam);
     QStringList getFilePaths() const;
-    QStringList getMathNetworkNames() const;
-    bool isMathNetwork(const QString &name) const;
 
 private:
-    struct MathNetwork {
-        QVector<double> freq;
-        Eigen::ArrayXcd data;
-    };
     Eigen::ArrayXd unwrap(const Eigen::ArrayXd& phase);
     std::map<std::string, std::unique_ptr<ts::TouchstoneData>> m_parsed_data;
-    std::map<std::string, MathNetwork> m_math_data;
     std::map<std::string, QColor> m_file_colors;
     QList<QColor> m_colors;
 };

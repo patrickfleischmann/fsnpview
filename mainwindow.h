@@ -60,8 +60,6 @@ private slots:
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
 
-private slots:
-    void onMinusPressed();
 private:
     void updateSparamPlot(const QString &paramName, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
@@ -76,7 +74,6 @@ private:
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
     DragMode mDragMode;
-    int m_math_net_count = 0;
     bool mLegendDrag;
     QPointF mLegendDragStart;
 };

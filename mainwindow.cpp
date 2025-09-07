@@ -117,22 +117,6 @@ void MainWindow::processFiles(const QStringList &files)
     updateSparamPlot("s21", ui->checkBoxS21->checkState());
     updateSparamPlot("s12", ui->checkBoxS12->checkState());
     updateSparamPlot("s22", ui->checkBoxS22->checkState());
-
-    // Replot math networks
-    const QStringList mathNetworkNames = m_networks->getMathNetworkNames();
-    for (const QString &mathNetName : mathNetworkNames) {
-        for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
-            if (ui->widgetGraph->graph(i)->name() == mathNetName) {
-                ui->widgetGraph->removeGraph(i);
-            }
-        }
-
-        bool isPhase = ui->checkBoxPhase->isChecked();
-        QString yAxisLabel = isPhase ? "Phase (deg)" : "Amplitude (dB)";
-        QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(mathNetName, 0, isPhase);
-        QColor color = m_networks->getFileColor(mathNetName);
-        plot(plotData.first, plotData.second, color, mathNetName, mathNetName, yAxisLabel, Qt::SolidLine);
-    }
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
@@ -426,69 +410,6 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
     updateSparamPlot("s22", ui->checkBoxS22->checkState());
 }
 
-void MainWindow::onMinusPressed()
-{
-    QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
-    if (selection.size() != 2) {
-        // TODO: show some error message to the user
-        return;
-    }
-
-    QCPGraph *graph1 = qobject_cast<QCPGraph*>(selection.at(0));
-    QCPGraph *graph2 = qobject_cast<QCPGraph*>(selection.at(1));
-
-    if (!graph1 || !graph2) {
-        return;
-    }
-
-    QString filePath1 = graph1->property("filePath").toString();
-    QString filePath2 = graph2->property("filePath").toString();
-    QString name1 = graph1->name();
-    QString name2 = graph2->name();
-
-    int s_param_idx1 = m_networks->getSparamIndex(name1.split(" ").last());
-    int s_param_idx2 = m_networks->getSparamIndex(name2.split(" ").last());
-
-    auto data1 = m_networks->getComplexSparamData(filePath1, s_param_idx1);
-    auto data2 = m_networks->getComplexSparamData(filePath2, s_param_idx2);
-
-    QVector<double> freq1 = data1.first;
-    Eigen::ArrayXcd s_param1 = data1.second;
-    QVector<double> freq2 = data2.first;
-    Eigen::ArrayXcd s_param2 = data2.second;
-
-    Eigen::ArrayXcd s_param2_interp(freq1.size());
-
-    // Linear interpolation
-    for (int i = 0; i < freq1.size(); ++i) {
-        double f = freq1[i];
-        int j = 0;
-        while (j < freq2.size() - 1 && freq2[j+1] < f) {
-            j++;
-        }
-
-        if (j == freq2.size() - 1) {
-            s_param2_interp[i] = s_param2[j];
-        } else {
-            double f1 = freq2[j];
-            double f2 = freq2[j+1];
-            std::complex<double> s1 = s_param2[j];
-            std::complex<double> s2 = s_param2[j+1];
-            s_param2_interp[i] = s1 + (s2 - s1) * (f - f1) / (f2 - f1);
-        }
-    }
-
-    Eigen::ArrayXcd diff = s_param1 - s_param2_interp;
-    QString mathNetName = QString("math:diff%1").arg(m_math_net_count++);
-    m_networks->addMathNetwork(mathNetName, freq1, diff);
-
-    bool isPhase = ui->checkBoxPhase->isChecked();
-    QString yAxisLabel = isPhase ? "Phase (deg)" : "Amplitude (dB)";
-    QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(mathNetName, 0, isPhase);
-    QColor color = m_networks->getFileColor(mathNetName);
-    plot(plotData.first, plotData.second, color, mathNetName, mathNetName, yAxisLabel, Qt::SolidLine);
-}
-
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Delete) {
@@ -503,17 +424,74 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             }
 
             for (const QString &filePath : filePathsToRemove) {
-                m_networks->removeFile(filePath);
-                for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
-                    if (ui->widgetGraph->graph(i)->property("filePath").toString() == filePath) {
-                        ui->widgetGraph->removeGraph(i);
+                if (filePath.startsWith("math:")) {
+                    // This is a math plot, just remove the graph
+                    for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+                        if (ui->widgetGraph->graph(i)->property("filePath").toString() == filePath) {
+                            ui->widgetGraph->removeGraph(i);
+                        }
+                    }
+                } else {
+                    m_networks->removeFile(filePath);
+                    for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+                        if (ui->widgetGraph->graph(i)->property("filePath").toString() == filePath) {
+                            ui->widgetGraph->removeGraph(i);
+                        }
                     }
                 }
             }
             ui->widgetGraph->replot();
         }
     } else if (event->key() == Qt::Key_Minus) {
-        onMinusPressed();
+        QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
+        if (selection.size() != 2) {
+            return;
+        }
+
+        QCPGraph *graph1 = qobject_cast<QCPGraph*>(selection.at(0));
+        QCPGraph *graph2 = qobject_cast<QCPGraph*>(selection.at(1));
+
+        if (!graph1 || !graph2) {
+            return;
+        }
+
+        QVector<double> x1, y1, x2, y2;
+        for (auto it = graph1->data()->begin(); it != graph1->data()->end(); ++it) {
+            x1.append(it->key);
+            y1.append(it->value);
+        }
+        for (auto it = graph2->data()->begin(); it != graph2->data()->end(); ++it) {
+            x2.append(it->key);
+            y2.append(it->value);
+        }
+
+        QVector<double> y2_interp;
+        for (double x : x1) {
+            int j = 0;
+            while (j < x2.size() - 1 && x2[j+1] < x) {
+                j++;
+            }
+
+            if (j == x2.size() - 1) {
+                y2_interp.append(y2[j]);
+            } else {
+                double x_j = x2[j];
+                double x_j1 = x2[j+1];
+                double y_j = y2[j];
+                double y_j1 = y2[j+1];
+                y2_interp.append(y_j + (y_j1 - y_j) * (x - x_j) / (x_j1 - x_j));
+            }
+        }
+
+        QVector<double> y_diff;
+        for (int i = 0; i < y1.size(); ++i) {
+            y_diff.append(y1[i] - y2_interp[i]);
+        }
+
+        static int diff_count = 0;
+        QString name = QString("diff%1").arg(++diff_count);
+
+        plot(x1, y_diff, Qt::red, name, name, ui->widgetGraph->yAxis->label());
     } else {
         QMainWindow::keyPressEvent(event);
     }
