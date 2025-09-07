@@ -74,7 +74,7 @@ MainWindow::~MainWindow()
 void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
-    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+    customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     customPlot->setSelectionRectMode(QCP::srmZoom);
     customPlot->setRangeDragButton(Qt::RightButton);
     customPlot->setSelectionRectButton(Qt::LeftButton);
@@ -82,10 +82,10 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(false);
+    customPlot->graph(graphCount)->setAntialiased(true);
     customPlot->graph(graphCount)->setProperty("filePath", filePath);
 
-    QPen pen(color,0);
+    QPen pen(color,1.5);
     pen.setStyle(style);
     customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
