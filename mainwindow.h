@@ -26,7 +26,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, Qt::PenStyle style = Qt::SolidLine);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style = Qt::SolidLine);
     void processFiles(const QStringList &files);
 
 public slots:
@@ -60,6 +60,8 @@ private slots:
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
 
+private slots:
+    void onMinusPressed();
 private:
     void updateSparamPlot(const QString &paramName, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };
@@ -74,5 +76,8 @@ private:
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
     DragMode mDragMode;
+    int m_math_net_count = 0;
+    bool mLegendDrag;
+    QPointF mLegendDragStart;
 };
 #endif // MAINWINDOW_H

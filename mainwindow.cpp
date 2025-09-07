@@ -27,7 +27,8 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     ui->widgetGraph->legend->setVisible(false);
-    ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems);
+    ui->widgetGraph->legend->setSelectableParts(QCPLegend::spItems | QCPLegend::spLegendBox);
+    ui->widgetGraph->setMultiSelectModifier(Qt::ControlModifier);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
     connect(ui->widgetGraph, &QCustomPlot::mouseDoubleClick, this, &MainWindow::mouseDoubleClick);
@@ -62,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     mDraggedTracer = nullptr;
     mDragMode = DragMode::None;
+    mLegendDrag = false;
 }
 
 MainWindow::~MainWindow()
@@ -69,7 +71,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, Qt::PenStyle style)
+void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style)
 {
     QCustomPlot *customPlot = ui->widgetGraph;
     customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
@@ -92,7 +94,7 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     customPlot->xAxis->setNumberFormat("g");
     customPlot->xAxis->setNumberPrecision(3);
     customPlot->xAxis->setLabel("Frequency");
-    customPlot->yAxis->setLabel("S21 (dB)");
+    customPlot->yAxis->setLabel(yAxisLabel);
 
     customPlot->xAxis->grid()->setPen(QPen(Qt::lightGray, 0)); //0 -> defaults to cosmetic pen -> always drawn with exactly 1 pixel
     customPlot->yAxis->grid()->setPen(QPen(Qt::lightGray, 0));
@@ -108,12 +110,13 @@ void MainWindow::processFiles(const QStringList &files)
 {
     for (const QString &filePath : files) {
         m_networks->addFile(filePath);
-        int s21_idx = m_networks->getSparamIndex("s21");
-        QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(filePath, s21_idx, false);
-        QColor color = m_networks->getFileColor(filePath);
-        QString filename = m_networks->getFileName(filePath);
-        plot(plotData.first, plotData.second, color, filename + " s21", filePath);
     }
+
+    // Replot all active s-parameters for all files
+    updateSparamPlot("s11", ui->checkBoxS11->checkState());
+    updateSparamPlot("s21", ui->checkBoxS21->checkState());
+    updateSparamPlot("s12", ui->checkBoxS12->checkState());
+    updateSparamPlot("s22", ui->checkBoxS22->checkState());
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
@@ -187,50 +190,65 @@ void MainWindow::mousePress(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        mDraggedTracer = nullptr;
-        mDragMode = DragMode::None;
-
-        // Check for tracer A
-        if (mTracerA->visible())
+        if (ui->widgetGraph->legend->selectTest(event->pos(), false) >= 0)
         {
-            const QPointF tracerPos = mTracerA->position->pixelPosition();
-            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
-            {
-                mDraggedTracer = mTracerA;
-                mDragMode = DragMode::Vertical;
-            }
-            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
-            {
-                mDraggedTracer = mTracerA;
-                mDragMode = DragMode::Horizontal;
-            }
+            mLegendDrag = true;
+            mLegendDragStart = event->pos();
         }
-        // Check for tracer B if A was not hit
-        if (!mDraggedTracer && mTracerB->visible())
+        else
         {
-            const QPointF tracerPos = mTracerB->position->pixelPosition();
-            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
-            {
-                mDraggedTracer = mTracerB;
-                mDragMode = DragMode::Vertical;
-            }
-            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
-            {
-                mDraggedTracer = mTracerB;
-                mDragMode = DragMode::Horizontal;
-            }
-        }
+            mDraggedTracer = nullptr;
+            mDragMode = DragMode::None;
 
-        if (mDraggedTracer)
-        {
-            ui->widgetGraph->setSelectionRectMode(QCP::srmNone);
+            // Check for tracer A
+            if (mTracerA->visible())
+            {
+                const QPointF tracerPos = mTracerA->position->pixelPosition();
+                if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
+                {
+                    mDraggedTracer = mTracerA;
+                    mDragMode = DragMode::Vertical;
+                }
+                else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
+                {
+                    mDraggedTracer = mTracerA;
+                    mDragMode = DragMode::Horizontal;
+                }
+            }
+            // Check for tracer B if A was not hit
+            if (!mDraggedTracer && mTracerB->visible())
+            {
+                const QPointF tracerPos = mTracerB->position->pixelPosition();
+                if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
+                {
+                    mDraggedTracer = mTracerB;
+                    mDragMode = DragMode::Vertical;
+                }
+                else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
+                {
+                    mDraggedTracer = mTracerB;
+                    mDragMode = DragMode::Horizontal;
+                }
+            }
+
+            if (mDraggedTracer)
+            {
+                ui->widgetGraph->setSelectionRectMode(QCP::srmNone);
+            }
         }
     }
 }
 
 void MainWindow::mouseMove(QMouseEvent *event)
 {
-    if (mDraggedTracer)
+    if (mLegendDrag)
+    {
+        QPointF delta = event->pos() - mLegendDragStart;
+        mLegendDragStart = event->pos();
+        ui->widgetGraph->legend->setOuterRect(ui->widgetGraph->legend->outerRect().translated(delta.toPoint()));
+        ui->widgetGraph->replot();
+    }
+    else if (mDraggedTracer)
     {
         if (mDragMode == DragMode::Vertical)
         {
@@ -256,6 +274,7 @@ void MainWindow::mouseRelease(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
+        mLegendDrag = false;
         if (mDraggedTracer)
         {
             mDraggedTracer = nullptr;
@@ -308,11 +327,11 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
     if(arg1 == Qt::Checked){
         std::cout << "set to freqLog" << std::endl;
         ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLogarithmic);
-        //ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerLog>(new QCPAxisTickerLog));
+        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerLog>(new QCPAxisTickerLog));
     } else {
         std::cout << "set to freqLin" << std::endl;
         ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLinear);
-        //ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerFixed>(new QCPAxisTickerFixed));
+        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerFixed>(new QCPAxisTickerFixed));
     }
     ui->widgetGraph->replot();
 }
@@ -335,11 +354,8 @@ void MainWindow::updateSparamPlot(const QString &paramName, const Qt::CheckState
             bool isPhase = ui->checkBoxPhase->isChecked();
             QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(filePath, s_param_idx, isPhase);
 
-            if (isPhase) {
-                ui->widgetGraph->yAxis->setLabel("Phase (deg)");
-            } else {
-                ui->widgetGraph->yAxis->setLabel("Amplitude (dB)");
-            }
+            QString yAxisLabel = isPhase ? "Phase (deg)" : "Amplitude (dB)";
+            ui->widgetGraph->yAxis->setLabel(yAxisLabel);
 
             QString filename = m_networks->getFileName(filePath);
             QColor color = m_networks->getFileColor(filePath);
@@ -352,7 +368,7 @@ void MainWindow::updateSparamPlot(const QString &paramName, const Qt::CheckState
                 style = Qt::DashDotLine;
             }
 
-            plot(plotData.first, plotData.second, color, filename + " " + paramName, filePath, style);
+            plot(plotData.first, plotData.second, color, filename + " " + paramName, filePath, yAxisLabel, style);
         }
     }
     ui->widgetGraph->replot();
@@ -391,27 +407,94 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
     updateSparamPlot("s22", ui->checkBoxS22->checkState());
 }
 
+void MainWindow::onMinusPressed()
+{
+    QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
+    if (selection.size() != 2) {
+        // TODO: show some error message to the user
+        return;
+    }
+
+    QCPGraph *graph1 = qobject_cast<QCPGraph*>(selection.at(0));
+    QCPGraph *graph2 = qobject_cast<QCPGraph*>(selection.at(1));
+
+    if (!graph1 || !graph2) {
+        return;
+    }
+
+    QString filePath1 = graph1->property("filePath").toString();
+    QString filePath2 = graph2->property("filePath").toString();
+    QString name1 = graph1->name();
+    QString name2 = graph2->name();
+
+    int s_param_idx1 = m_networks->getSparamIndex(name1.split(" ").last());
+    int s_param_idx2 = m_networks->getSparamIndex(name2.split(" ").last());
+
+    auto data1 = m_networks->getComplexSparamData(filePath1, s_param_idx1);
+    auto data2 = m_networks->getComplexSparamData(filePath2, s_param_idx2);
+
+    QVector<double> freq1 = data1.first;
+    Eigen::ArrayXcd s_param1 = data1.second;
+    QVector<double> freq2 = data2.first;
+    Eigen::ArrayXcd s_param2 = data2.second;
+
+    Eigen::ArrayXcd s_param2_interp(freq1.size());
+
+    // Linear interpolation
+    for (int i = 0; i < freq1.size(); ++i) {
+        double f = freq1[i];
+        int j = 0;
+        while (j < freq2.size() - 1 && freq2[j+1] < f) {
+            j++;
+        }
+
+        if (j == freq2.size() - 1) {
+            s_param2_interp[i] = s_param2[j];
+        } else {
+            double f1 = freq2[j];
+            double f2 = freq2[j+1];
+            std::complex<double> s1 = s_param2[j];
+            std::complex<double> s2 = s_param2[j+1];
+            s_param2_interp[i] = s1 + (s2 - s1) * (f - f1) / (f2 - f1);
+        }
+    }
+
+    Eigen::ArrayXcd diff = s_param1 - s_param2_interp;
+    QString mathNetName = QString("math:diff%1").arg(m_math_net_count++);
+    m_networks->addMathNetwork(mathNetName, freq1, diff);
+
+    bool isPhase = ui->checkBoxPhase->isChecked();
+    QString yAxisLabel = isPhase ? "Phase (deg)" : "Amplitude (dB)";
+    QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(mathNetName, 0, isPhase);
+    QColor color = m_networks->getFileColor(mathNetName);
+    plot(plotData.first, plotData.second, color, mathNetName, mathNetName, yAxisLabel, Qt::SolidLine);
+}
+
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Delete) {
         QList<QCPAbstractPlottable*> selection = ui->widgetGraph->selectedPlottables();
         if (!selection.isEmpty()) {
-            // Get the file path from the first selected plottable
-            QString filePath = selection.first()->property("filePath").toString();
+            QSet<QString> filePathsToRemove;
+            for (QCPAbstractPlottable *plottable : selection) {
+                QString filePath = plottable->property("filePath").toString();
+                if (!filePath.isEmpty()) {
+                    filePathsToRemove.insert(filePath);
+                }
+            }
 
-            if (!filePath.isEmpty()) {
-                // Remove data from network handler
+            for (const QString &filePath : filePathsToRemove) {
                 m_networks->removeFile(filePath);
-
-                // Remove all graphs associated with this file path
                 for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
                     if (ui->widgetGraph->graph(i)->property("filePath").toString() == filePath) {
                         ui->widgetGraph->removeGraph(i);
                     }
                 }
-                ui->widgetGraph->replot();
             }
+            ui->widgetGraph->replot();
         }
+    } else if (event->key() == Qt::Key_Minus) {
+        onMinusPressed();
     } else {
         QMainWindow::keyPressEvent(event);
     }
