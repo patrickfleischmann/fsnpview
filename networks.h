@@ -29,6 +29,7 @@ public:
     QVector<double> getFrequencies(const QString &name);
     int getSparamIndex(const QString &sparam);
     QStringList getFilePaths() const;
+    QStringList getMathNetworkNames() const;
     bool isMathNetwork(const QString &name) const;
 
 private:

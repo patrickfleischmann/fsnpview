@@ -171,10 +171,16 @@ QStringList Networks::getFilePaths() const
     for (const auto& pair : m_parsed_data) {
         paths.append(QString::fromStdString(pair.first));
     }
-    for (const auto& pair : m_math_data) {
-        paths.append(QString::fromStdString(pair.first));
-    }
     return paths;
+}
+
+QStringList Networks::getMathNetworkNames() const
+{
+    QStringList names;
+    for (const auto& pair : m_math_data) {
+        names.append(QString::fromStdString(pair.first));
+    }
+    return names;
 }
 
 bool Networks::isMathNetwork(const QString &name) const

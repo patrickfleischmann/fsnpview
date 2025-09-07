@@ -82,10 +82,10 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(true);
+    customPlot->graph(graphCount)->setAntialiased(false);
     customPlot->graph(graphCount)->setProperty("filePath", filePath);
 
-    QPen pen(color,1.5);
+    QPen pen(color,0);
     pen.setStyle(style);
     customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
@@ -117,6 +117,22 @@ void MainWindow::processFiles(const QStringList &files)
     updateSparamPlot("s21", ui->checkBoxS21->checkState());
     updateSparamPlot("s12", ui->checkBoxS12->checkState());
     updateSparamPlot("s22", ui->checkBoxS22->checkState());
+
+    // Replot math networks
+    const QStringList mathNetworkNames = m_networks->getMathNetworkNames();
+    for (const QString &mathNetName : mathNetworkNames) {
+        for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
+            if (ui->widgetGraph->graph(i)->name() == mathNetName) {
+                ui->widgetGraph->removeGraph(i);
+            }
+        }
+
+        bool isPhase = ui->checkBoxPhase->isChecked();
+        QString yAxisLabel = isPhase ? "Phase (deg)" : "Amplitude (dB)";
+        QPair<QVector<double>, QVector<double>> plotData = m_networks->getPlotData(mathNetName, 0, isPhase);
+        QColor color = m_networks->getFileColor(mathNetName);
+        plot(plotData.first, plotData.second, color, mathNetName, mathNetName, yAxisLabel, Qt::SolidLine);
+    }
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
@@ -327,11 +343,14 @@ void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
     if(arg1 == Qt::Checked){
         std::cout << "set to freqLog" << std::endl;
         ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLogarithmic);
-        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerLog>(new QCPAxisTickerLog));
+        QSharedPointer<QCPAxisTickerLog> logTicker(new QCPAxisTickerLog);
+        logTicker->setLogBase(10);
+        logTicker->setSubTickCount(9);
+        ui->widgetGraph->xAxis->setTicker(logTicker);
     } else {
         std::cout << "set to freqLin" << std::endl;
         ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLinear);
-        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTickerFixed>(new QCPAxisTickerFixed));
+        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
     }
     ui->widgetGraph->replot();
 }
