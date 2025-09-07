@@ -26,7 +26,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, Qt::PenStyle style = Qt::SolidLine);
+    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style = Qt::SolidLine);
     void processFiles(const QStringList &files);
 
 public slots:
@@ -74,5 +74,7 @@ private:
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
     DragMode mDragMode;
+    bool mLegendDrag;
+    QPointF mLegendDragStart;
 };
 #endif // MAINWINDOW_H
