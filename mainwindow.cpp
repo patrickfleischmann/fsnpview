@@ -82,10 +82,10 @@ void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const 
     int graphCount = customPlot->graphCount();
     customPlot->addGraph();
     customPlot->graph(graphCount)->setData(x, y);
-    customPlot->graph(graphCount)->setAntialiased(false);
+    customPlot->graph(graphCount)->setAntialiased(true);
     customPlot->graph(graphCount)->setProperty("filePath", filePath);
 
-    QPen pen(color,0);
+    QPen pen(color,1.5);
     pen.setStyle(style);
     customPlot->graph(graphCount)->setPen(pen);
     customPlot->graph(graphCount)->setName(name);
@@ -302,14 +302,22 @@ void MainWindow::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         double yA = mTracerA->position->coords().y();
         double dx = x - xA;
         double dy = y - yA;
-        labelText += QString("\nΔx: %1Hz\nΔy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
+        labelText += QString("\n\nΔx: %1Hz Δy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
     }
 
     text->setText(labelText);
     text->position->setCoords(x, y);
     text->position->setType(QCPItemPosition::ptPlotCoords);
-    text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    text->setPadding(QMargins(5, 0, 0, 15));
+    if (tracer == mTracerA) {
+        text->setPositionAlignment(Qt::AlignRight | Qt::AlignBottom);
+        text->setPadding(QMargins(0, 0, 5, 9));
+    } else {
+        text->setTextAlignment(Qt::AlignLeft);
+        text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        text->setPadding(QMargins(5, 0, 0, 0));
+    }
+
+
 }
 
 void MainWindow::updateTracers()
