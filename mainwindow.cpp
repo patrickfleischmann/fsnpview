@@ -37,6 +37,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
 
+    connect(ui->checkBoxCursorA, &QCheckBox::stateChanged, this, [this](int state){
+        m_plot_manager->setCursorAVisible(state == Qt::Checked);
+    });
+
+    connect(ui->checkBoxCursorB, &QCheckBox::stateChanged, this, [this](int state){
+        m_plot_manager->setCursorBVisible(state == Qt::Checked);
+    });
+
     ui->checkBoxS21->setChecked(true);
     updatePlots();
     m_plot_manager->autoscale();
