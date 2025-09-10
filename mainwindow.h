@@ -21,6 +21,7 @@ QT_END_NAMESPACE
 
 class Server;
 class NetworkFile;
+class PlotManager;
 
 class MainWindow : public QMainWindow
 {
@@ -29,7 +30,6 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style = Qt::SolidLine);
     void processFiles(const QStringList &files);
 
 private slots:
@@ -59,11 +59,11 @@ private:
     void setupModels();
     void setupViews();
     void populateLumpedNetworkTable();
-    void plotNetwork(Network* network, const Qt::CheckState& checkState);
 
 
     Ui::MainWindow *ui;
     Server *m_server;
+    PlotManager* m_plot_manager;
 
     QList<Network*> m_networks;
     NetworkCascade* m_cascade;

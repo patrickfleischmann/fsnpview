@@ -1,5 +1,3 @@
-
-
 QT       += core gui network #openglwidgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
@@ -27,7 +25,8 @@ SOURCES += \
     networkfile.cpp \
     networklumped.cpp \
     networkcascade.cpp \
-    networkitemmodel.cpp
+    networkitemmodel.cpp \
+    plotmanager.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -38,7 +37,8 @@ HEADERS += \
     networkfile.h \
     networklumped.h \
     networkcascade.h \
-    networkitemmodel.h
+    networkitemmodel.h \
+    plotmanager.h
 
 FORMS += \
     mainwindow.ui
