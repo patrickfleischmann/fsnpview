@@ -5,6 +5,7 @@
 #include "networkitemmodel.h"
 #include "qcustomplot.h"
 #include "server.h"
+#include "plotmanager.h"
 #include <QFileDialog>
 #include <QMenu>
 #include <QMenuBar>
@@ -20,24 +21,25 @@ MainWindow::MainWindow(QWidget *parent)
     , m_network_cascade_model(new NetworkItemModel(this))
 {
     ui->setupUi(this);
+    m_plot_manager = new PlotManager(ui->widgetGraph, this);
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     QAction *openAct = new QAction(tr("&Open..."), this);
     fileMenu->addAction(openAct);
     connect(openAct, &QAction::triggered, this, &MainWindow::on_actionOpen_triggered);
 
-    QCheckBox* cascade_checkbox = new QCheckBox("Plot Cascade", this);
-    ui->horizontalLayout->insertWidget(5, cascade_checkbox);
-    connect(cascade_checkbox, &QCheckBox::stateChanged, this, [this](int state){
-        m_cascade->setVisible(state == Qt::Checked);
-        updatePlots();
-    });
-
     setupModels();
     setupViews();
     populateLumpedNetworkTable();
 
+    m_plot_manager->setNetworks(m_networks);
+    m_plot_manager->setCascade(m_cascade);
+
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
+
+    ui->checkBoxS21->setChecked(true);
+    updatePlots();
+    m_plot_manager->autoscale();
 }
 
 MainWindow::~MainWindow()
@@ -117,6 +119,7 @@ void MainWindow::processFiles(const QStringList &files)
         m_network_files_model->appendRow(row);
         m_networks.append(network);
     }
+    updatePlots();
 }
 
 void MainWindow::onFilesReceived(const QStringList &files)
@@ -140,97 +143,15 @@ void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
     updatePlots();
 }
 
-
-void MainWindow::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &filePath, const QString &yAxisLabel, Qt::PenStyle style)
-{
-    Q_UNUSED(filePath);
-    QCPGraph *graph = ui->widgetGraph->addGraph(ui->widgetGraph->xAxis, ui->widgetGraph->yAxis);
-    graph->setData(x, y);
-    graph->setPen(QPen(color, 2, style));
-    graph->setName(name);
-    ui->widgetGraph->yAxis->setLabel(yAxisLabel);
-}
-
 void MainWindow::updatePlots()
 {
-    QStringList required_graphs;
-    bool isPhase = ui->checkBoxPhase->isChecked();
-    QString yAxisLabel = isPhase ? "Phase (deg)" : "Magnitude (dB)";
-
-    // Determine which s-parameters are checked
     QStringList checked_sparams;
     if (ui->checkBoxS11->isChecked()) checked_sparams << "s11";
     if (ui->checkBoxS21->isChecked()) checked_sparams << "s21";
     if (ui->checkBoxS12->isChecked()) checked_sparams << "s12";
     if (ui->checkBoxS22->isChecked()) checked_sparams << "s22";
 
-    // Build list of required graphs from individual networks
-    for (auto network : qAsConst(m_networks)) {
-        if (network->isVisible()) {
-            for (const auto& sparam : checked_sparams) {
-                required_graphs << network->name() + "_" + sparam;
-            }
-        }
-    }
-
-    // Build list of required graphs from cascade
-    if (m_cascade->isVisible()) {
-        for (const auto& sparam : checked_sparams) {
-            required_graphs << m_cascade->name() + "_" + sparam;
-        }
-    }
-
-    // Remove graphs that are no longer needed
-    for (int i = ui->widgetGraph->graphCount() - 1; i >= 0; --i) {
-        if (!required_graphs.contains(ui->widgetGraph->graph(i)->name())) {
-            ui->widgetGraph->removeGraph(i);
-        }
-    }
-
-    // Add new graphs
-    for (const auto& sparam : checked_sparams) {
-        int sparam_idx_to_plot = -1;
-        if (sparam == "s11") sparam_idx_to_plot = 0;
-        else if (sparam == "s21") sparam_idx_to_plot = 1;
-        else if (sparam == "s12") sparam_idx_to_plot = 2;
-        else if (sparam == "s22") sparam_idx_to_plot = 3;
-
-        // Individual networks
-        for (auto network : qAsConst(m_networks)) {
-            if (network->isVisible()) {
-                QString graph_name = network->name() + "_" + sparam;
-                bool graph_exists = false;
-                for(int i=0; i<ui->widgetGraph->graphCount(); ++i) {
-                    if(ui->widgetGraph->graph(i)->name() == graph_name) {
-                        graph_exists = true;
-                        break;
-                    }
-                }
-                if (!graph_exists) {
-                    auto plotData = network->getPlotData(sparam_idx_to_plot, isPhase);
-                    plot(plotData.first, plotData.second, network->color(), graph_name, "", yAxisLabel);
-                }
-            }
-        }
-
-        // Cascade
-        if (m_cascade->isVisible()) {
-            QString graph_name = m_cascade->name() + "_" + sparam;
-             bool graph_exists = false;
-            for(int i=0; i<ui->widgetGraph->graphCount(); ++i) {
-                if(ui->widgetGraph->graph(i)->name() == graph_name) {
-                    graph_exists = true;
-                    break;
-                }
-            }
-            if(!graph_exists) {
-                auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
-                plot(plotData.first, plotData.second, m_cascade->color(), graph_name, "", yAxisLabel, Qt::DashLine);
-            }
-        }
-    }
-
-    ui->widgetGraph->replot();
+    m_plot_manager->updatePlots(checked_sparams, ui->checkBoxPhase->isChecked());
 }
 
 
@@ -285,8 +206,7 @@ void MainWindow::on_actionOpen_triggered()
 
 void MainWindow::on_pushButtonAutoscale_clicked()
 {
-    ui->widgetGraph->rescaleAxes();
-    ui->widgetGraph->replot();
+    m_plot_manager->autoscale();
 }
 
 void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
