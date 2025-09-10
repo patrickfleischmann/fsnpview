@@ -1,9 +1,9 @@
-#include "networks.h"
+#include "networkfile.h"
 #include <QFileInfo>
 #include <iostream>
 #include <math.h>
 
-Networks::Networks(QObject *parent) : QObject(parent)
+NetworkFile::NetworkFile(QObject *parent) : QObject(parent)
 {
     m_colors.append(QColor::fromRgbF(0, 0.4470, 0.7410));
     m_colors.append(QColor::fromRgbF(0.8500, 0.3250, 0.0980));
@@ -21,7 +21,7 @@ Networks::Networks(QObject *parent) : QObject(parent)
     m_colors.append(QColor::fromRgbF(0.2500, 0.2500, 0.2500));
 }
 
-void Networks::addFile(const QString &filePath)
+void NetworkFile::addFile(const QString &filePath)
 {
     try {
         std::string path = filePath.toStdString();
@@ -34,13 +34,13 @@ void Networks::addFile(const QString &filePath)
     }
 }
 
-void Networks::removeFile(const QString &filePath)
+void NetworkFile::removeFile(const QString &filePath)
 {
     m_parsed_data.erase(filePath.toStdString());
     m_file_colors.erase(filePath.toStdString());
 }
 
-QPair<QVector<double>, QVector<double>> Networks::getPlotData(const QString &filePath, int s_param_idx, bool isPhase)
+QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(const QString &filePath, int s_param_idx, bool isPhase)
 {
     std::string path = filePath.toStdString();
     auto it = m_parsed_data.find(path);
@@ -67,17 +67,17 @@ QPair<QVector<double>, QVector<double>> Networks::getPlotData(const QString &fil
     return qMakePair(xValuesQVector, yValuesQVector);
 }
 
-QColor Networks::getFileColor(const QString &filePath)
+QColor NetworkFile::getFileColor(const QString &filePath)
 {
     return m_file_colors.at(filePath.toStdString());
 }
 
-QString Networks::getFileName(const QString &filePath)
+QString NetworkFile::getFileName(const QString &filePath)
 {
     return QFileInfo(filePath).fileName();
 }
 
-QVector<double> Networks::getFrequencies(const QString &filePath)
+QVector<double> NetworkFile::getFrequencies(const QString &filePath)
 {
     std::string path = filePath.toStdString();
     auto it = m_parsed_data.find(path);
@@ -89,7 +89,7 @@ QVector<double> Networks::getFrequencies(const QString &filePath)
     return QVector<double>(xValues.data(), xValues.data() + xValues.size());
 }
 
-int Networks::getSparamIndex(const QString &sparam)
+int NetworkFile::getSparamIndex(const QString &sparam)
 {
     if (sparam == "s11") return 0;
     if (sparam == "s21") return 1;
@@ -98,7 +98,7 @@ int Networks::getSparamIndex(const QString &sparam)
     return -1;
 }
 
-QStringList Networks::getFilePaths() const
+QStringList NetworkFile::getFilePaths() const
 {
     QStringList paths;
     for (const auto& pair : m_parsed_data) {
@@ -107,7 +107,7 @@ QStringList Networks::getFilePaths() const
     return paths;
 }
 
-Eigen::ArrayXd Networks::unwrap(const Eigen::ArrayXd& phase)
+Eigen::ArrayXd NetworkFile::unwrap(const Eigen::ArrayXd& phase)
 {
     Eigen::ArrayXd unwrapped_phase = phase;
     for (int i = 1; i < phase.size(); ++i) {

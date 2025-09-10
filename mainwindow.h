@@ -17,7 +17,7 @@ QT_END_NAMESPACE
 class QCPItemTracer;
 class QCPItemText;
 class Server;
-class Networks;
+class NetworkFile;
 
 class MainWindow : public QMainWindow
 {
@@ -67,7 +67,7 @@ private:
     void updateTracers();
     Ui::MainWindow *ui;
     Server *m_server;
-    Networks *m_networks;
+    NetworkFile *m_networks;
     QCPItemTracer *mTracerA;
     QCPItemText *mTracerTextA;
     QCPItemTracer *mTracerB;

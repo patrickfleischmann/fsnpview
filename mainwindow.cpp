@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "server.h"
-#include "networks.h"
+#include "networkfile.h"
 #include <iostream>
 #include <math.h>
 #include <QVector>
@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_server(new Server(this))
-    , m_networks(new Networks(this))
+    , m_networks(new NetworkFile(this))
 {
     ui->setupUi(this);
     ui->checkBoxS21->setChecked(true);

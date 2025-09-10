@@ -23,14 +23,14 @@ SOURCES += \
     parser_touchstone.cpp \
     qcustomplot.cpp \
     server.cpp \
-    networks.cpp
+    networkfile.cpp
 
 HEADERS += \
     mainwindow.h \
     parser_touchstone.h \
     qcustomplot.h \
     server.h \
-    networks.h
+    networkfile.h
 
 FORMS += \
     mainwindow.ui
