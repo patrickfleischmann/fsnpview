@@ -10,6 +10,8 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QCheckBox>
+#include <QLabel>
+#include <QStatusBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -19,6 +21,9 @@ MainWindow::MainWindow(QWidget *parent)
     , m_network_files_model(new NetworkItemModel(this))
     , m_network_lumped_model(new NetworkItemModel(this))
     , m_network_cascade_model(new NetworkItemModel(this))
+    , m_cursor_a_label(new QLabel(this))
+    , m_cursor_b_label(new QLabel(this))
+    , m_delta_label(new QLabel(this))
 {
     ui->setupUi(this);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
@@ -36,16 +41,44 @@ MainWindow::MainWindow(QWidget *parent)
     m_plot_manager->setCascade(m_cascade);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
+    connect(m_plot_manager, &PlotManager::cursorUpdated, this, &MainWindow::onCursorUpdated);
 
     ui->checkBoxS21->setChecked(true);
     updatePlots();
     m_plot_manager->autoscale();
+
+    // Setup status bar
+    statusBar()->addPermanentWidget(new QLabel("Cursors:"));
+    statusBar()->addPermanentWidget(m_cursor_a_label);
+    statusBar()->addPermanentWidget(m_cursor_b_label);
+    statusBar()->addPermanentWidget(m_delta_label);
+
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
     qDeleteAll(m_networks);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Minus)
+    {
+        auto selected_graphs = ui->widgetGraph->selectedGraphs();
+        if (selected_graphs.size() == 2)
+        {
+            m_plot_manager->createDifference(selected_graphs[0], selected_graphs[1]);
+        }
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::onCursorUpdated(const QString& cursor_a_text, const QString& cursor_b_text, const QString& delta_text)
+{
+    m_cursor_a_label->setText(cursor_a_text);
+    m_cursor_b_label->setText(cursor_b_text);
+    m_delta_label->setText(delta_text);
 }
 
 void MainWindow::setupModels()
@@ -112,7 +145,7 @@ void MainWindow::processFiles(const QStringList &files)
         QList<QStandardItem*> row;
         QStandardItem* checkItem = new QStandardItem();
         checkItem->setCheckable(true);
-        checkItem->setCheckState(Qt::Unchecked);
+        checkItem->setCheckState(Qt::Checked);
         checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
         row.append(checkItem);
         row.append(new QStandardItem(network->name()));

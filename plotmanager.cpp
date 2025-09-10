@@ -2,14 +2,26 @@
 #include "qcustomplot.h"
 #include "network.h"
 #include "networkcascade.h"
+#include <QRubberBand>
+#include <QMouseEvent>
 
 PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     : QObject(parent)
     , m_plot(plot)
+    , m_rubber_band(new QRubberBand(QRubberBand::Rectangle, m_plot))
+    , m_cursor_a(nullptr)
+    , m_cursor_b(nullptr)
     , m_cascade(nullptr)
     , m_color_index(0)
 {
-    m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
+    m_plot->setInteractions(QCP::iSelectPlottables | QCP::iMultiSelect);
+    connect(m_plot, &QCustomPlot::mousePress, this, &PlotManager::onMousePress);
+    connect(m_plot, &QCustomPlot::mouseMove, this, &PlotManager::onMouseMove);
+    connect(m_plot, &QCustomPlot::mouseRelease, this, &PlotManager::onMouseRelease);
+    connect(m_plot, &QCustomPlot::mouseWheel, this, &PlotManager::onMouseWheel);
+    connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::onMouseDoubleClick);
+    connect(m_plot, &QCustomPlot::plottableClick, this, &PlotManager::onPlottableClick);
+
 
     m_colors.append(QColor(0, 114, 189));   // Blue
     m_colors.append(QColor(217, 83, 25));    // Orange
@@ -18,6 +30,13 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_colors.append(QColor(119, 172, 48));   // Green
     m_colors.append(QColor(77, 190, 238));   // Light Blue
     m_colors.append(QColor(162, 20, 47));    // Red
+
+    setupCursors();
+}
+
+PlotManager::~PlotManager()
+{
+    delete m_rubber_band;
 }
 
 void PlotManager::setNetworks(const QList<Network*>& networks)
@@ -119,4 +138,142 @@ void PlotManager::autoscale()
 {
     m_plot->rescaleAxes();
     m_plot->replot();
+}
+
+void PlotManager::createDifference(QCPGraph* graph1, QCPGraph* graph2) {
+    if (!graph1 || !graph2)
+        return;
+
+    QVector<double> x, y;
+    for (int i = 0; i < graph1->dataCount(); ++i) {
+        double key1 = graph1->data()->at(i)->key;
+        double value1 = graph1->data()->at(i)->value;
+
+        // Find corresponding point in graph2
+        for (int j = 0; j < graph2->dataCount(); ++j) {
+            if (qFuzzyCompare(graph2->data()->at(j)->key, key1)) {
+                double value2 = graph2->data()->at(j)->value;
+                x.append(key1);
+                y.append(value1 - value2);
+                break;
+            }
+        }
+    }
+    plot(x, y, Qt::red, "Difference", m_plot->yAxis->label(), Qt::DashDotLine);
+    m_plot->replot();
+}
+
+
+void PlotManager::onMousePress(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        m_drag_start_pos = event->pos();
+        m_rubber_band->setGeometry(QRect(m_drag_start_pos, QSize()));
+        m_rubber_band->show();
+    }
+    else if (event->button() == Qt::RightButton)
+    {
+        m_drag_start_pos = event->pos();
+    }
+}
+
+void PlotManager::onMouseMove(QMouseEvent* event)
+{
+    if (event->buttons() & Qt::LeftButton)
+    {
+        m_rubber_band->setGeometry(QRect(m_drag_start_pos, event->pos()).normalized());
+    }
+    else if (event->buttons() & Qt::RightButton)
+    {
+        QPoint delta = event->pos() - m_drag_start_pos;
+        m_drag_start_pos = event->pos();
+
+        m_plot->xAxis->moveRange(m_plot->xAxis->pixelToCoord(0) - m_plot->xAxis->pixelToCoord(delta.x()));
+        m_plot->yAxis->moveRange(m_plot->yAxis->pixelToCoord(0) - m_plot->yAxis->pixelToCoord(delta.y()));
+        m_plot->replot();
+    }
+}
+
+void PlotManager::onMouseRelease(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        m_rubber_band->hide();
+        QRect rect = m_rubber_band->geometry();
+        if (rect.width() < 5 || rect.height() < 5) return;
+
+        m_plot->xAxis->setRange(m_plot->xAxis->pixelToCoord(rect.left()), m_plot->xAxis->pixelToCoord(rect.right()));
+        m_plot->yAxis->setRange(m_plot->yAxis->pixelToCoord(rect.bottom()), m_plot->yAxis->pixelToCoord(rect.top()));
+        m_plot->replot();
+    }
+}
+
+void PlotManager::onMouseWheel(QWheelEvent* event)
+{
+    double factor = 1.15;
+    if (event->angleDelta().y() < 0)
+        factor = 1.0 / factor;
+
+    m_plot->xAxis->scaleRange(factor, m_plot->xAxis->pixelToCoord(event->position().x()));
+    m_plot->yAxis->scaleRange(factor, m_plot->yAxis->pixelToCoord(event->position().y()));
+    m_plot->replot();
+}
+
+void PlotManager::onMouseDoubleClick(QMouseEvent *event)
+{
+    Q_UNUSED(event);
+    autoscale();
+}
+
+void PlotManager::setupCursors()
+{
+    m_cursor_a = new QCPItemTracer(m_plot);
+    m_cursor_a->setPen(QPen(Qt::red, 1, Qt::DashLine));
+    m_cursor_a->setBrush(Qt::NoBrush);
+    m_cursor_a->setStyle(QCPItemTracer::tsCrosshair);
+    m_cursor_a->setVisible(false);
+
+    m_cursor_b = new QCPItemTracer(m_plot);
+    m_cursor_b->setPen(QPen(Qt::blue, 1, Qt::DashLine));
+    m_cursor_b->setBrush(Qt::NoBrush);
+    m_cursor_b->setStyle(QCPItemTracer::tsCrosshair);
+    m_cursor_b->setVisible(false);
+}
+
+void PlotManager::onPlottableClick(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event)
+{
+    QCPGraph *graph = qobject_cast<QCPGraph*>(plottable);
+    if (!graph) return;
+
+    QCPItemTracer* cursor = nullptr;
+    if (event->button() == Qt::LeftButton)
+    {
+        cursor = m_cursor_a;
+    }
+    else if (event->button() == Qt::RightButton)
+    {
+        cursor = m_cursor_b;
+    }
+
+    if (cursor)
+    {
+        cursor->setGraph(graph);
+        cursor->setGraphKey(graph->data()->at(dataIndex)->key);
+        cursor->setVisible(true);
+        m_plot->replot();
+
+        QString cursor_a_text, cursor_b_text, delta_text;
+        if (m_cursor_a->visible())
+            cursor_a_text = QString("A: %1 Hz, %2 dB").arg(m_cursor_a->position->key()).arg(m_cursor_a->position->value());
+        if (m_cursor_b->visible())
+            cursor_b_text = QString("B: %1 Hz, %2 dB").arg(m_cursor_b->position->key()).arg(m_cursor_b->position->value());
+        if (m_cursor_a->visible() && m_cursor_b->visible())
+        {
+            double delta_x = m_cursor_b->position->key() - m_cursor_a->position->key();
+            double delta_y = m_cursor_b->position->value() - m_cursor_a->position->value();
+            delta_text = QString("Δ: %1 Hz, %2 dB").arg(delta_x).arg(delta_y);
+        }
+        emit cursorUpdated(cursor_a_text, cursor_b_text, delta_text);
+    }
 }

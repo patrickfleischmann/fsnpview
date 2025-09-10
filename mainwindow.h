@@ -22,6 +22,7 @@ QT_END_NAMESPACE
 class Server;
 class NetworkFile;
 class PlotManager;
+class QLabel;
 
 class MainWindow : public QMainWindow
 {
@@ -32,10 +33,14 @@ public:
     ~MainWindow();
     void processFiles(const QStringList &files);
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private slots:
     void on_actionOpen_triggered();
     void on_pushButtonAutoscale_clicked();
     void onFilesReceived(const QStringList &files);
+    void onCursorUpdated(const QString& cursor_a_text, const QString& cursor_b_text, const QString& delta_text);
 
     void on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1);
 
@@ -70,5 +75,8 @@ private:
     NetworkItemModel* m_network_files_model;
     NetworkItemModel* m_network_lumped_model;
     NetworkItemModel* m_network_cascade_model;
+    QLabel* m_cursor_a_label;
+    QLabel* m_cursor_b_label;
+    QLabel* m_delta_label;
 };
 #endif // MAINWINDOW_H

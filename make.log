@@ -1,20 +1,102 @@
 g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o main.o main.cpp
 g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o mainwindow.o mainwindow.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o network.o network.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o networkfile.o networkfile.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o networklumped.o networklumped.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o networkcascade.o networkcascade.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o networkitemmodel.o networkitemmodel.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include mainwindow.h -o moc_mainwindow.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_mainwindow.o moc_mainwindow.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include network.h -o moc_network.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_network.o moc_network.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include networkfile.h -o moc_networkfile.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_networkfile.o moc_networkfile.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include networklumped.h -o moc_networklumped.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_networklumped.o moc_networklumped.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include networkcascade.h -o moc_networkcascade.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_networkcascade.o moc_networkcascade.cpp
-/usr/lib/qt6/libexec/moc -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB --include /app/moc_predefs.h -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -I/app -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -I/usr/include/c++/13/backward -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include networkitemmodel.h -o moc_networkitemmodel.cpp
-g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o moc_networkitemmodel.o moc_networkitemmodel.cpp
-g++ -Wl,-O1 -Wl,-rpath-link,/usr/lib/x86_64-linux-gnu -o fsnpview  main.o mainwindow.o parser_touchstone.o qcustomplot.o server.o network.o networkfile.o networklumped.o networkcascade.o networkitemmodel.o moc_mainwindow.o moc_qcustomplot.o moc_server.o moc_network.o moc_networkfile.o moc_networklumped.o moc_networkcascade.o moc_networkitemmodel.o   /usr/lib/x86_64-linux-gnu/libQt6PrintSupport.so /usr/lib/x86_64-linux-gnu/libQt6Widgets.so /usr/lib/x86_64-linux-gnu/libQt6Gui.so /usr/lib/x86_64-linux-gnu/libGLX.so /usr/lib/x86_64-linux-gnu/libOpenGL.so /usr/lib/x86_64-linux-gnu/libQt6Network.so /usr/lib/x86_64-linux-gnu/libQt6Core.so -lpthread -lGLX -lOpenGL
+In file included from mainwindow.cpp:1:
+mainwindow.h: In constructor ‘MainWindow::MainWindow(QWidget*)’:
+mainwindow.h:80:23: warning: ‘MainWindow::m_network_cascade_model’ will be initialized after [-Wreorder]
+   80 |     NetworkItemModel* m_network_cascade_model;
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~
+mainwindow.h:72:13: warning:   ‘QLabel* MainWindow::m_cursor_a_label’ [-Wreorder]
+   72 |     QLabel* m_cursor_a_label;
+      |             ^~~~~~~~~~~~~~~~
+mainwindow.cpp:16:1: warning:   when initialized here [-Wreorder]
+   16 | MainWindow::MainWindow(QWidget *parent)
+      | ^~~~~~~~~~
+g++ -c -pipe -O2 -std=gnu++1z -Wall -Wextra -fPIC -D_REENTRANT -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I. -I/usr/include/eigen3 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I. -I. -I/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -o plotmanager.o plotmanager.cpp
+In file included from plotmanager.cpp:1:
+plotmanager.h:25:27: error: ‘QCPGraph’ has not been declared
+   25 |     void createDifference(QCPGraph* graph1, QCPGraph* graph2);
+      |                           ^~~~~~~~
+plotmanager.h:25:45: error: ‘QCPGraph’ has not been declared
+   25 |     void createDifference(QCPGraph* graph1, QCPGraph* graph2);
+      |                                             ^~~~~~~~
+plotmanager.h:34:23: error: ‘QWheelEvent’ has not been declared
+   34 |     void onMouseWheel(QWheelEvent* event);
+      |                       ^~~~~~~~~~~
+plotmanager.h:36:27: error: ‘QCPAbstractPlottable’ has not been declared
+   36 |     void onPlottableClick(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
+      |                           ^~~~~~~~~~~~~~~~~~~~
+plotmanager.h:45:12: error: field ‘m_drag_start_pos’ has incomplete type ‘QPoint’
+   45 |     QPoint m_drag_start_pos;
+      |            ^~~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:18,
+                 from /usr/include/x86_64-linux-gnu/qt6/QtCore/QObject:1,
+                 from plotmanager.h:4:
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qmetatype.h:109:19: note: forward declaration of ‘class QPoint’
+  109 |     F(QPoint, 25, QPoint) \
+      |                   ^~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qmetatype.h:1438:11: note: in definition of macro ‘QT_FORWARD_DECLARE_STATIC_TYPES_ITER’
+ 1438 |     class Name;
+      |           ^~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qmetatype.h:1440:1: note: in expansion of macro ‘QT_FOR_EACH_STATIC_CORE_CLASS’
+ 1440 | QT_FOR_EACH_STATIC_CORE_CLASS(QT_FORWARD_DECLARE_STATIC_TYPES_ITER)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+plotmanager.h:46:5: error: ‘QCPItemTracer’ does not name a type
+   46 |     QCPItemTracer* m_cursor_a;
+      |     ^~~~~~~~~~~~~
+plotmanager.h:47:5: error: ‘QCPItemTracer’ does not name a type
+   47 |     QCPItemTracer* m_cursor_b;
+      |     ^~~~~~~~~~~~~
+plotmanager.cpp: In constructor ‘PlotManager::PlotManager(QCustomPlot*, QObject*)’:
+plotmanager.cpp:12:7: error: class ‘PlotManager’ does not have any field named ‘m_cursor_a’
+   12 |     , m_cursor_a(nullptr)
+      |       ^~~~~~~~~~
+plotmanager.cpp:13:7: error: class ‘PlotManager’ does not have any field named ‘m_cursor_b’
+   13 |     , m_cursor_b(nullptr)
+      |       ^~~~~~~~~~
+plotmanager.cpp: At global scope:
+plotmanager.cpp:143:6: error: no declaration matches ‘void PlotManager::createDifference(QCPGraph*, QCPGraph*)’
+  143 | void PlotManager::createDifference(QCPGraph* graph1, QCPGraph* graph2) {
+      |      ^~~~~~~~~~~
+plotmanager.h:25:10: note: candidate is: ‘void PlotManager::createDifference(int*, int*)’
+   25 |     void createDifference(QCPGraph* graph1, QCPGraph* graph2);
+      |          ^~~~~~~~~~~~~~~~
+plotmanager.h:14:7: note: ‘class PlotManager’ defined here
+   14 | class PlotManager : public QObject
+      |       ^~~~~~~~~~~
+plotmanager.cpp:212:6: error: no declaration matches ‘void PlotManager::onMouseWheel(QWheelEvent*)’
+  212 | void PlotManager::onMouseWheel(QWheelEvent* event)
+      |      ^~~~~~~~~~~
+plotmanager.h:34:10: note: candidate is: ‘void PlotManager::onMouseWheel(int*)’
+   34 |     void onMouseWheel(QWheelEvent* event);
+      |          ^~~~~~~~~~~~
+plotmanager.h:14:7: note: ‘class PlotManager’ defined here
+   14 | class PlotManager : public QObject
+      |       ^~~~~~~~~~~
+plotmanager.cpp: In member function ‘void PlotManager::setupCursors()’:
+plotmanager.cpp:231:5: error: ‘m_cursor_a’ was not declared in this scope
+  231 |     m_cursor_a = new QCPItemTracer(m_plot);
+      |     ^~~~~~~~~~
+plotmanager.cpp:237:5: error: ‘m_cursor_b’ was not declared in this scope
+  237 |     m_cursor_b = new QCPItemTracer(m_plot);
+      |     ^~~~~~~~~~
+plotmanager.cpp: At global scope:
+plotmanager.cpp:244:6: error: no declaration matches ‘void PlotManager::onPlottableClick(QCPAbstractPlottable*, int, QMouseEvent*)’
+  244 | void PlotManager::onPlottableClick(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event)
+      |      ^~~~~~~~~~~
+plotmanager.h:36:10: note: candidate is: ‘void PlotManager::onPlottableClick(int*, int, QMouseEvent*)’
+   36 |     void onPlottableClick(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
+      |          ^~~~~~~~~~~~~~~~
+plotmanager.h:14:7: note: ‘class PlotManager’ defined here
+   14 | class PlotManager : public QObject
+      |       ^~~~~~~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h: In instantiation of ‘static QMetaObject::Connection QObject::connect(const typename QtPrivate::FunctionPointer<Func>::Object*, Func1, const typename QtPrivate::FunctionPointer<Func2>::Object*, Func2, Qt::ConnectionType) [with Func1 = void (QCustomPlot::*)(QWheelEvent*); Func2 = void (PlotManager::*)(int*); typename QtPrivate::FunctionPointer<Func>::Object = QCustomPlot; typename QtPrivate::FunctionPointer<Func2>::Object = PlotManager]’:
+plotmanager.cpp:21:12:   required from here
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:214:123: error: static assertion failed: Signal and slot arguments are not compatible.
+  214 |         static_assert((QtPrivate::CheckCompatibleArguments<typename SignalType::Arguments, typename SlotType::Arguments>::value),
+      |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:214:123: note: ‘QtPrivate::CheckCompatibleArguments<QtPrivate::List<QWheelEvent*>, QtPrivate::List<int*> >::value’ evaluates to false
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h: In instantiation of ‘static QMetaObject::Connection QObject::connect(const typename QtPrivate::FunctionPointer<Func>::Object*, Func1, const typename QtPrivate::FunctionPointer<Func2>::Object*, Func2, Qt::ConnectionType) [with Func1 = void (QCustomPlot::*)(QCPAbstractPlottable*, int, QMouseEvent*); Func2 = void (PlotManager::*)(int*, int, QMouseEvent*); typename QtPrivate::FunctionPointer<Func>::Object = QCustomPlot; typename QtPrivate::FunctionPointer<Func2>::Object = PlotManager]’:
+plotmanager.cpp:23:12:   required from here
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:214:123: error: static assertion failed: Signal and slot arguments are not compatible.
+/usr/include/x86_64-linux-gnu/qt6/QtCore/qobject.h:214:123: note: ‘QtPrivate::CheckCompatibleArguments<QtPrivate::List<QCPAbstractPlottable*, int, QMouseEvent*>, QtPrivate::List<int*, int, QMouseEvent*> >::value’ evaluates to false
+make: *** [Makefile:508: plotmanager.o] Error 1
