@@ -60,6 +60,12 @@ private slots:
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_tableViewNetworkFiles_clicked(const QModelIndex &index);
+
+    void on_tableViewNetworkLumped_clicked(const QModelIndex &index);
+
+    void on_tableViewCascade_clicked(const QModelIndex &index);
+
 private:
     void updateSparamPlot(const QString &paramName, const Qt::CheckState &checkState);
     enum class DragMode { None, Vertical, Horizontal };

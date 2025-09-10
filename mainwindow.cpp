@@ -505,3 +505,21 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     }
 }
 
+
+void MainWindow::on_tableViewNetworkFiles_clicked(const QModelIndex &index)
+{
+
+}
+
+
+void MainWindow::on_tableViewNetworkLumped_clicked(const QModelIndex &index)
+{
+
+}
+
+
+void MainWindow::on_tableViewCascade_clicked(const QModelIndex &index)
+{
+
+}
+
