@@ -1,5 +1,5 @@
-#ifndef NETWORKS_H
-#define NETWORKS_H
+#ifndef NETWORKFILE_H
+#define NETWORKFILE_H
 
 #include "parser_touchstone.h"
 #include <QObject>
@@ -12,11 +12,11 @@
 #include <memory>
 #include <Eigen/Dense>
 
-class Networks : public QObject
+class NetworkFile : public QObject
 {
     Q_OBJECT
 public:
-    explicit Networks(QObject *parent = nullptr);
+    explicit NetworkFile(QObject *parent = nullptr);
 
     void addFile(const QString &filePath);
     void removeFile(const QString &filePath);
@@ -35,4 +35,4 @@ private:
     QList<QColor> m_colors;
 };
 
-#endif // NETWORKS_H
+#endif // NETWORKFILE_H
