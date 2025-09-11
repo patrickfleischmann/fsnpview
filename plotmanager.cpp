@@ -61,25 +61,27 @@ void PlotManager::setCascade(NetworkCascade* cascade)
     m_cascade = cascade;
 }
 
-void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &yAxisLabel, Qt::PenStyle style)
+void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style)
 {
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
     graph->setPen(QPen(color, 2, style));
     graph->setName(name);
-    m_plot->yAxis->setLabel(yAxisLabel);
 }
 
 void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
 {
     QStringList required_graphs;
     QString yAxisLabel = isPhase ? "Phase (deg)" : "Magnitude (dB)";
+    m_plot->yAxis->setLabel(yAxisLabel);
 
     // Build list of required graphs from individual networks
     for (auto network : qAsConst(m_networks)) {
         if (network->isVisible()) {
             for (const auto& sparam : sparams) {
-                required_graphs << network->name() + "_" + sparam;
+                QString graph_name = network->name() + "_" + sparam;
+                if (isPhase) graph_name += "_phase";
+                required_graphs << graph_name;
             }
         }
     }
@@ -87,7 +89,9 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
     // Build list of required graphs from cascade
     if (m_cascade && m_cascade->getNetworks().size() > 0) {
         for (const auto& sparam : sparams) {
-            required_graphs << m_cascade->name() + "_" + sparam;
+            QString graph_name = m_cascade->name() + "_" + sparam;
+            if (isPhase) graph_name += "_phase";
+            required_graphs << graph_name;
         }
     }
 
@@ -111,6 +115,7 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
         for (auto network : qAsConst(m_networks)) {
             if (network->isVisible()) {
                 QString graph_name = network->name() + "_" + sparam;
+                if (isPhase) graph_name += "_phase";
                 bool graph_exists = false;
                 for(int i=0; i<m_plot->graphCount(); ++i) {
                     if(m_plot->graph(i)->name() == graph_name) {
@@ -120,7 +125,7 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
                 }
                 if (!graph_exists) {
                     auto plotData = network->getPlotData(sparam_idx_to_plot, isPhase);
-                    plot(plotData.first, plotData.second, m_colors.at(m_color_index % m_colors.size()), graph_name, yAxisLabel);
+                    plot(plotData.first, plotData.second, m_colors.at(m_color_index % m_colors.size()), graph_name);
                     m_color_index++;
                 }
             }
@@ -129,6 +134,7 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
         // Cascade
         if (m_cascade && m_cascade->getNetworks().size() > 0) {
             QString graph_name = m_cascade->name() + "_" + sparam;
+            if (isPhase) graph_name += "_phase";
              bool graph_exists = false;
             for(int i=0; i<m_plot->graphCount(); ++i) {
                 if(m_plot->graph(i)->name() == graph_name) {
@@ -138,7 +144,7 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
             }
             if(!graph_exists) {
                 auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
-                plot(plotData.first, plotData.second, Qt::black, graph_name, yAxisLabel, Qt::DashLine);
+                plot(plotData.first, plotData.second, Qt::black, graph_name, Qt::DashLine);
             }
         }
     }
