@@ -66,21 +66,26 @@ Eigen::MatrixXcd NetworkCascade::abcd(const Eigen::VectorXd& freq) const
         total_abcd.row(i) << 1, 0, 0, 1;
     }
 
+    QList<Network*> active_networks;
     for (const auto& network : m_networks) {
         if (network->isActive()) {
-            Eigen::MatrixXcd network_abcd = network->abcd(freq);
-            for (int i = 0; i < freq.size(); ++i) {
-                Eigen::Matrix2cd abcd_point_mat;
-                abcd_point_mat << network_abcd(i, 0), network_abcd(i, 1),
-                                  network_abcd(i, 2), network_abcd(i, 3);
+            active_networks.append(network);
+        }
+    }
 
-                Eigen::Matrix2cd total_abcd_mat;
-                total_abcd_mat << total_abcd(i, 0), total_abcd(i, 1),
-                                  total_abcd(i, 2), total_abcd(i, 3);
+    for (const auto& network : active_networks) {
+        Eigen::MatrixXcd network_abcd = network->abcd(freq);
+        for (int i = 0; i < freq.size(); ++i) {
+            Eigen::Matrix2cd abcd_point_mat;
+            abcd_point_mat << network_abcd(i, 0), network_abcd(i, 1),
+                              network_abcd(i, 2), network_abcd(i, 3);
 
-                Eigen::Matrix2cd result = total_abcd_mat * abcd_point_mat;
-                total_abcd.row(i) << result(0, 0), result(0, 1), result(1, 0), result(1, 1);
-            }
+            Eigen::Matrix2cd total_abcd_mat;
+            total_abcd_mat << total_abcd(i, 0), total_abcd(i, 1),
+                              total_abcd(i, 2), total_abcd(i, 3);
+
+            Eigen::Matrix2cd result = total_abcd_mat * abcd_point_mat;
+            total_abcd.row(i) << result(0, 0), result(0, 1), result(1, 0), result(1, 1);
         }
     }
 
