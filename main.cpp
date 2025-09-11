@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 
     QStringList args = a.arguments();
     args.removeFirst(); // remove the program name
-    w.processFiles(args);
+    w.processFiles(args, true);
 
     int result = a.exec();
 

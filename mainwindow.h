@@ -30,7 +30,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void processFiles(const QStringList &files);
+    void processFiles(const QStringList &files, bool autoscale = false);
 
 private slots:
     void on_actionOpen_triggered();

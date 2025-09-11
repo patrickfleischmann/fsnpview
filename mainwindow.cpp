@@ -113,7 +113,7 @@ void MainWindow::populateLumpedNetworkTable()
     }
 }
 
-void MainWindow::processFiles(const QStringList &files)
+void MainWindow::processFiles(const QStringList &files, bool autoscale)
 {
     for (const QString &file : files) {
         Network* network = new NetworkFile(file);
@@ -129,6 +129,7 @@ void MainWindow::processFiles(const QStringList &files)
     }
     m_plot_manager->setNetworks(m_networks);
     updatePlots();
+    if(autoscale) m_plot_manager->autoscale();
 }
 
 void MainWindow::onFilesReceived(const QStringList &files)
