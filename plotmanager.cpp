@@ -351,7 +351,7 @@ void PlotManager::createMathPlot()
                 ++it2;
             }
         }
-        plot(x, y, Qt::red, QString("%1 - %2").arg(graph1->name()).arg(graph2->name()), m_plot->yAxis->label());
+        plot(x, y, Qt::red, QString("%1 - %2").arg(graph1->name()).arg(graph2->name()));
         m_plot->replot();
     }
 }
