@@ -16,6 +16,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     connect(m_plot, &QCustomPlot::mouseRelease, this, &PlotManager::mouseRelease);
 
     m_plot->setSelectionRectMode(QCP::srmZoom);
+    m_plot->setRangeDragButton(Qt::RightButton);
 
     mTracerA = new QCPItemTracer(m_plot);
     mTracerA->setPen(QPen(Qt::black,0));
@@ -38,6 +39,12 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     mTracerTextB = new QCPItemText(m_plot);
     mTracerTextB->setColor(Qt::blue);
     mTracerTextB->setVisible(false);
+
+    m_plot->addLayer("tracers", m_plot->layer("main"), QCustomPlot::limAbove);
+    mTracerA->setLayer("tracers");
+    mTracerTextA->setLayer("tracers");
+    mTracerB->setLayer("tracers");
+    mTracerTextB->setLayer("tracers");
 
     mDraggedTracer = nullptr;
     mDragMode = DragMode::None;
@@ -210,40 +217,31 @@ void PlotManager::mousePress(QMouseEvent *event)
         mDraggedTracer = nullptr;
         mDragMode = DragMode::None;
 
-        // Check for tracer A
-        if (mTracerA->visible())
-        {
-            const QPointF tracerPos = mTracerA->position->pixelPosition();
-            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
-            {
-                mDraggedTracer = mTracerA;
-                mDragMode = DragMode::Vertical;
-            }
-            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
-            {
-                mDraggedTracer = mTracerA;
-                mDragMode = DragMode::Horizontal;
-            }
-        }
-        // Check for tracer B if A was not hit
-        if (!mDraggedTracer && mTracerB->visible())
-        {
-            const QPointF tracerPos = mTracerB->position->pixelPosition();
-            if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
-            {
-                mDraggedTracer = mTracerB;
-                mDragMode = DragMode::Vertical;
-            }
-            else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
-            {
-                mDraggedTracer = mTracerB;
-                mDragMode = DragMode::Horizontal;
-            }
-        }
+        checkForTracerDrag(event, mTracerA);
+        if (!mDraggedTracer)
+            checkForTracerDrag(event, mTracerB);
 
         if (mDraggedTracer)
         {
             m_plot->setSelectionRectMode(QCP::srmNone);
+        }
+    }
+}
+
+void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
+{
+    if (tracer->visible())
+    {
+        const QPointF tracerPos = tracer->position->pixelPosition();
+        if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
+        {
+            mDraggedTracer = tracer;
+            mDragMode = DragMode::Vertical;
+        }
+        else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
+        {
+            mDraggedTracer = tracer;
+            mDragMode = DragMode::Horizontal;
         }
     }
 }
@@ -320,4 +318,34 @@ void PlotManager::updateTracers()
         updateTracerText(mTracerA, mTracerTextA);
     if (mTracerB && mTracerB->visible())
         updateTracerText(mTracerB, mTracerTextB);
+}
+
+void PlotManager::createMathPlot()
+{
+    if (m_plot->selectedGraphs().size() == 2)
+    {
+        QCPGraph *graph1 = m_plot->selectedGraphs().at(0);
+        QCPGraph *graph2 = m_plot->selectedGraphs().at(1);
+        QCPGraphDataContainer::const_iterator it1 = graph1->data()->constBegin();
+        QCPGraphDataContainer::const_iterator it2 = graph2->data()->constBegin();
+        QVector<double> x, y;
+        while (it1 != graph1->data()->constEnd() && it2 != graph2->data()->constEnd())
+        {
+            if (qFuzzyCompare(it1->key, it2->key))
+            {
+                x.append(it1->key);
+                y.append(it1->value - it2->value);
+                ++it1;
+                ++it2;
+            } else if (it1->key < it2->key)
+            {
+                ++it1;
+            } else
+            {
+                ++it2;
+            }
+        }
+        plot(x, y, Qt::red, QString("%1 - %2").arg(graph1->name()).arg(graph2->name()), m_plot->yAxis->label());
+        m_plot->replot();
+    }
 }
