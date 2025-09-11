@@ -6,6 +6,7 @@ NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
 {
     m_fmin = 1e6;
     m_fmax = 10e9;
+    m_is_visible = false;
 }
 
 QString NetworkLumped::name() const

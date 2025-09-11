@@ -2,6 +2,9 @@
 #include "qcustomplot.h"
 #include "network.h"
 #include "networkcascade.h"
+#include<QDebug>
+
+using namespace std;
 
 PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     : QObject(parent)
@@ -72,22 +75,25 @@ void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const
 {
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
-    graph->setPen(QPen(color, 2, style));
+    graph->setPen(QPen(color, 0, style)); //0 means always exactly one pixel wide
     graph->setName(name);
 }
 
 void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
 {
+    qInfo("  updatePlots()");
     QStringList required_graphs;
     QString yAxisLabel = isPhase ? "Phase (deg)" : "Magnitude (dB)";
     m_plot->yAxis->setLabel(yAxisLabel);
 
     // Build list of required graphs from individual networks
     for (auto network : qAsConst(m_networks)) {
+        qInfo() << network->name();
         if (network->isVisible()) {
             for (const auto& sparam : sparams) {
                 QString graph_name = network->name() + "_" + sparam;
                 if (isPhase) graph_name += "_phase";
+                qInfo() << "isVisible: " << graph_name;
                 required_graphs << graph_name;
             }
         }
