@@ -30,12 +30,14 @@ public slots:
     void mouseRelease(QMouseEvent *event);
     void setCursorAVisible(bool visible);
     void setCursorBVisible(bool visible);
+    void createMathPlot();
 
 private:
     enum class DragMode { None, Vertical, Horizontal };
     void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, const QString &yAxisLabel, Qt::PenStyle style = Qt::SolidLine);
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
+    void checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer);
 
 
     QCustomPlot* m_plot;

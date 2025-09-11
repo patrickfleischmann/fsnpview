@@ -53,6 +53,8 @@ private slots:
     void onNetworkCascadeModelChanged(QStandardItem *item);
     void onNetworkDropped(Network* network, const QModelIndex& parent);
 
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
 
 private:
     void updatePlots();

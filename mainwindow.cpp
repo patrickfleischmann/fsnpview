@@ -239,6 +239,15 @@ void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
     updatePlots();
 }
 
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Minus)
+    {
+        m_plot_manager->createMathPlot();
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
 void MainWindow::on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1)
 {
     Q_UNUSED(arg1);
