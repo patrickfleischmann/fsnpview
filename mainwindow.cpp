@@ -62,8 +62,8 @@ void MainWindow::setupModels()
     m_network_files_model->setHorizontalHeaderLabels({"Plot", "File"});
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
-    m_network_lumped_model->setColumnCount(2);
-    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Name"});
+    m_network_lumped_model->setColumnCount(4);
+    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Name", "Value", "Unit"});
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
     m_network_cascade_model->setColumnCount(2);
@@ -92,23 +92,31 @@ void MainWindow::setupViews()
 
 void MainWindow::populateLumpedNetworkTable()
 {
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_series, 50));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_shunt, 50));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_series, 1e-12));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, 1e-12));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, 1e-9));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, 1e-9));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_series, 50, ""));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_shunt, 50, ""));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_series, 1, "p"));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, 1, "p"));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, 1, "n"));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, 1, "n"));
 
     for (auto network_ptr : qAsConst(m_networks)) {
-        if (dynamic_cast<NetworkLumped*>(network_ptr)) {
+        if (auto lumped_ptr = dynamic_cast<NetworkLumped*>(network_ptr)) {
             QList<QStandardItem*> row;
             QStandardItem* checkItem = new QStandardItem();
             checkItem->setCheckable(true);
             checkItem->setCheckState(Qt::Unchecked);
-            checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network_ptr)), Qt::UserRole);
+            checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(lumped_ptr)), Qt::UserRole);
             row.append(checkItem);
-            row.append(new QStandardItem(network_ptr->name()));
+            row.append(new QStandardItem(lumped_ptr->name()));
+
+            QStandardItem* valueItem = new QStandardItem(QString::number(lumped_ptr->value()));
+            row.append(valueItem);
+
+            QStandardItem* unitItem = new QStandardItem(lumped_ptr->unit());
+            row.append(unitItem);
+
             m_network_lumped_model->appendRow(row);
+            connect(lumped_ptr, &NetworkLumped::valueChanged, this, &MainWindow::updatePlots);
         }
     }
 }
@@ -177,13 +185,24 @@ void MainWindow::onNetworkFilesModelChanged(QStandardItem *item)
 
 void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
 {
-    if (item->column() == 0) {
-        quintptr net_ptr_val = item->data(Qt::UserRole).value<quintptr>();
-        Network* network = reinterpret_cast<Network*>(net_ptr_val);
-        if(network) {
-            network->setVisible(item->checkState() == Qt::Checked);
-            updatePlots();
-        }
+    QStandardItem* checkItem = m_network_lumped_model->item(item->row(), 0);
+    quintptr net_ptr_val = checkItem->data(Qt::UserRole).value<quintptr>();
+    auto network = reinterpret_cast<NetworkLumped*>(net_ptr_val);
+
+    if (!network)
+        return;
+
+    switch (item->column()) {
+    case 0:
+        network->setVisible(item->checkState() == Qt::Checked);
+        updatePlots();
+        break;
+    case 2:
+        network->setValue(item->text().toDouble());
+        break;
+    case 3:
+        network->setUnit(item->text());
+        break;
     }
 }
 
