@@ -127,6 +127,7 @@ void MainWindow::processFiles(const QStringList &files)
         m_network_files_model->appendRow(row);
         m_networks.append(network);
     }
+    m_plot_manager->setNetworks(m_networks);
     updatePlots();
 }
 
@@ -144,6 +145,7 @@ void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
     QStandardItem* checkItem = new QStandardItem();
     checkItem->setCheckable(true);
     checkItem->setCheckState(Qt::Checked);
+    checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
     row.append(checkItem);
     row.append(new QStandardItem(network->name()));
     m_network_cascade_model->appendRow(row);
@@ -190,10 +192,10 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
 void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
 {
     if (item->column() == 0) {
-        int row = item->row();
-        const auto& cascade_nets = m_cascade->getNetworks();
-        if(row < cascade_nets.size()) {
-            cascade_nets[row]->setActive(item->checkState() == Qt::Checked);
+        quintptr net_ptr_val = item->data(Qt::UserRole).value<quintptr>();
+        Network* network = reinterpret_cast<Network*>(net_ptr_val);
+        if(network) {
+            network->setActive(item->checkState() == Qt::Checked);
             updatePlots();
         }
     }
