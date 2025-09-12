@@ -3,7 +3,8 @@
 #include "network.h"
 #include "networkcascade.h"
 #include "SmithChartGrid.h"
-#include<QDebug>
+#include <QDebug>
+#include <QVariant>
 
 using namespace std;
 
@@ -72,12 +73,15 @@ void PlotManager::setCascade(NetworkCascade* cascade)
     m_cascade = cascade;
 }
 
-void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color, const QString &name, Qt::PenStyle style)
+void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
+                       const QString &name, Network* network,
+                       Qt::PenStyle style)
 {
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
     graph->setPen(QPen(color, 0, style)); //0 means always exactly one pixel wide
     graph->setName(name);
+    graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
 }
 
 void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
@@ -139,7 +143,9 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
                 }
                 if (!graph_exists) {
                     auto plotData = network->getPlotData(sparam_idx_to_plot, isPhase);
-                    plot(plotData.first, plotData.second, m_colors.at(m_color_index % m_colors.size()), graph_name);
+                    plot(plotData.first, plotData.second,
+                         m_colors.at(m_color_index % m_colors.size()),
+                         graph_name, network);
                     m_color_index++;
                 }
             }
@@ -158,7 +164,8 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
             }
             if(!graph_exists) {
                 auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
-                plot(plotData.first, plotData.second, Qt::black, graph_name, Qt::DashLine);
+                plot(plotData.first, plotData.second, Qt::black,
+                     graph_name, nullptr, Qt::DashLine);
             }
         }
     }
@@ -366,7 +373,9 @@ void PlotManager::createMathPlot()
                 ++it2;
             }
         }
-        plot(x, y, Qt::red, QString("%1 - %2").arg(graph1->name()).arg(graph2->name()));
+        plot(x, y, Qt::red,
+             QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
+             nullptr);
         m_plot->replot();
     }
 }
