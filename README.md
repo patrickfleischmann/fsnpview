@@ -40,3 +40,40 @@ This project has the following dependencies:
     ```
 
 4.  **Run**: Once the build is complete, you can run the executable.
+
+## Usage
+
+After building, `fsnpview` can be launched either with a Touchstone file
+as an argument or on its own:
+
+```bash
+./fsnpview /path/to/your/file.s2p   # open and plot a specific file
+./fsnpview                         # start with an empty session
+```
+
+If you start without a file, use **File → Open…** or drag and drop a
+`.sNp` file into the window to load it.  The left-hand tables list loaded
+network files and the available lumped elements.  Check the box next to
+an entry to add or remove its trace from the plot.  You can drag networks
+onto the cascade table to evaluate a chain of networks.
+
+The plot area supports typical interactions from `QCustomPlot`: use the
+mouse wheel to zoom, drag to pan, and enable measurement cursors or
+phase/legend display using the checkboxes above the plot.  Individual
+S‑parameters (S11, S21, S12, S22) can also be toggled with their
+respective checkboxes.
+
+### Headless environments
+
+`fsnpview` is a GUI application.  When running on a system without a
+display (for example, in continuous integration) use Qt’s offscreen
+platform plugin:
+
+```bash
+QT_QPA_PLATFORM=offscreen ./fsnpview /path/to/your/file.s2p
+```
+
+### Windows
+
+On Windows, replace `./fsnpview` with `fsnpview.exe` and use Windows-style
+paths when specifying files.
