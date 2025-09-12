@@ -29,6 +29,7 @@ SOURCES += \
     plotmanager.cpp
 
 HEADERS += \
+    SmithChartGrid.h \
     mainwindow.h \
     parser_touchstone.h \
     qcustomplot.h \

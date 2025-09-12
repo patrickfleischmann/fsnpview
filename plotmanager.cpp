@@ -2,6 +2,7 @@
 #include "qcustomplot.h"
 #include "network.h"
 #include "networkcascade.h"
+#include "SmithChartGrid.h"
 #include<QDebug>
 
 using namespace std;
