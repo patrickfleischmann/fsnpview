@@ -57,6 +57,7 @@ private slots:
     void onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void onColorColumnClicked(const QModelIndex &index);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;

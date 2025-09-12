@@ -73,6 +73,13 @@ void PlotManager::setCascade(NetworkCascade* cascade)
     m_cascade = cascade;
 }
 
+QColor PlotManager::nextColor()
+{
+    QColor color = m_colors.at(m_color_index % m_colors.size());
+    m_color_index++;
+    return color;
+}
+
 void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
                        const QString &name, Network* network,
                        Qt::PenStyle style)
@@ -120,7 +127,6 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
         }
     }
 
-    m_color_index = 0;
     // Add new graphs
     for (const auto& sparam : sparams) {
         int sparam_idx_to_plot = -1;
@@ -138,15 +144,15 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
                 for(int i=0; i<m_plot->graphCount(); ++i) {
                     if(m_plot->graph(i)->name() == graph_name) {
                         graph_exists = true;
+                        m_plot->graph(i)->setPen(QPen(network->color(), 0, Qt::SolidLine));
                         break;
                     }
                 }
                 if (!graph_exists) {
                     auto plotData = network->getPlotData(sparam_idx_to_plot, isPhase);
                     plot(plotData.first, plotData.second,
-                         m_colors.at(m_color_index % m_colors.size()),
+                         network->color(),
                          graph_name, network);
-                    m_color_index++;
                 }
             }
         }
