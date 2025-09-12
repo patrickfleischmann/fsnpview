@@ -37,11 +37,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
 
-    connect(ui->checkBoxCursorA, &QCheckBox::checkStateChanged, this, [this](int state){
+    connect(ui->checkBoxCursorA, &QCheckBox::stateChanged, this, [this](int state){
         m_plot_manager->setCursorAVisible(state == Qt::Checked);
     });
 
-    connect(ui->checkBoxCursorB, &QCheckBox::checkStateChanged, this, [this](int state){
+    connect(ui->checkBoxCursorB, &QCheckBox::stateChanged, this, [this](int state){
         m_plot_manager->setCursorBVisible(state == Qt::Checked);
     });
 
@@ -76,12 +76,12 @@ void MainWindow::setupViews()
 {
     ui->tableViewNetworkFiles->setModel(m_network_files_model);
     ui->tableViewNetworkFiles->setDragDropMode(QAbstractItemView::DragOnly);
-    ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     ui->tableViewNetworkLumped->setModel(m_network_lumped_model);
     ui->tableViewNetworkLumped->setDragDropMode(QAbstractItemView::DragOnly);
-    ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
 
 
@@ -244,7 +244,48 @@ void MainWindow::on_checkBoxS11_checkStateChanged(const Qt::CheckState &arg1)
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Minus)
+    if (event->key() == Qt::Key_Delete) {
+        qInfo() << "Delete key pressed";
+        bool changed = false;
+
+        // Handle file networks
+        QModelIndexList selectedFileRows = ui->tableViewNetworkFiles->selectionModel()->selectedRows();
+        // we need to delete from bottom to top to not mess up the indices
+        std::sort(selectedFileRows.begin(), selectedFileRows.end(), [](const QModelIndex &a, const QModelIndex &b) {
+            return a.row() > b.row();
+        });
+
+        if (selectedFileRows.size() > 0) {
+            changed = true;
+        }
+
+        for (const QModelIndex &index : selectedFileRows) {
+            quintptr net_ptr_val = m_network_files_model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+            Network* network = reinterpret_cast<Network*>(net_ptr_val);
+            qInfo() << "Deleting network:" << network->name();
+            m_networks.removeOne(network);
+            delete network;
+            m_network_files_model->removeRow(index.row());
+        }
+
+        // Handle lumped networks
+        QModelIndexList selectedLumpedRows = ui->tableViewNetworkLumped->selectionModel()->selectedRows();
+        if (selectedLumpedRows.size() > 0) {
+            changed = true;
+        }
+        for (const QModelIndex &index : selectedLumpedRows) {
+            QStandardItem* item = m_network_lumped_model->item(index.row(), 0);
+            if (item->checkState() == Qt::Checked) {
+                qInfo() << "Unchecking network:" << m_network_lumped_model->item(index.row(), 1)->text();
+                item->setCheckState(Qt::Unchecked);
+            }
+        }
+
+        if (changed) {
+            updatePlots();
+        }
+
+    } else if (event->key() == Qt::Key_Minus)
     {
         m_plot_manager->createMathPlot();
     }
