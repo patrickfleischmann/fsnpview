@@ -27,9 +27,19 @@ Once the dependencies are installed, you can build the application using the fol
     make
     ```
 
+Alternatively, you can run `./build.sh` to execute both steps at once. On Windows, use the Qt6 `qmake` and your platform's build tool (`nmake` for MSVC or `mingw32-make` for MinGW).
+
 This will produce an executable file named `fsnpview` in the root directory.
 
-## 3. Running the Application
+## 3. Testing
+
+Run the included test script to verify that the application launches and parses a sample Touchstone file:
+
+```bash
+./test.sh
+```
+
+## 4. Running the Application
 
 `fsnpview` is a GUI application. To run it in a headless environment, you need to use the `offscreen` Qt platform plugin.
 
