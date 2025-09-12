@@ -11,6 +11,9 @@
 #include <QMenuBar>
 #include <QCheckBox>
 #include <QSet>
+#include <QTableView>
+#include <QItemSelectionModel>
+#include <QSignalBlocker>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,6 +38,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_plot_manager->setNetworks(m_networks);
     m_plot_manager->setCascade(m_cascade);
+
+    connect(ui->widgetGraph, &QCustomPlot::selectionChangedByUser,
+            this, &MainWindow::onGraphSelectionChanged);
+    connect(ui->tableViewNetworkFiles->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkFilesSelectionChanged);
+    connect(ui->tableViewNetworkLumped->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkLumpedSelectionChanged);
+    connect(ui->tableViewCascade->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkCascadeSelectionChanged);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
 
@@ -89,6 +101,8 @@ void MainWindow::setupViews()
     ui->tableViewCascade->setModel(m_network_cascade_model);
     ui->tableViewCascade->setDragDropMode(QAbstractItemView::DropOnly);
     ui->tableViewCascade->setAcceptDrops(true);
+    ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
 }
 
 void MainWindow::populateLumpedNetworkTable()
@@ -201,6 +215,85 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
             updatePlots();
         }
     }
+}
+
+void MainWindow::onGraphSelectionChanged()
+{
+    QSet<Network*> selectedNetworks;
+    const auto graphs = ui->widgetGraph->selectedGraphs();
+    for (QCPGraph *graph : graphs) {
+        quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+        Network* network = reinterpret_cast<Network*>(ptrVal);
+        if (network)
+            selectedNetworks.insert(network);
+    }
+
+    auto syncSelection = [&](QTableView *view, NetworkItemModel *model) {
+        QItemSelectionModel *selModel = view->selectionModel();
+        QSignalBlocker blocker(selModel);
+        selModel->clearSelection();
+        for (int row = 0; row < model->rowCount(); ++row) {
+            quintptr ptrVal = model->item(row, 0)->data(Qt::UserRole).value<quintptr>();
+            Network *network = reinterpret_cast<Network*>(ptrVal);
+            if (selectedNetworks.contains(network)) {
+                selModel->select(model->index(row, 0), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+            }
+        }
+    };
+
+    syncSelection(ui->tableViewNetworkFiles, m_network_files_model);
+    syncSelection(ui->tableViewNetworkLumped, m_network_lumped_model);
+    syncSelection(ui->tableViewCascade, m_network_cascade_model);
+}
+
+void MainWindow::onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::updateGraphSelectionFromTables()
+{
+    QSet<Network*> selectedNetworks;
+    auto collect = [&](QTableView *view, NetworkItemModel *model) {
+        const QModelIndexList rows = view->selectionModel()->selectedRows();
+        for (const QModelIndex &index : rows) {
+            quintptr ptrVal = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+            Network *network = reinterpret_cast<Network*>(ptrVal);
+            if (network)
+                selectedNetworks.insert(network);
+        }
+    };
+
+    collect(ui->tableViewNetworkFiles, m_network_files_model);
+    collect(ui->tableViewNetworkLumped, m_network_lumped_model);
+    collect(ui->tableViewCascade, m_network_cascade_model);
+
+    for (int i = 0; i < ui->widgetGraph->graphCount(); ++i) {
+        QCPGraph *graph = ui->widgetGraph->graph(i);
+        Network *network = reinterpret_cast<Network*>(graph->property("network_ptr").value<quintptr>());
+        if (network && selectedNetworks.contains(network)) {
+            graph->setSelection(QCPDataSelection(graph->data()->dataRange()));
+        } else {
+            graph->setSelection(QCPDataSelection());
+        }
+    }
+    ui->widgetGraph->replot();
 }
 
 
