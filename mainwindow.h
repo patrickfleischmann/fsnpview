@@ -17,6 +17,7 @@ QT_END_NAMESPACE
 #include "network.h"
 #include "networkcascade.h"
 #include "networkitemmodel.h"
+#include "unitdelegate.h"
 #include <memory>
 
 class Server;
@@ -51,7 +52,9 @@ private slots:
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
-    void onNetworkDropped(Network* network, const QModelIndex& parent);
+    void onLumpedNetworkDropped(Network* network, const QModelIndex& parent);
+    void onCascadeNetworkDropped(Network* network, const QModelIndex& parent);
+
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -61,11 +64,15 @@ private:
     void setupModels();
     void setupViews();
     void populateLumpedNetworkTable();
+    void addNetworkToCascade(Network* network, int row);
+    void removeNetworkFromCascade(Network* network);
+    void addItemsToCascadeModel(Network* network, int row);
 
 
     Ui::MainWindow *ui;
     Server *m_server;
     PlotManager* m_plot_manager;
+    UnitDelegate* m_unit_delegate;
 
     QList<Network*> m_networks;
     NetworkCascade* m_cascade;

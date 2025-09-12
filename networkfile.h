@@ -10,6 +10,7 @@ class NetworkFile : public Network
     Q_OBJECT
 public:
     explicit NetworkFile(const QString &filePath, QObject *parent = nullptr);
+    Network* clone() const override;
 
     QString name() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;

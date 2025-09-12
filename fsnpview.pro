@@ -26,7 +26,8 @@ SOURCES += \
     networklumped.cpp \
     networkcascade.cpp \
     networkitemmodel.cpp \
-    plotmanager.cpp
+    plotmanager.cpp \
+    unitdelegate.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -38,7 +39,8 @@ HEADERS += \
     networklumped.h \
     networkcascade.h \
     networkitemmodel.h \
-    plotmanager.h
+    plotmanager.h \
+    unitdelegate.h
 
 FORMS += \
     mainwindow.ui

@@ -2,6 +2,7 @@
 #include <QFileInfo>
 #include <iostream>
 #include <numeric>
+#include <QDebug>
 
 NetworkFile::NetworkFile(const QString &filePath, QObject *parent)
     : Network(parent), m_file_path(filePath)
@@ -16,6 +17,12 @@ NetworkFile::NetworkFile(const QString &filePath, QObject *parent)
         std::cerr << "Error processing file " << filePath.toStdString() << ": " << e.what() << std::endl;
         m_data = nullptr;
     }
+}
+
+Network* NetworkFile::clone() const
+{
+    qDebug() << "cloning file";
+    return new NetworkFile(m_file_path);
 }
 
 QString NetworkFile::name() const

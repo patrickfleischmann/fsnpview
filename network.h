@@ -14,6 +14,7 @@ class Network : public QObject
 public:
     explicit Network(QObject *parent = nullptr);
     virtual ~Network() = default;
+    virtual Network* clone() const = 0;
 
     static Eigen::Matrix2cd s2abcd(const std::complex<double>& s11, const std::complex<double>& s12, const std::complex<double>& s21, const std::complex<double>& s22, double z0 = 50.0);
     static Eigen::Vector4cd abcd2s(const Eigen::Matrix2cd& abcd, double z0 = 50.0);

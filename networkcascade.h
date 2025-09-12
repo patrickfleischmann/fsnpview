@@ -10,8 +10,9 @@ class NetworkCascade : public Network
     Q_OBJECT
 public:
     explicit NetworkCascade(QObject *parent = nullptr);
+    Network* clone() const override;
 
-    void addNetwork(Network* network);
+    void addNetwork(Network* network, int index = -1);
     void removeNetwork(int index);
     void clearNetworks();
     const QList<Network*>& getNetworks() const;

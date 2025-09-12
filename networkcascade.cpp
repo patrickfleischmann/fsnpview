@@ -1,5 +1,6 @@
 #include "networkcascade.h"
 #include <limits>
+#include <QDebug>
 
 NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
 {
@@ -7,9 +8,24 @@ NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
     m_fmax = 10e9;
 }
 
-void NetworkCascade::addNetwork(Network* network)
+Network* NetworkCascade::clone() const
 {
-    m_networks.append(network);
+    qDebug() << "cloning cascade";
+    NetworkCascade* new_cascade = new NetworkCascade();
+    for (const auto& network : m_networks) {
+        new_cascade->addNetwork(network->clone());
+    }
+    return new_cascade;
+}
+
+
+void NetworkCascade::addNetwork(Network* network, int index)
+{
+    if (index < 0 || index >= m_networks.size()) {
+        m_networks.append(network);
+    } else {
+        m_networks.insert(index, network);
+    }
     updateFrequencyRange();
 }
 

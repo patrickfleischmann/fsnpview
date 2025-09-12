@@ -1,5 +1,6 @@
 #include "networklumped.h"
 #include <complex>
+#include <QDebug>
 
 NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
     : Network(parent), m_type(type), m_value(value)
@@ -7,6 +8,40 @@ NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
     m_fmin = 1e6;
     m_fmax = 10e9;
     m_is_visible = false;
+    switch (type) {
+        case NetworkType::R_series:
+        case NetworkType::R_shunt:
+            m_unit = "Ohm";
+            break;
+        case NetworkType::C_series:
+        case NetworkType::C_shunt:
+            m_unit = "F";
+            break;
+        case NetworkType::L_series:
+        case NetworkType::L_shunt:
+            m_unit = "H";
+            break;
+    }
+}
+
+NetworkLumped::NetworkLumped(const NetworkLumped& other)
+    : Network(other.parent())
+    , m_type(other.m_type)
+    , m_value(other.m_value)
+    , m_unit(other.m_unit)
+{
+    m_fmin = other.m_fmin;
+    m_fmax = other.m_fmax;
+    m_color = other.m_color;
+    m_is_visible = other.m_is_visible;
+    m_unwrap_phase = other.m_unwrap_phase;
+    m_is_active = other.m_is_active;
+}
+
+Network* NetworkLumped::clone() const
+{
+    qDebug() << "cloning lumped";
+    return new NetworkLumped(*this);
 }
 
 QString NetworkLumped::name() const
@@ -20,13 +55,43 @@ QString NetworkLumped::name() const
     case NetworkType::L_series: name = "L_series"; break;
     case NetworkType::L_shunt:  name = "L_shunt";  break;
     }
-    return name + "_" + QString::number(m_value);
+    return name;
+}
+
+double NetworkLumped::value() const {
+    return m_value;
+}
+
+void NetworkLumped::setValue(double value) {
+    m_value = value;
+}
+
+QString NetworkLumped::unit() const {
+    return m_unit;
+}
+
+void NetworkLumped::setUnit(const QString& unit) {
+    m_unit = unit;
+}
+
+NetworkLumped::NetworkType NetworkLumped::type() const {
+    return m_type;
 }
 
 Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
 {
     Eigen::MatrixXcd abcd_matrix(freq.size(), 4);
     std::complex<double> j(0, 1);
+
+    double value_scaled = m_value;
+    if (m_unit == "f") value_scaled *= 1e-15;
+    else if (m_unit == "p") value_scaled *= 1e-12;
+    else if (m_unit == "n") value_scaled *= 1e-9;
+    else if (m_unit == "u") value_scaled *= 1e-6;
+    else if (m_unit == "m") value_scaled *= 1e-3;
+    else if (m_unit == "k") value_scaled *= 1e3;
+    else if (m_unit == "M") value_scaled *= 1e6;
+    else if (m_unit == "G") value_scaled *= 1e9;
 
     for (int i = 0; i < freq.size(); ++i) {
         double w = 2 * M_PI * freq(i);
@@ -35,22 +100,22 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
 
         switch (m_type) {
         case NetworkType::R_series:
-            abcd_point(0, 1) = m_value;
+            abcd_point(0, 1) = value_scaled;
             break;
         case NetworkType::R_shunt:
-            abcd_point(1, 0) = 1.0 / m_value;
+            abcd_point(1, 0) = 1.0 / value_scaled;
             break;
         case NetworkType::C_series:
-            abcd_point(0, 1) = 1.0 / (j * w * m_value);
+            abcd_point(0, 1) = 1.0 / (j * w * value_scaled);
             break;
         case NetworkType::C_shunt:
-            abcd_point(1, 0) = j * w * m_value;
+            abcd_point(1, 0) = j * w * value_scaled;
             break;
         case NetworkType::L_series:
-            abcd_point(0, 1) = j * w * m_value;
+            abcd_point(0, 1) = j * w * value_scaled;
             break;
         case NetworkType::L_shunt:
-            abcd_point(1, 0) = 1.0 / (j * w * m_value);
+            abcd_point(1, 0) = 1.0 / (j * w * value_scaled);
             break;
         }
         abcd_matrix.row(i) << abcd_point(0, 0), abcd_point(0, 1), abcd_point(1, 0), abcd_point(1, 1);
