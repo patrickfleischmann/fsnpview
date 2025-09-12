@@ -37,11 +37,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
 
-    connect(ui->checkBoxCursorA, &QCheckBox::stateChanged, this, [this](int state){
+    connect(ui->checkBoxCursorA, &QCheckBox::checkStateChanged, this, [this](int state){
         m_plot_manager->setCursorAVisible(state == Qt::Checked);
     });
 
-    connect(ui->checkBoxCursorB, &QCheckBox::stateChanged, this, [this](int state){
+    connect(ui->checkBoxCursorB, &QCheckBox::checkStateChanged, this, [this](int state){
         m_plot_manager->setCursorBVisible(state == Qt::Checked);
     });
 
@@ -120,7 +120,7 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
         QList<QStandardItem*> row;
         QStandardItem* checkItem = new QStandardItem();
         checkItem->setCheckable(true);
-        checkItem->setCheckState(Qt::Unchecked);
+        checkItem->setCheckState(Qt::Checked);
         checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
         row.append(checkItem);
         row.append(new QStandardItem(network->name()));

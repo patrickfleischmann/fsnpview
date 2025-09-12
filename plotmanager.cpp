@@ -320,8 +320,16 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
     text->setText(labelText);
     text->position->setCoords(x, y);
     text->position->setType(QCPItemPosition::ptPlotCoords);
-    text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    text->setPadding(QMargins(5, 0, 0, 15));
+
+    if (tracer == mTracerA)
+    {
+        text->setPositionAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        text->setPadding(QMargins(0, 0, 5, 15));
+    } else
+    {
+        text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        text->setPadding(QMargins(5, 0, 0, 15));
+    }
 }
 
 void PlotManager::updateTracers()
