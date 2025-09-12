@@ -82,6 +82,7 @@ void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const
     graph->setPen(QPen(color, 0, style)); //0 means always exactly one pixel wide
     graph->setName(name);
     graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
+    graph->setSelectable(QCP::stWhole);
 }
 
 void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)

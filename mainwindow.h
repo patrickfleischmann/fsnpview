@@ -22,6 +22,7 @@ QT_END_NAMESPACE
 class Server;
 class NetworkFile;
 class PlotManager;
+class QCPAbstractPlottable;
 
 class MainWindow : public QMainWindow
 {
@@ -52,6 +53,7 @@ private slots:
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
     void onNetworkDropped(Network* network, const QModelIndex& parent);
+    void onGraphSelectionChanged(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
