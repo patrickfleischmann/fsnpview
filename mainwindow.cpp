@@ -11,6 +11,7 @@
 #include <QMenuBar>
 #include <QCheckBox>
 #include <QSet>
+#include <QTableView>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -37,6 +38,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_plot_manager->setCascade(m_cascade);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
+    connect(ui->widgetGraph, &QCustomPlot::plottableClick,
+            this, &MainWindow::onGraphSelectionChanged);
 
     connect(ui->checkBoxCursorA, &QCheckBox::stateChanged, this, [this](int state){
         m_plot_manager->setCursorAVisible(state == Qt::Checked);
@@ -153,6 +156,34 @@ void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
     m_network_cascade_model->appendRow(row);
 
     updatePlots();
+}
+
+void MainWindow::onGraphSelectionChanged(QCPAbstractPlottable *plottable,
+                                        int, QMouseEvent *)
+{
+    QCPGraph *graph = qobject_cast<QCPGraph *>(plottable);
+    if (!graph)
+        return;
+
+    quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+    Network *network = reinterpret_cast<Network *>(ptrVal);
+    if (!network)
+        return;
+
+    auto selectInView = [network](NetworkItemModel *model, QTableView *view) {
+        view->clearSelection();
+        for (int r = 0; r < model->rowCount(); ++r) {
+            quintptr val = model->item(r, 0)->data(Qt::UserRole).value<quintptr>();
+            if (reinterpret_cast<Network *>(val) == network) {
+                view->selectRow(r);
+                break;
+            }
+        }
+    };
+
+    selectInView(m_network_files_model, ui->tableViewNetworkFiles);
+    selectInView(m_network_lumped_model, ui->tableViewNetworkLumped);
+    selectInView(m_network_cascade_model, ui->tableViewCascade);
 }
 
 void MainWindow::updatePlots()
