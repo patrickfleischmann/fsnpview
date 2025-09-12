@@ -9,15 +9,15 @@ namespace SmithChart
 {
 
 // ---- Version-compat helper -----------------------------------------------
-// QCustomPlot < 2.0: items auto-register via constructor, no addItem() API.
-// QCustomPlot ≥ 2.0: must call plot->addItem(item).
+// QCustomPlot < 2.0: must call plot->addItem(item).
+// QCustomPlot ≥ 2.0: items auto-register via constructor, no addItem() API.
 #ifndef QCUSTOMPLOT_VERSION
 #define QCUSTOMPLOT_VERSION 0
 #endif
 
 inline void addItemCompat(QCustomPlot* plot, QCPAbstractItem* item)
 {
-#if QCUSTOMPLOT_VERSION >= 0x020000
+#if QCUSTOMPLOT_VERSION < 0x020000
     plot->addItem(item);
 #else
     Q_UNUSED(plot);
