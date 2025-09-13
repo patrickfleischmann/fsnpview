@@ -1,5 +1,11 @@
 #!/bin/bash
-# Run parser and network cascade tests.
+
+# Build and run parser, GUI plot and network cascade tests.
 set -e
+
+./build.sh
+
 ./parser_touchstone_tests
+QT_QPA_PLATFORM=offscreen ./gui_plot_tests
 ./networkcascade_tests
+

@@ -73,6 +73,17 @@ platform plugin:
 QT_QPA_PLATFORM=offscreen ./fsnpview /path/to/your/file.s2p
 ```
 
+## Testing
+
+Run `./build.sh` followed by `./test.sh` to execute unit tests, including an offscreen GUI plot comparison against the baseline `tests/gui_plot_baseline.csv`.
+To update the baseline after intentional changes, rebuild and run:
+
+```bash
+QT_QPA_PLATFORM=offscreen UPDATE_BASELINE=1 ./gui_plot_tests
+```
+
+Commit the regenerated baseline file.
+
 ### Windows
 
 On Windows, replace `./fsnpview` with `fsnpview.exe` and use Windows-style
