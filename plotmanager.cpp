@@ -161,15 +161,20 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
         if (m_cascade && m_cascade->getNetworks().size() > 0) {
             QString graph_name = m_cascade->name() + "_" + sparam;
             if (isPhase) graph_name += "_phase";
-             bool graph_exists = false;
-            for(int i=0; i<m_plot->graphCount(); ++i) {
-                if(m_plot->graph(i)->name() == graph_name) {
-                    graph_exists = true;
+
+            QCPGraph *graph = nullptr;
+            for (int i = 0; i < m_plot->graphCount(); ++i) {
+                if (m_plot->graph(i)->name() == graph_name) {
+                    graph = m_plot->graph(i);
                     break;
                 }
             }
-            if(!graph_exists) {
-                auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
+
+            auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
+
+            if (graph) {
+                graph->setData(plotData.first, plotData.second);
+            } else {
                 plot(plotData.first, plotData.second, Qt::black,
                      graph_name, nullptr, Qt::DashLine);
             }

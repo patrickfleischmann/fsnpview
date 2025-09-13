@@ -17,9 +17,10 @@ public:
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
     bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) const override;
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) override;
+    Qt::DropActions supportedDropActions() const override;
 
 signals:
-    void networkDropped(Network* network, const QModelIndex& parent);
+    void networkDropped(Network* network, int row, const QModelIndex& parent);
 };
 
 #endif // NETWORKITEMMODEL_H

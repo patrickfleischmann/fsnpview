@@ -52,7 +52,7 @@ private slots:
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
-    void onNetworkDropped(Network* network, const QModelIndex& parent);
+    void onNetworkDropped(Network* network, int row, const QModelIndex& parent);
     void onGraphSelectionChanged();
     void onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);

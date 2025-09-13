@@ -9,7 +9,24 @@ NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
 
 void NetworkCascade::addNetwork(Network* network)
 {
-    m_networks.append(network);
+    insertNetwork(m_networks.size(), network);
+}
+
+void NetworkCascade::insertNetwork(int index, Network* network)
+{
+    if (index < 0 || index > m_networks.size())
+        index = m_networks.size();
+    m_networks.insert(index, network);
+    updateFrequencyRange();
+}
+
+void NetworkCascade::moveNetwork(int from, int to)
+{
+    if (from < 0 || from >= m_networks.size() || to < 0 || to >= m_networks.size())
+        return;
+    if (from == to)
+        return;
+    m_networks.insert(to, m_networks.takeAt(from));
     updateFrequencyRange();
 }
 
