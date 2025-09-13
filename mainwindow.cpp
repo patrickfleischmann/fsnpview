@@ -105,8 +105,10 @@ void MainWindow::setupViews()
 
 
     ui->tableViewCascade->setModel(m_network_cascade_model);
-    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DropOnly);
+    ui->tableViewCascade->setDragEnabled(true);
     ui->tableViewCascade->setAcceptDrops(true);
+    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DragDrop);
+    ui->tableViewCascade->setDefaultDropAction(Qt::MoveAction);
     ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
 }
@@ -168,23 +170,38 @@ void MainWindow::onFilesReceived(const QStringList &files)
     processFiles(files);
 }
 
-void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
+void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& parent)
 {
     Q_UNUSED(parent);
-    m_cascade->addNetwork(network);
 
-    QList<QStandardItem*> row;
-    QStandardItem* checkItem = new QStandardItem();
-    checkItem->setCheckable(true);
-    checkItem->setCheckState(Qt::Checked);
-    checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
-    row.append(checkItem);
-    QStandardItem* colorItem = new QStandardItem();
-    colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    colorItem->setBackground(network->color());
-    row.append(colorItem);
-    row.append(new QStandardItem(network->name()));
-    m_network_cascade_model->appendRow(row);
+    if (row < 0 || row > m_network_cascade_model->rowCount())
+        row = m_network_cascade_model->rowCount();
+
+    const QList<Network*> cascadeNets = m_cascade->getNetworks();
+    int existingIndex = cascadeNets.indexOf(network);
+
+    if (existingIndex >= 0) {
+        if (existingIndex != row) {
+            m_cascade->moveNetwork(existingIndex, row);
+            auto items = m_network_cascade_model->takeRow(existingIndex);
+            m_network_cascade_model->insertRow(row, items);
+        }
+    } else {
+        m_cascade->insertNetwork(row, network);
+
+        QList<QStandardItem*> items;
+        QStandardItem* checkItem = new QStandardItem();
+        checkItem->setCheckable(true);
+        checkItem->setCheckState(Qt::Checked);
+        checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
+        items.append(checkItem);
+        QStandardItem* colorItem = new QStandardItem();
+        colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        colorItem->setBackground(network->color());
+        items.append(colorItem);
+        items.append(new QStandardItem(network->name()));
+        m_network_cascade_model->insertRow(row, items);
+    }
 
     updatePlots();
 }

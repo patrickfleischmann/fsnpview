@@ -12,6 +12,8 @@ public:
     explicit NetworkCascade(QObject *parent = nullptr);
 
     void addNetwork(Network* network);
+    void insertNetwork(int index, Network* network);
+    void moveNetwork(int from, int to);
     void removeNetwork(int index);
     void clearNetworks();
     const QList<Network*>& getNetworks() const;
