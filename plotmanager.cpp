@@ -335,7 +335,7 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         double yA = mTracerA->position->coords().y();
         double dx = x - xA;
         double dy = y - yA;
-        labelText += QString("\nΔx: %1Hz\nΔy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
+        labelText += QString("\nΔx: %1Hz Δy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
     }
 
     text->setText(labelText);
@@ -348,8 +348,9 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         text->setPadding(QMargins(0, 0, 5, 15));
     } else
     {
+        text->setTextAlignment(Qt::AlignLeft);
         text->setPositionAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        text->setPadding(QMargins(5, 0, 0, 15));
+        text->setPadding(QMargins(5, 0, 0, 0));
     }
 }
 

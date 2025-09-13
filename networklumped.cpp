@@ -5,7 +5,7 @@ NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
     : Network(parent), m_type(type), m_value(value)
 {
     m_fmin = 1e6;
-    m_fmax = 10e9;
+    m_fmax = 50e9;
     m_is_visible = false;
 }
 
