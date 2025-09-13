@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # This script builds the tests.
 set -e
 
@@ -22,3 +23,5 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     moc_plotmanager.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp \
     moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o gui_plot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
+    
+g++ -std=c++17 -I/usr/include/eigen3 -I. tests/networkcascade_tests.cpp parser_touchstone.cpp network.cpp networkfile.cpp networkcascade.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp $(pkg-config --cflags --libs Qt6Core Qt6Gui) -o networkcascade_tests
