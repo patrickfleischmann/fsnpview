@@ -57,6 +57,7 @@ private slots:
 
     void onNetworkDropped(Network* network, int row, const QModelIndex& parent);
     void onGraphSelectionChanged(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
+    void onGraphSelectionChangedByUser();
     void onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
