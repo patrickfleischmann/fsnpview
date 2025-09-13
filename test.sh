@@ -1,4 +1,5 @@
 #!/bin/bash
-# Run parser touchstone tests.
+# Run parser and network cascade tests.
 set -e
 ./parser_touchstone_tests
+./networkcascade_tests
