@@ -5,6 +5,7 @@
 #include "SmithChartGrid.h"
 #include <QDebug>
 #include <QVariant>
+#include <set>
 
 using namespace std;
 
@@ -360,28 +361,65 @@ void PlotManager::createMathPlot()
     {
         QCPGraph *graph1 = m_plot->selectedGraphs().at(0);
         QCPGraph *graph2 = m_plot->selectedGraphs().at(1);
-        QCPGraphDataContainer::const_iterator it1 = graph1->data()->constBegin();
-        QCPGraphDataContainer::const_iterator it2 = graph2->data()->constBegin();
-        QVector<double> x, y;
-        while (it1 != graph1->data()->constEnd() && it2 != graph2->data()->constEnd())
+
+        auto interpolate = [](QCPGraph *graph, double key, double &result) -> bool
         {
-            if (qFuzzyCompare(it1->key, it2->key))
+            auto data = graph->data();
+            if (data->isEmpty())
+                return false;
+            auto it = data->findBegin(key);
+            if (it == data->constBegin())
             {
-                x.append(it1->key);
-                y.append(it1->value - it2->value);
-                ++it1;
-                ++it2;
-            } else if (it1->key < it2->key)
+                if (qFuzzyCompare(it->key, key))
+                {
+                    result = it->value;
+                    return true;
+                }
+                return false;
+            }
+            if (it == data->constEnd())
+                return false;
+            if (qFuzzyCompare(it->key, key))
             {
-                ++it1;
-            } else
+                result = it->value;
+                return true;
+            }
+            auto itPrev = it;
+            --itPrev;
+            double x1 = itPrev->key;
+            double y1 = itPrev->value;
+            double x2 = it->key;
+            double y2 = it->value;
+            if (qFuzzyCompare(x1, x2))
+                return false;
+            double t = (key - x1) / (x2 - x1);
+            result = y1 + t * (y2 - y1);
+            return true;
+        };
+
+        std::set<double> keys;
+        for (auto it = graph1->data()->constBegin(); it != graph1->data()->constEnd(); ++it)
+            keys.insert(it->key);
+        for (auto it = graph2->data()->constBegin(); it != graph2->data()->constEnd(); ++it)
+            keys.insert(it->key);
+
+        QVector<double> x, y;
+        for (double key : keys)
+        {
+            double y1, y2;
+            if (interpolate(graph1, key, y1) && interpolate(graph2, key, y2))
             {
-                ++it2;
+                x.append(key);
+                y.append(y1 - y2);
             }
         }
-        plot(x, y, Qt::red,
-             QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
-             nullptr);
-        m_plot->replot();
+
+        if (!x.isEmpty())
+        {
+            plot(x, y, Qt::red,
+                 QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
+                 nullptr);
+            m_plot->replot();
+        }
     }
 }
