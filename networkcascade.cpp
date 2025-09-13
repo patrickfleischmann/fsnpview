@@ -1,5 +1,7 @@
 #include "networkcascade.h"
 #include <limits>
+#include <complex>
+#include <cmath>
 
 NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
 {
@@ -124,17 +126,17 @@ QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_
 
         xValues.append(freq(i));
         if (isPhase) {
-            yValues.append(std::arg(s_param) * 180.0 / M_PI);
+            yValues.append(std::arg(s_param)); // store phase in radians
         } else {
             yValues.append(20 * std::log10(std::abs(s_param)));
         }
     }
 
-    if (isPhase && m_unwrap_phase) {
+    if (isPhase) {
         Eigen::Map<Eigen::ArrayXd> yValuesEigen(yValues.data(), yValues.size());
-        Eigen::ArrayXd unwrapped_y = unwrap(yValuesEigen);
-        for(int i = 0; i < unwrapped_y.size(); ++i) {
-            yValues[i] = unwrapped_y[i];
+        Eigen::ArrayXd phase = m_unwrap_phase ? unwrap(yValuesEigen) : yValuesEigen;
+        for (int i = 0; i < phase.size(); ++i) {
+            yValues[i] = phase[i] * 180.0 / M_PI; // convert to degrees
         }
     }
 

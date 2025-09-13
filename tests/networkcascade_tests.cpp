@@ -4,6 +4,29 @@
 #include <cassert>
 #include <complex>
 #include <iostream>
+#include <cmath>
+
+class DelayNetwork : public Network {
+public:
+    explicit DelayNetwork(double tau) : m_tau(tau) {
+        m_fmin = 1e9;
+        m_fmax = 2e9;
+    }
+    QString name() const override { return "DelayNetwork"; }
+    Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override {
+        Eigen::MatrixXcd matrix(freq.size(), 4);
+        for (int i = 0; i < freq.size(); ++i) {
+            double w = 2 * M_PI * freq(i);
+            std::complex<double> s21 = std::exp(std::complex<double>(0, -w * m_tau));
+            Eigen::Matrix2cd abcd_point = Network::s2abcd(0, s21, s21, 0);
+            matrix.row(i) << abcd_point(0, 0), abcd_point(0, 1), abcd_point(1, 0), abcd_point(1, 1);
+        }
+        return matrix;
+    }
+    QPair<QVector<double>, QVector<double>> getPlotData(int, bool) override { return {}; }
+private:
+    double m_tau;
+};
 
 void test_cascade_two_files()
 {
@@ -40,9 +63,30 @@ void test_cascade_two_files()
     assert(close(s[3], s22_expected));
 }
 
+void test_phase_unwrap_cascade()
+{
+    DelayNetwork d1(1e-9);
+    DelayNetwork d2(1e-9);
+
+    NetworkCascade cascade;
+    cascade.addNetwork(&d1);
+    cascade.addNetwork(&d2);
+
+    auto plotData = cascade.getPlotData(2, true); // s21 phase
+    const auto& phases = plotData.second;
+
+    assert(phases.size() >= 2);
+    double first = phases[0];
+    double last = phases[phases.size() - 1];
+
+    assert(std::abs(first) < 1e-6);          // starts near 0 degrees
+    assert(std::abs(last + 720.0) < 1e-6);   // ends around -720 degrees
+}
+
 int main()
 {
     test_cascade_two_files();
+    test_phase_unwrap_cascade();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
 }
