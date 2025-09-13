@@ -23,6 +23,7 @@ QT_END_NAMESPACE
 class Server;
 class NetworkFile;
 class PlotManager;
+class QTableView;
 
 class MainWindow : public QMainWindow
 {
@@ -66,6 +67,7 @@ private:
     void updatePlots();
     void setupModels();
     void setupViews();
+    void setupTableColumns(QTableView* view);
     void populateLumpedNetworkTable();
     void updateGraphSelectionFromTables();
 

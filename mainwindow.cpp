@@ -16,7 +16,7 @@
 #include <QSignalBlocker>
 #include <QColorDialog>
 #include <QVariant>
-#include <QColorDialog>
+#include <QHeaderView>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -97,11 +97,13 @@ void MainWindow::setupViews()
     ui->tableViewNetworkFiles->setDragDropMode(QAbstractItemView::DragOnly);
     ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
+    setupTableColumns(ui->tableViewNetworkFiles);
 
     ui->tableViewNetworkLumped->setModel(m_network_lumped_model);
     ui->tableViewNetworkLumped->setDragDropMode(QAbstractItemView::DragOnly);
     ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
+    setupTableColumns(ui->tableViewNetworkLumped);
 
 
     ui->tableViewCascade->setModel(m_network_cascade_model);
@@ -109,6 +111,17 @@ void MainWindow::setupViews()
     ui->tableViewCascade->setAcceptDrops(true);
     ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
+    setupTableColumns(ui->tableViewCascade);
+}
+
+void MainWindow::setupTableColumns(QTableView* view)
+{
+    view->resizeColumnToContents(0);
+    view->resizeColumnToContents(1);
+    QHeaderView *header = view->horizontalHeader();
+    header->setSectionResizeMode(0, QHeaderView::Fixed);
+    header->setSectionResizeMode(1, QHeaderView::Fixed);
+    header->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 }
 
 void MainWindow::populateLumpedNetworkTable()
