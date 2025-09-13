@@ -41,6 +41,16 @@ This project has the following dependencies:
 
 4.  **Run**: Once the build is complete, you can run the executable.
 
+## Linting
+
+Run `clang-tidy` to analyze the C++ sources:
+
+```bash
+/usr/lib/qt6/libexec/uic mainwindow.ui -o ui_mainwindow.h
+git ls-files '*.cpp' '*.h' | grep -v '^qcustomplot' | grep -v '^mainwindow' | grep -v '^moc_' | xargs -I{} clang-tidy {} -- -std=c++17 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/eigen3 -I.
+```
+
+The build will fail if `clang-tidy` reports warnings.
 ## Usage
 
 After building, `fsnpview` can be launched either with a Touchstone file

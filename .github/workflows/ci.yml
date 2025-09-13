@@ -10,8 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential qt6-base-dev libeigen3-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential qt6-base-dev qt6-tools-dev libeigen3-dev clang-tidy
       - name: Build
         run: ./build.sh
+      - name: Lint
+        run: |
+          /usr/lib/qt6/libexec/uic mainwindow.ui -o ui_mainwindow.h
+          git ls-files '*.cpp' '*.h' \
+            | grep -v '^qcustomplot' \
+            | grep -v '^mainwindow' \
+            | grep -v '^moc_' \
+            | xargs -I{} clang-tidy {} -- -std=c++17 -I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork -I/usr/include/eigen3 -I.
       - name: Test
         run: ./test.sh
