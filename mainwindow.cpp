@@ -438,14 +438,11 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
                     break;
                 }
             }
-            // remove from cascade if present
-            const QList<Network*> cascadeNets = m_cascade->getNetworks();
-            for (int i = 0; i < cascadeNets.size(); ++i) {
-                if (cascadeNets[i] == network) {
-                    m_cascade->removeNetwork(i);
-                    m_network_cascade_model->removeRow(i);
-                    break;
-                }
+            // remove from cascade if present; network may appear multiple times
+            int index = -1;
+            while ((index = m_cascade->getNetworks().indexOf(network)) != -1) {
+                m_cascade->removeNetwork(index);
+                m_network_cascade_model->removeRow(index);
             }
             m_networks.removeOne(network);
             delete network;
