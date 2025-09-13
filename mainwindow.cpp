@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_plot_manager->setCascade(m_cascade);
 
     connect(ui->widgetGraph, &QCustomPlot::selectionChangedByUser,
-            this, &MainWindow::onGraphSelectionChanged);
+            this, &MainWindow::onGraphSelectionChangedByUser);
     connect(ui->tableViewNetworkFiles->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onNetworkFilesSelectionChanged);
     connect(ui->tableViewNetworkLumped->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -298,7 +298,7 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
     }
 }
 
-void MainWindow::onGraphSelectionChanged()
+void MainWindow::onGraphSelectionChangedByUser()
 {
     QSet<Network*> selectedNetworks;
     const auto graphs = ui->widgetGraph->selectedGraphs();
