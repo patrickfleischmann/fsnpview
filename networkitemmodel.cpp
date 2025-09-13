@@ -69,9 +69,14 @@ bool NetworkItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action
         stream >> network_ptr_val;
         Network *network = reinterpret_cast<Network*>(network_ptr_val);
         if (network) {
-            emit networkDropped(network, parent);
+            emit networkDropped(network, row, parent);
         }
     }
 
     return true;
+}
+
+Qt::DropActions NetworkItemModel::supportedDropActions() const
+{
+    return Qt::CopyAction | Qt::MoveAction;
 }

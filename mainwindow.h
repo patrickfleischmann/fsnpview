@@ -24,6 +24,7 @@ class Server;
 class NetworkFile;
 class PlotManager;
 class QTableView;
+class QCPAbstractPlottable;
 
 class MainWindow : public QMainWindow
 {
@@ -53,8 +54,9 @@ private slots:
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
-    void onNetworkDropped(Network* network, const QModelIndex& parent);
-    void onGraphSelectionChanged();
+
+    void onNetworkDropped(Network* network, int row, const QModelIndex& parent);
+    void onGraphSelectionChanged(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
     void onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);

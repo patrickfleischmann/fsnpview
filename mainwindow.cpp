@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QSet>
 #include <QTableView>
+
 #include <QItemSelectionModel>
 #include <QSignalBlocker>
 #include <QColorDialog>
@@ -55,6 +56,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->tableViewCascade, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
+    connect(ui->widgetGraph, &QCustomPlot::plottableClick,
+            this, &MainWindow::onGraphSelectionChanged);
 
     connect(ui->checkBoxCursorA, &QCheckBox::stateChanged, this, [this](int state){
         m_plot_manager->setCursorAVisible(state == Qt::Checked);
@@ -107,8 +110,10 @@ void MainWindow::setupViews()
 
 
     ui->tableViewCascade->setModel(m_network_cascade_model);
-    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DropOnly);
+    ui->tableViewCascade->setDragEnabled(true);
     ui->tableViewCascade->setAcceptDrops(true);
+    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DragDrop);
+    ui->tableViewCascade->setDefaultDropAction(Qt::MoveAction);
     ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
     setupTableColumns(ui->tableViewCascade);
@@ -181,25 +186,68 @@ void MainWindow::onFilesReceived(const QStringList &files)
     processFiles(files);
 }
 
-void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
+void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& parent)
 {
     Q_UNUSED(parent);
-    m_cascade->addNetwork(network);
 
-    QList<QStandardItem*> row;
-    QStandardItem* checkItem = new QStandardItem();
-    checkItem->setCheckable(true);
-    checkItem->setCheckState(Qt::Checked);
-    checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
-    row.append(checkItem);
-    QStandardItem* colorItem = new QStandardItem();
-    colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    colorItem->setBackground(network->color());
-    row.append(colorItem);
-    row.append(new QStandardItem(network->name()));
-    m_network_cascade_model->appendRow(row);
+    if (row < 0 || row > m_network_cascade_model->rowCount())
+        row = m_network_cascade_model->rowCount();
+
+    const QList<Network*> cascadeNets = m_cascade->getNetworks();
+    int existingIndex = cascadeNets.indexOf(network);
+
+    if (existingIndex >= 0) {
+        if (existingIndex != row) {
+            m_cascade->moveNetwork(existingIndex, row);
+            auto items = m_network_cascade_model->takeRow(existingIndex);
+            m_network_cascade_model->insertRow(row, items);
+        }
+    } else {
+        m_cascade->insertNetwork(row, network);
+
+        QList<QStandardItem*> items;
+        QStandardItem* checkItem = new QStandardItem();
+        checkItem->setCheckable(true);
+        checkItem->setCheckState(Qt::Checked);
+        checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
+        items.append(checkItem);
+        QStandardItem* colorItem = new QStandardItem();
+        colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        colorItem->setBackground(network->color());
+        items.append(colorItem);
+        items.append(new QStandardItem(network->name()));
+        m_network_cascade_model->insertRow(row, items);
+    }
 
     updatePlots();
+}
+
+void MainWindow::onGraphSelectionChanged(QCPAbstractPlottable *plottable,
+                                        int, QMouseEvent *)
+{
+    QCPGraph *graph = qobject_cast<QCPGraph *>(plottable);
+    if (!graph)
+        return;
+
+    quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+    Network *network = reinterpret_cast<Network *>(ptrVal);
+    if (!network)
+        return;
+
+    auto selectInView = [network](NetworkItemModel *model, QTableView *view) {
+        view->clearSelection();
+        for (int r = 0; r < model->rowCount(); ++r) {
+            quintptr val = model->item(r, 0)->data(Qt::UserRole).value<quintptr>();
+            if (reinterpret_cast<Network *>(val) == network) {
+                view->selectRow(r);
+                break;
+            }
+        }
+    };
+
+    selectInView(m_network_files_model, ui->tableViewNetworkFiles);
+    selectInView(m_network_lumped_model, ui->tableViewNetworkLumped);
+    selectInView(m_network_cascade_model, ui->tableViewCascade);
 }
 
 void MainWindow::updatePlots()
