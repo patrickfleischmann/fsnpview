@@ -91,6 +91,10 @@ void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const
     graph->setName(name);
     graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
     graph->setSelectable(QCP::stWhole);
+
+    QPen selectedPen = graph->pen();
+    selectedPen.setWidthF(2.5);     // adjust thickness as desired
+    graph->selectionDecorator()->setPen(selectedPen);
 }
 
 void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
