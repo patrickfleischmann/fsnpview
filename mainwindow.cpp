@@ -258,7 +258,15 @@ void MainWindow::updatePlots()
     if (ui->checkBoxS12->isChecked()) checked_sparams << "s12";
     if (ui->checkBoxS22->isChecked()) checked_sparams << "s22";
 
-    m_plot_manager->updatePlots(checked_sparams, ui->checkBoxPhase->isChecked());
+    PlotType type = PlotType::Magnitude;
+    if (ui->checkBoxPhase->isChecked())
+        type = PlotType::Phase;
+    else if (ui->checkBoxVSWR->isChecked())
+        type = PlotType::VSWR;
+    else if (ui->checkBoxSmith->isChecked())
+        type = PlotType::Smith;
+
+    m_plot_manager->updatePlots(checked_sparams, type);
 }
 
 
@@ -405,6 +413,7 @@ void MainWindow::updateGraphSelectionFromTables()
         }
     }
     ui->widgetGraph->replot();
+    m_plot_manager->selectionChanged();
 }
 
 
@@ -564,5 +573,29 @@ void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
 void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
 {
     Q_UNUSED(arg1);
+    if (ui->checkBoxPhase->isChecked()) {
+        ui->checkBoxVSWR->setChecked(false);
+        ui->checkBoxSmith->setChecked(false);
+    }
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    if (ui->checkBoxVSWR->isChecked()) {
+        ui->checkBoxPhase->setChecked(false);
+        ui->checkBoxSmith->setChecked(false);
+    }
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    if (ui->checkBoxSmith->isChecked()) {
+        ui->checkBoxPhase->setChecked(false);
+        ui->checkBoxVSWR->setChecked(false);
+    }
     updatePlots();
 }

@@ -14,12 +14,14 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_plot(plot)
     , m_cascade(nullptr)
     , m_color_index(0)
+    , m_keepAspectConnected(false)
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
     connect(m_plot, &QCustomPlot::mousePress, this, &PlotManager::mousePress);
     connect(m_plot, &QCustomPlot::mouseMove, this, &PlotManager::mouseMove);
     connect(m_plot, &QCustomPlot::mouseRelease, this, &PlotManager::mouseRelease);
+    connect(m_plot, &QCustomPlot::selectionChangedByUser, this, &PlotManager::selectionChanged);
 
     m_plot->setSelectionRectMode(QCP::srmZoom);
     m_plot->setRangeDragButton(Qt::RightButton);
@@ -81,59 +83,90 @@ QColor PlotManager::nextColor()
     return color;
 }
 
-void PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
+QCPGraph* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
                        const QString &name, Network* network,
                        Qt::PenStyle style)
 {
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
-    graph->setPen(QPen(color, 0, style)); //0 means always exactly one pixel wide
+    graph->setPen(QPen(color, 1, style));
     graph->setName(name);
     graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
     graph->setSelectable(QCP::stWhole);
 
-    QPen selectedPen = graph->pen();
-    selectedPen.setWidthF(2.5);     // adjust thickness as desired
-    graph->selectionDecorator()->setPen(selectedPen);
+    return graph;
 }
 
-void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
+void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 {
     qInfo("  updatePlots()");
     QStringList required_graphs;
-    QString yAxisLabel = isPhase ? "Phase (deg)" : "Magnitude (dB)";
-    m_plot->yAxis->setLabel(yAxisLabel);
+    QString suffix;
+
+    switch (type) {
+    case PlotType::Magnitude:
+        m_plot->yAxis->setLabel("Magnitude (dB)");
+        m_plot->xAxis->setLabel("Frequency (Hz)");
+        suffix = "";
+        break;
+    case PlotType::Phase:
+        m_plot->yAxis->setLabel("Phase (deg)");
+        m_plot->xAxis->setLabel("Frequency (Hz)");
+        suffix = "_phase";
+        break;
+    case PlotType::VSWR:
+        m_plot->yAxis->setLabel("VSWR");
+        m_plot->xAxis->setLabel("Frequency (Hz)");
+        suffix = "_vswr";
+        break;
+    case PlotType::Smith:
+        m_plot->yAxis->setLabel("Imag");
+        m_plot->xAxis->setLabel("Real");
+        suffix = "_smith";
+        break;
+    }
+
+    if (type == PlotType::Smith) {
+        setupSmithGrid();
+    } else {
+        clearSmithGrid();
+        clearSmithMarkers();
+        m_plot->xAxis->setTicks(true);
+        m_plot->yAxis->setTicks(true);
+        m_plot->xAxis->setTickLabels(true);
+        m_plot->yAxis->setTickLabels(true);
+    }
 
     // Build list of required graphs from individual networks
     for (auto network : qAsConst(m_networks)) {
-        qInfo() << network->name();
         if (network->isVisible()) {
             for (const auto& sparam : sparams) {
-                QString graph_name = network->name() + "_" + sparam;
-                if (isPhase) graph_name += "_phase";
-                qInfo() << "isVisible: " << graph_name;
+                QString graph_name = network->name() + "_" + sparam + suffix;
                 required_graphs << graph_name;
             }
         }
     }
 
-    // Build list of required graphs from cascade
+    // Build list from cascade
     if (m_cascade && m_cascade->getNetworks().size() > 0) {
         for (const auto& sparam : sparams) {
-            QString graph_name = m_cascade->name() + "_" + sparam;
-            if (isPhase) graph_name += "_phase";
+            QString graph_name = m_cascade->name() + "_" + sparam + suffix;
             required_graphs << graph_name;
         }
     }
 
-    // Remove graphs that are no longer needed
+    // Remove graphs not needed, but keep Smith grid graphs
     for (int i = m_plot->graphCount() - 1; i >= 0; --i) {
-        if (!required_graphs.contains(m_plot->graph(i)->name())) {
+        QCPGraph *graph = m_plot->graph(i);
+        if (type == PlotType::Smith && m_smithGridGraphs.contains(graph))
+            continue;
+        if (!required_graphs.contains(graph->name()))
             m_plot->removeGraph(i);
-        }
     }
 
-    // Add new graphs
+    if (type == PlotType::Smith)
+        clearSmithMarkers();
+
     for (const auto& sparam : sparams) {
         int sparam_idx_to_plot = -1;
         if (sparam == "s11") sparam_idx_to_plot = 0;
@@ -143,31 +176,10 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
 
         // Individual networks
         for (auto network : qAsConst(m_networks)) {
-            if (network->isVisible()) {
-                QString graph_name = network->name() + "_" + sparam;
-                if (isPhase) graph_name += "_phase";
-                bool graph_exists = false;
-                for(int i=0; i<m_plot->graphCount(); ++i) {
-                    if(m_plot->graph(i)->name() == graph_name) {
-                        graph_exists = true;
-                        m_plot->graph(i)->setPen(QPen(network->color(), 0, Qt::SolidLine));
-                        break;
-                    }
-                }
-                if (!graph_exists) {
-                    auto plotData = network->getPlotData(sparam_idx_to_plot, isPhase);
-                    plot(plotData.first, plotData.second,
-                         network->color(),
-                         graph_name, network);
-                }
-            }
-        }
+            if (!network->isVisible())
+                continue;
 
-        // Cascade
-        if (m_cascade && m_cascade->getNetworks().size() > 0) {
-            QString graph_name = m_cascade->name() + "_" + sparam;
-            if (isPhase) graph_name += "_phase";
-
+            QString graph_name = network->name() + "_" + sparam + suffix;
             QCPGraph *graph = nullptr;
             for (int i = 0; i < m_plot->graphCount(); ++i) {
                 if (m_plot->graph(i)->name() == graph_name) {
@@ -176,18 +188,57 @@ void PlotManager::updatePlots(const QStringList& sparams, bool isPhase)
                 }
             }
 
-            auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, isPhase);
+            auto plotData = network->getPlotData(sparam_idx_to_plot, type);
+            if (graph) {
+                graph->setData(plotData.first, plotData.second);
+                graph->setPen(QPen(network->color(), 1, Qt::SolidLine));
+            } else {
+                graph = plot(plotData.first, plotData.second,
+                              network->color(), graph_name, network);
+            }
 
+            if (type == PlotType::Smith)
+                addSmithMarkers(plotData.first, plotData.second, network->color());
+        }
+
+        // Cascade
+        if (m_cascade && m_cascade->getNetworks().size() > 0) {
+            QString graph_name = m_cascade->name() + "_" + sparam + suffix;
+            QCPGraph *graph = nullptr;
+            for (int i = 0; i < m_plot->graphCount(); ++i) {
+                if (m_plot->graph(i)->name() == graph_name) {
+                    graph = m_plot->graph(i);
+                    break;
+                }
+            }
+
+            auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
             if (graph) {
                 graph->setData(plotData.first, plotData.second);
             } else {
-                plot(plotData.first, plotData.second, Qt::black,
-                     graph_name, nullptr, Qt::DashLine);
+                graph = plot(plotData.first, plotData.second, Qt::black,
+                              graph_name, nullptr, Qt::DashLine);
             }
+            if (type == PlotType::Smith)
+                addSmithMarkers(plotData.first, plotData.second, Qt::black);
         }
     }
 
     m_plot->replot();
+    selectionChanged();
+
+    if (type == PlotType::Smith) {
+        m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
+        if (!m_keepAspectConnected) {
+            connect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+            connect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+            m_keepAspectConnected = true;
+        }
+    } else if (m_keepAspectConnected) {
+        disconnect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        m_keepAspectConnected = false;
+    }
 }
 
 void PlotManager::autoscale()
@@ -434,3 +485,126 @@ void PlotManager::createMathPlot()
         }
     }
 }
+
+void PlotManager::selectionChanged()
+{
+    for (int i = 0; i < m_plot->graphCount(); ++i) {
+        QCPGraph *graph = m_plot->graph(i);
+        QPen pen = graph->pen();
+        pen.setWidthF(graph->selected() ? 2.5 : 1.0);
+        graph->setPen(pen);
+    }
+    m_plot->replot();
+}
+
+void PlotManager::keepAspectRatio()
+{
+    m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
+}
+
+void PlotManager::setupSmithGrid()
+{
+    if (!m_plot->layer("smithGrid"))
+        m_plot->addLayer("smithGrid", m_plot->layer("background"), QCustomPlot::limAbove);
+
+    if (m_smithGridGraphs.isEmpty() && m_smithGridItems.isEmpty()) {
+        QVector<double> rVals {0.2,0.5,1.0,2.0,5.0};
+        QVector<double> xVals {0.2,0.5,1.0,2.0,5.0};
+        QVector<QVector<double>> impX, impY, admX, admY;
+        QVector<double> unitX, unitY, realX, realY;
+        QVector<double> labelX, labelY; QVector<QString> labelText;
+        SmithChart::generateSmithChartGridExtended(impX, impY, admX, admY,
+                                                  unitX, unitY, realX, realY,
+                                                  labelX, labelY, labelText,
+                                                  rVals, xVals, 720);
+
+        QPen impPen(QColor(120,120,120)); impPen.setWidthF(1.0);
+        QPen admPen = impPen; admPen.setStyle(Qt::DashLine);
+
+        auto addGraphs = [&](const QVector<QVector<double>>& xs,
+                             const QVector<QVector<double>>& ys, const QPen& pen)
+        {
+            for (int i = 0; i < xs.size(); ++i) {
+                QCPGraph *g = m_plot->addGraph();
+                g->setData(xs[i], ys[i]);
+                g->setPen(pen);
+                g->setLayer("smithGrid");
+                m_smithGridGraphs.append(g);
+            }
+        };
+
+        addGraphs(impX, impY, impPen);
+        addGraphs(admX, admY, admPen);
+
+        QCPGraph *gUnit = m_plot->addGraph();
+        gUnit->setData(unitX, unitY); gUnit->setPen(impPen); gUnit->setLayer("smithGrid");
+        m_smithGridGraphs.append(gUnit);
+        QCPGraph *gReal = m_plot->addGraph();
+        gReal->setData(realX, realY); gReal->setPen(impPen); gReal->setLayer("smithGrid");
+        m_smithGridGraphs.append(gReal);
+
+        for (int i = 0; i < labelX.size(); ++i) {
+            QCPItemText *txt = new QCPItemText(m_plot);
+            txt->setPositionAlignment(Qt::AlignHCenter|Qt::AlignTop);
+            txt->position->setType(QCPItemPosition::ptPlotCoords);
+            txt->position->setCoords(labelX[i], -0.03);
+            txt->setText(labelText[i]);
+            txt->setFont(QFont(m_plot->font().family(), 8));
+            txt->setColor(QColor(120,120,120));
+            txt->setLayer("smithGrid");
+            m_smithGridItems.append(txt);
+        }
+
+        m_plot->xAxis->setRange(-1.05, 1.05);
+        m_plot->yAxis->setRange(-1.05, 1.05);
+        m_plot->xAxis->setTicks(false);
+        m_plot->yAxis->setTicks(false);
+        m_plot->xAxis->setTickLabels(false);
+        m_plot->yAxis->setTickLabels(false);
+    }
+}
+
+void PlotManager::clearSmithGrid()
+{
+    for (auto g : m_smithGridGraphs)
+        m_plot->removeGraph(g);
+    m_smithGridGraphs.clear();
+    for (auto item : m_smithGridItems)
+        m_plot->removeItem(item);
+    m_smithGridItems.clear();
+}
+
+void PlotManager::clearSmithMarkers()
+{
+    for (auto item : m_smithMarkers)
+        m_plot->removeItem(item);
+    m_smithMarkers.clear();
+}
+
+void PlotManager::addSmithMarkers(const QVector<double>& x, const QVector<double>& y, const QColor& color)
+{
+    if (x.isEmpty())
+        return;
+    QCPItemTracer *start = new QCPItemTracer(m_plot);
+    start->setStyle(QCPItemTracer::tsCircle);
+    start->setPen(QPen(color));
+    start->setBrush(color);
+    start->setSize(6);
+    start->position->setType(QCPItemPosition::ptPlotCoords);
+    start->position->setCoords(x.first(), y.first());
+    start->setLayer("tracers");
+    m_smithMarkers.append(start);
+
+    if (x.size() > 1) {
+        QCPItemLine *arrow = new QCPItemLine(m_plot);
+        arrow->start->setType(QCPItemPosition::ptPlotCoords);
+        arrow->end->setType(QCPItemPosition::ptPlotCoords);
+        arrow->start->setCoords(x[x.size()-2], y[y.size()-2]);
+        arrow->end->setCoords(x.last(), y.last());
+        arrow->setPen(QPen(color));
+        arrow->setHead(QCPLineEnding(QCPLineEnding::esSpikeArrow));
+        arrow->setLayer("tracers");
+        m_smithMarkers.append(arrow);
+    }
+}
+

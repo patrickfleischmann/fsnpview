@@ -20,7 +20,7 @@ public:
 
     QString name() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
-    QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, bool isPhase) override;
+    QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
 
 private:
     NetworkType m_type;
