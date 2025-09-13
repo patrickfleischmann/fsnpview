@@ -22,6 +22,7 @@ public:
     void setCascade(NetworkCascade* cascade);
     void updatePlots(const QStringList& sparams, bool isPhase);
     void autoscale();
+    QColor nextColor();
 
 public slots:
     void mouseDoubleClick(QMouseEvent *event);

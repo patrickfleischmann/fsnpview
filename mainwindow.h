@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QItemSelection>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -52,8 +53,13 @@ private slots:
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
-    void onNetworkDropped(Network* network, const QModelIndex& parent);
+
+    void onNetworkDropped(Network* network, int row, const QModelIndex& parent);
     void onGraphSelectionChanged(QCPAbstractPlottable *plottable, int dataIndex, QMouseEvent *event);
+    void onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void onColorColumnClicked(const QModelIndex &index);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -63,6 +69,7 @@ private:
     void setupModels();
     void setupViews();
     void populateLumpedNetworkTable();
+    void updateGraphSelectionFromTables();
 
 
     Ui::MainWindow *ui;

@@ -13,6 +13,12 @@
 #include <QSet>
 #include <QTableView>
 
+#include <QItemSelectionModel>
+#include <QSignalBlocker>
+#include <QColorDialog>
+#include <QVariant>
+#include <QColorDialog>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -36,6 +42,18 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_plot_manager->setNetworks(m_networks);
     m_plot_manager->setCascade(m_cascade);
+
+    connect(ui->widgetGraph, &QCustomPlot::selectionChangedByUser,
+            this, &MainWindow::onGraphSelectionChanged);
+    connect(ui->tableViewNetworkFiles->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkFilesSelectionChanged);
+    connect(ui->tableViewNetworkLumped->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkLumpedSelectionChanged);
+    connect(ui->tableViewCascade->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onNetworkCascadeSelectionChanged);
+    connect(ui->tableViewNetworkFiles, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
+    connect(ui->tableViewNetworkLumped, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
+    connect(ui->tableViewCascade, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
     connect(ui->widgetGraph, &QCustomPlot::plottableClick,
@@ -62,16 +80,16 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupModels()
 {
-    m_network_files_model->setColumnCount(2);
-    m_network_files_model->setHorizontalHeaderLabels({"Plot", "File"});
+    m_network_files_model->setColumnCount(3);
+    m_network_files_model->setHorizontalHeaderLabels({"Plot", "Color", "File"});
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
-    m_network_lumped_model->setColumnCount(2);
-    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Name"});
+    m_network_lumped_model->setColumnCount(3);
+    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Color", "Name"});
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
-    m_network_cascade_model->setColumnCount(2);
-    m_network_cascade_model->setHorizontalHeaderLabels({"Active", "Name"});
+    m_network_cascade_model->setColumnCount(3);
+    m_network_cascade_model->setHorizontalHeaderLabels({"Active", "Color", "Name"});
     connect(m_network_cascade_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkCascadeModelChanged);
     connect(m_network_cascade_model, &NetworkItemModel::networkDropped, this, &MainWindow::onNetworkDropped);
 }
@@ -90,8 +108,12 @@ void MainWindow::setupViews()
 
 
     ui->tableViewCascade->setModel(m_network_cascade_model);
-    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DropOnly);
+    ui->tableViewCascade->setDragEnabled(true);
     ui->tableViewCascade->setAcceptDrops(true);
+    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DragDrop);
+    ui->tableViewCascade->setDefaultDropAction(Qt::MoveAction);
+    ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
 }
 
 void MainWindow::populateLumpedNetworkTable()
@@ -105,12 +127,17 @@ void MainWindow::populateLumpedNetworkTable()
 
     for (auto network_ptr : qAsConst(m_networks)) {
         if (dynamic_cast<NetworkLumped*>(network_ptr)) {
+            network_ptr->setColor(m_plot_manager->nextColor());
             QList<QStandardItem*> row;
             QStandardItem* checkItem = new QStandardItem();
             checkItem->setCheckable(true);
             checkItem->setCheckState(Qt::Unchecked);
             checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network_ptr)), Qt::UserRole);
             row.append(checkItem);
+            QStandardItem* colorItem = new QStandardItem();
+            colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+            colorItem->setBackground(network_ptr->color());
+            row.append(colorItem);
             row.append(new QStandardItem(network_ptr->name()));
             m_network_lumped_model->appendRow(row);
         }
@@ -121,12 +148,17 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
 {
     for (const QString &file : files) {
         Network* network = new NetworkFile(file);
+        network->setColor(m_plot_manager->nextColor());
         QList<QStandardItem*> row;
         QStandardItem* checkItem = new QStandardItem();
         checkItem->setCheckable(true);
         checkItem->setCheckState(Qt::Checked);
         checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
         row.append(checkItem);
+        QStandardItem* colorItem = new QStandardItem();
+        colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        colorItem->setBackground(network->color());
+        row.append(colorItem);
         row.append(new QStandardItem(network->name()));
         m_network_files_model->appendRow(row);
         m_networks.append(network);
@@ -141,19 +173,38 @@ void MainWindow::onFilesReceived(const QStringList &files)
     processFiles(files);
 }
 
-void MainWindow::onNetworkDropped(Network* network, const QModelIndex& parent)
+void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& parent)
 {
     Q_UNUSED(parent);
-    m_cascade->addNetwork(network);
 
-    QList<QStandardItem*> row;
-    QStandardItem* checkItem = new QStandardItem();
-    checkItem->setCheckable(true);
-    checkItem->setCheckState(Qt::Checked);
-    checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
-    row.append(checkItem);
-    row.append(new QStandardItem(network->name()));
-    m_network_cascade_model->appendRow(row);
+    if (row < 0 || row > m_network_cascade_model->rowCount())
+        row = m_network_cascade_model->rowCount();
+
+    const QList<Network*> cascadeNets = m_cascade->getNetworks();
+    int existingIndex = cascadeNets.indexOf(network);
+
+    if (existingIndex >= 0) {
+        if (existingIndex != row) {
+            m_cascade->moveNetwork(existingIndex, row);
+            auto items = m_network_cascade_model->takeRow(existingIndex);
+            m_network_cascade_model->insertRow(row, items);
+        }
+    } else {
+        m_cascade->insertNetwork(row, network);
+
+        QList<QStandardItem*> items;
+        QStandardItem* checkItem = new QStandardItem();
+        checkItem->setCheckable(true);
+        checkItem->setCheckState(Qt::Checked);
+        checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
+        items.append(checkItem);
+        QStandardItem* colorItem = new QStandardItem();
+        colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        colorItem->setBackground(network->color());
+        items.append(colorItem);
+        items.append(new QStandardItem(network->name()));
+        m_network_cascade_model->insertRow(row, items);
+    }
 
     updatePlots();
 }
@@ -232,6 +283,115 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
             updatePlots();
         }
     }
+}
+
+void MainWindow::onGraphSelectionChanged()
+{
+    QSet<Network*> selectedNetworks;
+    const auto graphs = ui->widgetGraph->selectedGraphs();
+    for (QCPGraph *graph : graphs) {
+        quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+        Network* network = reinterpret_cast<Network*>(ptrVal);
+        if (network)
+            selectedNetworks.insert(network);
+    }
+
+    auto syncSelection = [&](QTableView *view, NetworkItemModel *model) {
+        QItemSelectionModel *selModel = view->selectionModel();
+        QSignalBlocker blocker(selModel);
+        selModel->clearSelection();
+        for (int row = 0; row < model->rowCount(); ++row) {
+            quintptr ptrVal = model->item(row, 0)->data(Qt::UserRole).value<quintptr>();
+            Network *network = reinterpret_cast<Network*>(ptrVal);
+            if (selectedNetworks.contains(network)) {
+                selModel->select(model->index(row, 0), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+            }
+        }
+    };
+
+    syncSelection(ui->tableViewNetworkFiles, m_network_files_model);
+    syncSelection(ui->tableViewNetworkLumped, m_network_lumped_model);
+    syncSelection(ui->tableViewCascade, m_network_cascade_model);
+}
+
+void MainWindow::onNetworkFilesSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::onNetworkLumpedSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::onNetworkCascadeSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+    updateGraphSelectionFromTables();
+}
+
+void MainWindow::onColorColumnClicked(const QModelIndex &index)
+{
+    if (index.column() != 1)
+        return;
+
+    const QStandardItemModel* model = qobject_cast<const QStandardItemModel*>(index.model());
+    quintptr net_ptr_val = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+    Network* network = reinterpret_cast<Network*>(net_ptr_val);
+    if (!network)
+        return;
+
+    QColor color = QColorDialog::getColor(network->color(), this, tr("Select Color"));
+    if (!color.isValid())
+        return;
+
+    network->setColor(color);
+    auto updateColor = [&](NetworkItemModel* m){
+        for (int r = 0; r < m->rowCount(); ++r) {
+            quintptr ptrVal = m->item(r, 0)->data(Qt::UserRole).value<quintptr>();
+            if (reinterpret_cast<Network*>(ptrVal) == network) {
+                m->item(r, 1)->setBackground(color);
+            }
+        }
+    };
+    updateColor(m_network_files_model);
+    updateColor(m_network_lumped_model);
+    updateColor(m_network_cascade_model);
+    updatePlots();
+}
+
+void MainWindow::updateGraphSelectionFromTables()
+{
+    QSet<Network*> selectedNetworks;
+    auto collect = [&](QTableView *view, NetworkItemModel *model) {
+        const QModelIndexList rows = view->selectionModel()->selectedRows();
+        for (const QModelIndex &index : rows) {
+            quintptr ptrVal = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+            Network *network = reinterpret_cast<Network*>(ptrVal);
+            if (network)
+                selectedNetworks.insert(network);
+        }
+    };
+
+    collect(ui->tableViewNetworkFiles, m_network_files_model);
+    collect(ui->tableViewNetworkLumped, m_network_lumped_model);
+    collect(ui->tableViewCascade, m_network_cascade_model);
+
+    for (int i = 0; i < ui->widgetGraph->graphCount(); ++i) {
+        QCPGraph *graph = ui->widgetGraph->graph(i);
+        Network *network = reinterpret_cast<Network*>(graph->property("network_ptr").value<quintptr>());
+        if (network && selectedNetworks.contains(network)) {
+            graph->setSelection(QCPDataSelection(graph->data()->dataRange()));
+        } else {
+            graph->setSelection(QCPDataSelection());
+        }
+    }
+    ui->widgetGraph->replot();
 }
 
 
