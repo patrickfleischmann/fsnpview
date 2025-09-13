@@ -155,11 +155,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
     }
 
-    // Remove graphs not needed
+    // Remove graphs not needed, but keep Smith grid graphs
     for (int i = m_plot->graphCount() - 1; i >= 0; --i) {
-        if (!required_graphs.contains(m_plot->graph(i)->name())) {
+        QCPGraph *graph = m_plot->graph(i);
+        if (type == PlotType::Smith && m_smithGridGraphs.contains(graph))
+            continue;
+        if (!required_graphs.contains(graph->name()))
             m_plot->removeGraph(i);
-        }
     }
 
     if (type == PlotType::Smith)
