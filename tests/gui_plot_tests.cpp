@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     QList<Network*> nets{&net};
     pm.setNetworks(nets);
     pm.setCascade(nullptr);
-    pm.updatePlots(QStringList{QStringLiteral("s21")}, false);
+    pm.updatePlots(QStringList{QStringLiteral("s21")}, PlotType::Magnitude);
 
     if (plot.graphCount() == 0) {
         std::cerr << "No graph produced" << std::endl;

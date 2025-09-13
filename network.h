@@ -7,6 +7,9 @@
 #include <QVector>
 #include <QPair>
 #include <Eigen/Dense>
+#include <complex>
+
+enum class PlotType { Magnitude, Phase, VSWR, Smith };
 
 class Network : public QObject
 {
@@ -20,7 +23,7 @@ public:
 
     virtual QString name() const = 0;
     virtual Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const = 0;
-    virtual QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, bool isPhase) = 0;
+    virtual QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) = 0;
 
     double fmin() const;
     void setFmin(double fmin);

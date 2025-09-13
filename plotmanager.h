@@ -3,14 +3,19 @@
 
 #include <QObject>
 #include <QVector>
+#include <QList>
 #include <QColor>
 #include <QMouseEvent>
+
+#include "network.h"
 
 class QCustomPlot;
 class Network;
 class NetworkCascade;
 class QCPItemTracer;
 class QCPItemText;
+class QCPAbstractItem;
+class QCPGraph;
 
 class PlotManager : public QObject
 {
@@ -20,7 +25,7 @@ public:
 
     void setNetworks(const QList<Network*>& networks);
     void setCascade(NetworkCascade* cascade);
-    void updatePlots(const QStringList& sparams, bool isPhase);
+    void updatePlots(const QStringList& sparams, PlotType type);
     void autoscale();
     QColor nextColor();
 
@@ -32,15 +37,21 @@ public slots:
     void setCursorAVisible(bool visible);
     void setCursorBVisible(bool visible);
     void createMathPlot();
+    void selectionChanged();
+    void keepAspectRatio();
 
 private:
     enum class DragMode { None, Vertical, Horizontal };
-    void plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
+    QCPGraph* plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
               const QString &name, Network* network,
               Qt::PenStyle style = Qt::SolidLine);
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
     void checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer);
+    void setupSmithGrid();
+    void clearSmithGrid();
+    void clearSmithMarkers();
+    void addSmithMarkers(const QVector<double>& x, const QVector<double>& y, const QColor& color);
 
 
     QCustomPlot* m_plot;
@@ -55,6 +66,10 @@ private:
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
     DragMode mDragMode;
+    QList<QCPGraph*> m_smithGridGraphs;
+    QList<QCPAbstractItem*> m_smithGridItems;
+    QList<QCPAbstractItem*> m_smithMarkers;
+    bool m_keepAspectConnected;
 };
 
 #endif // PLOTMANAGER_H

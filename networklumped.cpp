@@ -59,7 +59,7 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
     return abcd_matrix;
 }
 
-QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_idx, bool isPhase)
+QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_idx, PlotType type)
 {
     if (s_param_idx < 0 || s_param_idx > 3) {
         return {};
@@ -74,15 +74,27 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         Eigen::Vector4cd s = abcd2s(abcd_point);
         std::complex<double> s_param = s(s_param_idx);
 
-        xValues.append(freq(i));
-        if (isPhase) {
-            yValues.append(std::arg(s_param) * 180.0 / M_PI);
-        } else {
+        switch (type) {
+        case PlotType::Magnitude:
+            xValues.append(freq(i));
             yValues.append(20 * std::log10(std::abs(s_param)));
+            break;
+        case PlotType::Phase:
+            xValues.append(freq(i));
+            yValues.append(std::arg(s_param) * 180.0 / M_PI);
+            break;
+        case PlotType::VSWR:
+            xValues.append(freq(i));
+            yValues.append((1 + std::abs(s_param)) / (1 - std::abs(s_param)));
+            break;
+        case PlotType::Smith:
+            xValues.append(std::real(s_param));
+            yValues.append(std::imag(s_param));
+            break;
         }
     }
 
-    if (isPhase && m_unwrap_phase) {
+    if (type == PlotType::Phase && m_unwrap_phase) {
         Eigen::Map<Eigen::ArrayXd> yValuesEigen(yValues.data(), yValues.size());
         Eigen::ArrayXd unwrapped_y = unwrap(yValuesEigen);
         for(int i = 0; i < unwrapped_y.size(); ++i) {

@@ -121,18 +121,32 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="checkBoxPhase">
-            <property name="text">
-             <string>Phase</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="checkBoxLegend">
-            <property name="text">
-             <string>Legend</string>
-            </property>
-           </widget>
+          <widget class="QCheckBox" name="checkBoxPhase">
+           <property name="text">
+            <string>Phase</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBoxVSWR">
+           <property name="text">
+            <string>VSWR</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBoxSmith">
+           <property name="text">
+            <string>Smith</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBoxLegend">
+           <property name="text">
+            <string>Legend</string>
+           </property>
+          </widget>
           </item>
           <item>
            <widget class="QPushButton" name="pushButtonColor">

@@ -28,22 +28,45 @@ QString NetworkFile::filePath() const
     return m_file_path;
 }
 
-QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx, bool isPhase)
+QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx, PlotType type)
 {
     if (!m_data || s_param_idx < 0 || s_param_idx >= m_data->sparams.cols()) {
         return {};
     }
 
-    Eigen::ArrayXd xValues = m_data->freq;
+    Eigen::ArrayXd xValues;
     Eigen::ArrayXd yValues;
 
-    if (isPhase) {
-        Eigen::ArrayXcd s_param_col = m_data->sparams.col(s_param_idx);
+    Eigen::ArrayXcd s_param_col = m_data->sparams.col(s_param_idx);
+
+    // Renormalize to 50 Ohm when needed
+    if (type == PlotType::VSWR || type == PlotType::Smith) {
+        double R = m_data->R;
+        Eigen::ArrayXcd z = R * (1.0 + s_param_col) / (1.0 - s_param_col);
+        s_param_col = (z - 50.0) / (z + 50.0);
+    }
+
+    switch (type) {
+    case PlotType::Magnitude:
+        xValues = m_data->freq;
+        yValues = 20 * s_param_col.abs().log10();
+        break;
+    case PlotType::Phase:
+    {
+        xValues = m_data->freq;
         Eigen::ArrayXd phase_rad = s_param_col.arg();
         Eigen::ArrayXd unwrapped_phase_rad = m_unwrap_phase ? unwrap(phase_rad) : phase_rad;
         yValues = unwrapped_phase_rad * (180.0 / M_PI);
-    } else {
-        yValues = 20 * m_data->sparams.col(s_param_idx).abs().log10();
+        break;
+    }
+    case PlotType::VSWR:
+        xValues = m_data->freq;
+        yValues = (1 + s_param_col.abs()) / (1 - s_param_col.abs());
+        break;
+    case PlotType::Smith:
+        xValues = s_param_col.real();
+        yValues = s_param_col.imag();
+        break;
     }
 
     QVector<double> xValuesQVector = QVector<double>(xValues.data(), xValues.data() + xValues.size());
