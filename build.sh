@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# This script builds the tests.
+# This script builds the test binaries.
 set -e
 
 MOC=/usr/lib/qt6/libexec/moc
-MOC_INCLUDES="-I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtPrintSupport"
+MOC_INCLUDES="$(pkg-config --cflags Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)"
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. tests/parser_touchstone_tests.cpp parser_touchstone.cpp -o parser_touchstone_tests
 
@@ -23,5 +23,8 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     moc_plotmanager.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp \
     moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o gui_plot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
-    
-g++ -std=c++17 -I/usr/include/eigen3 -I. tests/networkcascade_tests.cpp parser_touchstone.cpp network.cpp networkfile.cpp networkcascade.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp $(pkg-config --cflags --libs Qt6Core Qt6Gui) -o networkcascade_tests
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/networkcascade_tests.cpp parser_touchstone.cpp network.cpp networkfile.cpp \
+    networkcascade.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp \
+    -o networkcascade_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)
