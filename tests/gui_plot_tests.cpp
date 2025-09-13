@@ -29,11 +29,8 @@ static std::vector<std::pair<double, double>> readBaseline(const std::string &pa
 
 int main(int argc, char **argv)
 {
-    Q_UNUSED(argc);
-    Q_UNUSED(argv);
     qputenv("QT_QPA_PLATFORM", QByteArray("offscreen"));
-    int fakeArgc = 0; char **fakeArgv = nullptr;
-    QApplication app(fakeArgc, fakeArgv);
+    QApplication app(argc, argv);
 
     QCustomPlot plot;
     PlotManager pm(&plot);
