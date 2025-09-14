@@ -122,3 +122,13 @@ QVector<double> NetworkLumped::frequencies() const
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
     return QVector<double>(freq.data(), freq.data() + freq.size());
 }
+
+double NetworkLumped::value() const
+{
+    return m_value;
+}
+
+void NetworkLumped::setValue(double value)
+{
+    m_value = value;
+}
