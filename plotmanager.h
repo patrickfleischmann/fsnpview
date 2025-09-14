@@ -16,6 +16,8 @@ class QCPItemTracer;
 class QCPItemText;
 class QCPAbstractItem;
 class QCPGraph;
+class QCPCurve;
+class QCPAbstractPlottable;
 
 class PlotManager : public QObject
 {
@@ -42,8 +44,8 @@ public slots:
 
 private:
     enum class DragMode { None, Vertical, Horizontal };
-    QCPGraph* plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
-              const QString &name, Network* network,
+    QCPAbstractPlottable* plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
+              const QString &name, Network* network, PlotType type,
               Qt::PenStyle style = Qt::SolidLine);
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
@@ -66,7 +68,7 @@ private:
     QCPItemText *mTracerTextB;
     QCPItemTracer *mDraggedTracer;
     DragMode mDragMode;
-    QList<QCPGraph*> m_smithGridGraphs;
+    QList<QCPCurve*> m_smithGridCurves;
     QList<QCPAbstractItem*> m_smithGridItems;
     QList<QCPAbstractItem*> m_smithMarkers;
     bool m_keepAspectConnected;

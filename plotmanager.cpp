@@ -83,10 +83,20 @@ QColor PlotManager::nextColor()
     return color;
 }
 
-QCPGraph* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
-                       const QString &name, Network* network,
+QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
+                       const QString &name, Network* network, PlotType type,
                        Qt::PenStyle style)
 {
+    if (type == PlotType::Smith)
+    {
+        QCPCurve *curve = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
+        curve->setData(x, y);
+        curve->setPen(QPen(color, 1, style));
+        curve->setName(name);
+        curve->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
+        curve->setSelectable(QCP::stWhole);
+        return curve;
+    }
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
     graph->setPen(QPen(color, 1, style));
@@ -155,13 +165,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
     }
 
-    // Remove graphs not needed, but keep Smith grid graphs
-    for (int i = m_plot->graphCount() - 1; i >= 0; --i) {
-        QCPGraph *graph = m_plot->graph(i);
-        if (type == PlotType::Smith && m_smithGridGraphs.contains(graph))
+    // Remove plottables not needed, but keep Smith grid curves
+    for (int i = m_plot->plottableCount() - 1; i >= 0; --i) {
+        QCPAbstractPlottable *pl = m_plot->plottable(i);
+        if (type == PlotType::Smith && m_smithGridCurves.contains(qobject_cast<QCPCurve*>(pl)))
             continue;
-        if (!required_graphs.contains(graph->name()))
-            m_plot->removeGraph(i);
+        if (!required_graphs.contains(pl->name()))
+            m_plot->removePlottable(pl);
     }
 
     if (type == PlotType::Smith)
@@ -180,21 +190,30 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 continue;
 
             QString graph_name = network->name() + "_" + sparam + suffix;
-            QCPGraph *graph = nullptr;
-            for (int i = 0; i < m_plot->graphCount(); ++i) {
-                if (m_plot->graph(i)->name() == graph_name) {
-                    graph = m_plot->graph(i);
+            QCPAbstractPlottable *pl = nullptr;
+            for (int i = 0; i < m_plot->plottableCount(); ++i) {
+                if (m_plot->plottable(i)->name() == graph_name) {
+                    pl = m_plot->plottable(i);
                     break;
                 }
             }
 
             auto plotData = network->getPlotData(sparam_idx_to_plot, type);
-            if (graph) {
-                graph->setData(plotData.first, plotData.second);
-                graph->setPen(QPen(network->color(), 1, Qt::SolidLine));
+            if (pl) {
+                if (type == PlotType::Smith) {
+                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
+                        curve->setData(plotData.first, plotData.second);
+                        curve->setPen(QPen(network->color(), 1, Qt::SolidLine));
+                    }
+                } else {
+                    if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl)) {
+                        graph->setData(plotData.first, plotData.second);
+                        graph->setPen(QPen(network->color(), 1, Qt::SolidLine));
+                    }
+                }
             } else {
-                graph = plot(plotData.first, plotData.second,
-                              network->color(), graph_name, network);
+                pl = plot(plotData.first, plotData.second,
+                              network->color(), graph_name, network, type);
             }
 
             if (type == PlotType::Smith)
@@ -204,20 +223,26 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         // Cascade
         if (m_cascade && m_cascade->getNetworks().size() > 0) {
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
-            QCPGraph *graph = nullptr;
-            for (int i = 0; i < m_plot->graphCount(); ++i) {
-                if (m_plot->graph(i)->name() == graph_name) {
-                    graph = m_plot->graph(i);
+            QCPAbstractPlottable *pl = nullptr;
+            for (int i = 0; i < m_plot->plottableCount(); ++i) {
+                if (m_plot->plottable(i)->name() == graph_name) {
+                    pl = m_plot->plottable(i);
                     break;
                 }
             }
 
             auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
-            if (graph) {
-                graph->setData(plotData.first, plotData.second);
+            if (pl) {
+                if (type == PlotType::Smith) {
+                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
+                        curve->setData(plotData.first, plotData.second);
+                } else {
+                    if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl))
+                        graph->setData(plotData.first, plotData.second);
+                }
             } else {
-                graph = plot(plotData.first, plotData.second, Qt::black,
-                              graph_name, nullptr, Qt::DashLine);
+                pl = plot(plotData.first, plotData.second, Qt::black,
+                              graph_name, nullptr, type, Qt::DashLine);
             }
             if (type == PlotType::Smith)
                 addSmithMarkers(plotData.first, plotData.second, Qt::black);
@@ -257,7 +282,7 @@ void PlotManager::mouseDoubleClick(QMouseEvent *event)
 
 void PlotManager::setCursorAVisible(bool visible)
 {
-    if (m_plot->graphCount() == 0)
+    if (m_plot->plottableCount() == 0)
     {
         // todo: maybe uncheck the box in the mainwindow?
         return;
@@ -268,8 +293,10 @@ void PlotManager::setCursorAVisible(bool visible)
 
     if (visible)
     {
-        QCPGraph *graph = m_plot->graph(0);
-        mTracerA->setGraph(graph);
+        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0)))
+            mTracerA->setGraph(graph);
+        else
+            mTracerA->setGraph(nullptr);
         mTracerA->setGraphKey(m_plot->xAxis->range().center());
     }
     updateTracers();
@@ -278,7 +305,7 @@ void PlotManager::setCursorAVisible(bool visible)
 
 void PlotManager::setCursorBVisible(bool visible)
 {
-    if (m_plot->graphCount() == 0)
+    if (m_plot->plottableCount() == 0)
     {
         // todo: maybe uncheck the box in the mainwindow?
         return;
@@ -289,8 +316,10 @@ void PlotManager::setCursorBVisible(bool visible)
 
     if (visible)
     {
-        QCPGraph *graph = m_plot->graph(0);
-        mTracerB->setGraph(graph);
+        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0)))
+            mTracerB->setGraph(graph);
+        else
+            mTracerB->setGraph(nullptr);
         mTracerB->setGraphKey(m_plot->xAxis->range().center());
     }
     updateTracers();
@@ -480,7 +509,7 @@ void PlotManager::createMathPlot()
         {
             plot(x, y, Qt::red,
                  QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
-                 nullptr);
+                 nullptr, PlotType::Magnitude);
             m_plot->replot();
         }
     }
@@ -488,11 +517,11 @@ void PlotManager::createMathPlot()
 
 void PlotManager::selectionChanged()
 {
-    for (int i = 0; i < m_plot->graphCount(); ++i) {
-        QCPGraph *graph = m_plot->graph(i);
-        QPen pen = graph->pen();
-        pen.setWidthF(graph->selected() ? 2.5 : 1.0);
-        graph->setPen(pen);
+    for (int i = 0; i < m_plot->plottableCount(); ++i) {
+        QCPAbstractPlottable *pl = m_plot->plottable(i);
+        QPen pen = pl->pen();
+        pen.setWidthF(pl->selected() ? 2.5 : 1.0);
+        pl->setPen(pen);
     }
     m_plot->replot();
 }
@@ -507,7 +536,7 @@ void PlotManager::setupSmithGrid()
     if (!m_plot->layer("smithGrid"))
         m_plot->addLayer("smithGrid", m_plot->layer("background"), QCustomPlot::limAbove);
 
-    if (m_smithGridGraphs.isEmpty() && m_smithGridItems.isEmpty()) {
+    if (m_smithGridCurves.isEmpty() && m_smithGridItems.isEmpty()) {
         QVector<double> rVals {0.2,0.5,1.0,2.0,5.0};
         QVector<double> xVals {0.2,0.5,1.0,2.0,5.0};
         QVector<QVector<double>> impX, impY, admX, admY;
@@ -521,27 +550,27 @@ void PlotManager::setupSmithGrid()
         QPen impPen(QColor(120,120,120)); impPen.setWidthF(1.0);
         QPen admPen = impPen; admPen.setStyle(Qt::DashLine);
 
-        auto addGraphs = [&](const QVector<QVector<double>>& xs,
+        auto addCurves = [&](const QVector<QVector<double>>& xs,
                              const QVector<QVector<double>>& ys, const QPen& pen)
         {
             for (int i = 0; i < xs.size(); ++i) {
-                QCPGraph *g = m_plot->addGraph();
-                g->setData(xs[i], ys[i]);
-                g->setPen(pen);
-                g->setLayer("smithGrid");
-                m_smithGridGraphs.append(g);
+                QCPCurve *c = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
+                c->setData(xs[i], ys[i]);
+                c->setPen(pen);
+                c->setLayer("smithGrid");
+                m_smithGridCurves.append(c);
             }
         };
 
-        addGraphs(impX, impY, impPen);
-        addGraphs(admX, admY, admPen);
+        addCurves(impX, impY, impPen);
+        addCurves(admX, admY, admPen);
 
-        QCPGraph *gUnit = m_plot->addGraph();
+        QCPCurve *gUnit = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
         gUnit->setData(unitX, unitY); gUnit->setPen(impPen); gUnit->setLayer("smithGrid");
-        m_smithGridGraphs.append(gUnit);
-        QCPGraph *gReal = m_plot->addGraph();
+        m_smithGridCurves.append(gUnit);
+        QCPCurve *gReal = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
         gReal->setData(realX, realY); gReal->setPen(impPen); gReal->setLayer("smithGrid");
-        m_smithGridGraphs.append(gReal);
+        m_smithGridCurves.append(gReal);
 
         for (int i = 0; i < labelX.size(); ++i) {
             QCPItemText *txt = new QCPItemText(m_plot);
@@ -566,9 +595,9 @@ void PlotManager::setupSmithGrid()
 
 void PlotManager::clearSmithGrid()
 {
-    for (auto g : m_smithGridGraphs)
-        m_plot->removeGraph(g);
-    m_smithGridGraphs.clear();
+    for (auto c : m_smithGridCurves)
+        m_plot->removePlottable(c);
+    m_smithGridCurves.clear();
     for (auto item : m_smithGridItems)
         m_plot->removeItem(item);
     m_smithGridItems.clear();
