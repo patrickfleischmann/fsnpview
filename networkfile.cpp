@@ -28,6 +28,18 @@ QString NetworkFile::filePath() const
     return m_file_path;
 }
 
+Network* NetworkFile::clone(QObject* parent) const
+{
+    NetworkFile* copy = new NetworkFile(m_file_path, parent);
+    copy->setColor(m_color);
+    copy->setVisible(m_is_visible);
+    copy->setUnwrapPhase(m_unwrap_phase);
+    copy->setActive(m_is_active);
+    copy->setFmin(m_fmin);
+    copy->setFmax(m_fmax);
+    return copy;
+}
+
 QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx, PlotType type)
 {
     if (!m_data || s_param_idx < 0 || s_param_idx >= m_data->sparams.cols()) {
