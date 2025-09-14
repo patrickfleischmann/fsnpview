@@ -135,23 +135,39 @@ inline void addSmithChartGrid(QCustomPlot* plot, Preset preset = Preset::Medium)
     // Impedance (solid)
     for (int i = 0; i < impX.size(); ++i) {
         plot->addGraph();
-        plot->graph()->setPen(impPen);
-        plot->graph()->setData(impX[i], impY[i]);
+        QCPGraph *g = plot->graph();
+        g->setPen(impPen);
+        g->setData(impX[i], impY[i]);
+        g->setName(QString());
+        g->removeFromLegend();
+        g->setSelectable(QCP::stNone);
     }
     // Admittance (dashed)
     for (int i = 0; i < admX.size(); ++i) {
         plot->addGraph();
-        plot->graph()->setPen(admPen);
-        plot->graph()->setData(admX[i], admY[i]);
+        QCPGraph *g = plot->graph();
+        g->setPen(admPen);
+        g->setData(admX[i], admY[i]);
+        g->setName(QString());
+        g->removeFromLegend();
+        g->setSelectable(QCP::stNone);
     }
     // Unit circle
     plot->addGraph();
-    plot->graph()->setPen(impPen);
-    plot->graph()->setData(unitX, unitY);
+    QCPGraph *gUnit = plot->graph();
+    gUnit->setPen(impPen);
+    gUnit->setData(unitX, unitY);
+    gUnit->setName(QString());
+    gUnit->removeFromLegend();
+    gUnit->setSelectable(QCP::stNone);
     // Real axis
     plot->addGraph();
-    plot->graph()->setPen(impPen);
-    plot->graph()->setData(realX, realY);
+    QCPGraph *gReal = plot->graph();
+    gReal->setPen(impPen);
+    gReal->setData(realX, realY);
+    gReal->setName(QString());
+    gReal->removeFromLegend();
+    gReal->setSelectable(QCP::stNone);
 
     // Labels (below real axis), version-safe add
     for (int i = 0; i < labelX.size(); ++i) {
@@ -166,6 +182,7 @@ inline void addSmithChartGrid(QCustomPlot* plot, Preset preset = Preset::Medium)
         txt->setPadding(QMargins(1,1,1,1));
         txt->setPen(Qt::NoPen);
         txt->setBrush(Qt::NoBrush);
+        txt->setSelectable(false);
     }
 
     // View / axes
@@ -175,6 +192,8 @@ inline void addSmithChartGrid(QCustomPlot* plot, Preset preset = Preset::Medium)
     plot->yAxis->setTicks(false);
     plot->xAxis->setTickLabels(false);
     plot->yAxis->setTickLabels(false);
+    plot->xAxis->grid()->setVisible(false);
+    plot->yAxis->grid()->setVisible(false);
     plot->setBackground(Qt::white);
     plot->replot();
 }

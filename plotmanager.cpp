@@ -5,6 +5,7 @@
 #include "SmithChartGrid.h"
 #include <QDebug>
 #include <QVariant>
+#include <QLineF>
 #include <set>
 
 using namespace std;
@@ -145,6 +146,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         m_plot->yAxis->setTicks(true);
         m_plot->xAxis->setTickLabels(true);
         m_plot->yAxis->setTickLabels(true);
+        m_plot->xAxis->grid()->setVisible(true);
+        m_plot->yAxis->grid()->setVisible(true);
     }
 
     // Build list of required graphs from individual networks
@@ -251,6 +254,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 
     m_plot->replot();
     selectionChanged();
+    updateTracers();
 
     if (type == PlotType::Smith) {
         m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
@@ -268,7 +272,12 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 
 void PlotManager::autoscale()
 {
-    m_plot->rescaleAxes();
+    if (!m_smithGridCurves.isEmpty()) {
+        m_plot->xAxis->setRange(-1.05, 1.05);
+        m_plot->yAxis->setRange(-1.05, 1.05);
+    } else {
+        m_plot->rescaleAxes();
+    }
     m_plot->replot();
 }
 
@@ -293,11 +302,15 @@ void PlotManager::setCursorAVisible(bool visible)
 
     if (visible)
     {
-        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0)))
+        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
             mTracerA->setGraph(graph);
-        else
+            mTracerA->setGraphKey(m_plot->xAxis->range().center());
+        } else {
             mTracerA->setGraph(nullptr);
-        mTracerA->setGraphKey(m_plot->xAxis->range().center());
+            mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
+            mTracerA->position->setCoords(m_plot->xAxis->range().center(),
+                                          m_plot->yAxis->range().center());
+        }
     }
     updateTracers();
     m_plot->replot();
@@ -316,11 +329,15 @@ void PlotManager::setCursorBVisible(bool visible)
 
     if (visible)
     {
-        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0)))
+        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
             mTracerB->setGraph(graph);
-        else
+            mTracerB->setGraphKey(m_plot->xAxis->range().center());
+        } else {
             mTracerB->setGraph(nullptr);
-        mTracerB->setGraphKey(m_plot->xAxis->range().center());
+            mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
+            mTracerB->position->setCoords(m_plot->xAxis->range().center(),
+                                          m_plot->yAxis->range().center());
+        }
     }
     updateTracers();
     m_plot->replot();
@@ -347,16 +364,20 @@ void PlotManager::mousePress(QMouseEvent *event)
 
 void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
 {
-    if (tracer->visible())
-    {
-        const QPointF tracerPos = tracer->position->pixelPosition();
-        if (qAbs(event->pos().x() - tracerPos.x()) < 5) // Vertical line drag
-        {
+    if (!tracer->visible())
+        return;
+
+    const QPointF tracerPos = tracer->position->pixelPosition();
+    if (!m_smithGridCurves.isEmpty()) {
+        if (QLineF(event->pos(), tracerPos).length() < 8) {
+            mDraggedTracer = tracer;
+            mDragMode = DragMode::Free;
+        }
+    } else {
+        if (qAbs(event->pos().x() - tracerPos.x()) < 5) {
             mDraggedTracer = tracer;
             mDragMode = DragMode::Vertical;
-        }
-        else if (qAbs(event->pos().y() - tracerPos.y()) < 5) // Horizontal line drag
-        {
+        } else if (qAbs(event->pos().y() - tracerPos.y()) < 5) {
             mDraggedTracer = tracer;
             mDragMode = DragMode::Horizontal;
         }
@@ -382,6 +403,12 @@ void PlotManager::mouseMove(QMouseEvent *event)
             double key = m_plot->xAxis->pixelToCoord(event->pos().x());
             mDraggedTracer->setGraphKey(key);
         }
+        else if (mDragMode == DragMode::Free)
+        {
+            double x = m_plot->xAxis->pixelToCoord(event->pos().x());
+            double y = m_plot->yAxis->pixelToCoord(event->pos().y());
+            mDraggedTracer->position->setCoords(x, y);
+        }
 
         updateTracers();
         m_plot->replot();
@@ -403,23 +430,40 @@ void PlotManager::mouseRelease(QMouseEvent *event)
 
 void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
 {
-    if (!tracer->visible() || !tracer->graph())
+    if (!tracer->visible())
         return;
 
     tracer->updatePosition();
     double x = tracer->position->coords().x();
     double y = tracer->position->coords().y();
 
-    QString labelText = QString::number(x, 'g', 4) + "Hz " + QString::number(y, 'f', 2);
-
-    if (tracer == mTracerB && mTracerA->visible())
-    {
-        mTracerA->updatePosition();
-        double xA = mTracerA->position->coords().x();
-        double yA = mTracerA->position->coords().y();
-        double dx = x - xA;
-        double dy = y - yA;
-        labelText += QString("\nΔx: %1Hz Δy: %2").arg(QString::number(dx, 'g', 4)).arg(QString::number(dy, 'f', 2));
+    QString labelText;
+    if (!m_smithGridCurves.isEmpty()) {
+        labelText = QString("Re: %1\nIm: %2").arg(QString::number(x, 'f', 2))
+                                              .arg(QString::number(y, 'f', 2));
+        if (tracer == mTracerB && mTracerA->visible()) {
+            mTracerA->updatePosition();
+            double xA = mTracerA->position->coords().x();
+            double yA = mTracerA->position->coords().y();
+            double dx = x - xA;
+            double dy = y - yA;
+            labelText += QString("\nΔRe: %1 ΔIm: %2")
+                             .arg(QString::number(dx, 'f', 2))
+                             .arg(QString::number(dy, 'f', 2));
+        }
+    } else {
+        labelText = QString::number(x, 'g', 4) + "Hz " + QString::number(y, 'f', 2);
+        if (tracer == mTracerB && mTracerA->visible())
+        {
+            mTracerA->updatePosition();
+            double xA = mTracerA->position->coords().x();
+            double yA = mTracerA->position->coords().y();
+            double dx = x - xA;
+            double dy = y - yA;
+            labelText += QString("\nΔx: %1Hz Δy: %2")
+                             .arg(QString::number(dx, 'g', 4))
+                             .arg(QString::number(dy, 'f', 2));
+        }
     }
 
     text->setText(labelText);
@@ -558,6 +602,9 @@ void PlotManager::setupSmithGrid()
                 c->setData(xs[i], ys[i]);
                 c->setPen(pen);
                 c->setLayer("smithGrid");
+                c->setName(QString());
+                c->removeFromLegend();
+                c->setSelectable(QCP::stNone);
                 m_smithGridCurves.append(c);
             }
         };
@@ -567,9 +614,15 @@ void PlotManager::setupSmithGrid()
 
         QCPCurve *gUnit = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
         gUnit->setData(unitX, unitY); gUnit->setPen(impPen); gUnit->setLayer("smithGrid");
+        gUnit->setName(QString());
+        gUnit->removeFromLegend();
+        gUnit->setSelectable(QCP::stNone);
         m_smithGridCurves.append(gUnit);
         QCPCurve *gReal = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
         gReal->setData(realX, realY); gReal->setPen(impPen); gReal->setLayer("smithGrid");
+        gReal->setName(QString());
+        gReal->removeFromLegend();
+        gReal->setSelectable(QCP::stNone);
         m_smithGridCurves.append(gReal);
 
         for (int i = 0; i < labelX.size(); ++i) {
@@ -581,16 +634,19 @@ void PlotManager::setupSmithGrid()
             txt->setFont(QFont(m_plot->font().family(), 8));
             txt->setColor(QColor(120,120,120));
             txt->setLayer("smithGrid");
+            txt->setSelectable(false);
             m_smithGridItems.append(txt);
         }
-
-        m_plot->xAxis->setRange(-1.05, 1.05);
-        m_plot->yAxis->setRange(-1.05, 1.05);
-        m_plot->xAxis->setTicks(false);
-        m_plot->yAxis->setTicks(false);
-        m_plot->xAxis->setTickLabels(false);
-        m_plot->yAxis->setTickLabels(false);
     }
+
+    m_plot->xAxis->setRange(-1.05, 1.05);
+    m_plot->yAxis->setRange(-1.05, 1.05);
+    m_plot->xAxis->setTicks(false);
+    m_plot->yAxis->setTicks(false);
+    m_plot->xAxis->setTickLabels(false);
+    m_plot->yAxis->setTickLabels(false);
+    m_plot->xAxis->grid()->setVisible(false);
+    m_plot->yAxis->grid()->setVisible(false);
 }
 
 void PlotManager::clearSmithGrid()
