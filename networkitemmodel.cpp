@@ -61,6 +61,15 @@ bool NetworkItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action
         return true;
     }
 
+    int insertRow = row;
+    if (insertRow == -1) {
+        if (parent.isValid()) {
+            insertRow = parent.row();
+        } else {
+            insertRow = rowCount();
+        }
+    }
+
     QByteArray encodedData = data->data("application/vnd.fsnpview.network");
     QDataStream stream(&encodedData, QIODevice::ReadOnly);
 
@@ -69,7 +78,8 @@ bool NetworkItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action
         stream >> network_ptr_val;
         Network *network = reinterpret_cast<Network*>(network_ptr_val);
         if (network) {
-            emit networkDropped(network, row, parent);
+            emit networkDropped(network, insertRow, parent);
+            ++insertRow;
         }
     }
 

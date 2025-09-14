@@ -116,6 +116,8 @@ void MainWindow::setupViews()
     ui->tableViewCascade->setDefaultDropAction(Qt::MoveAction);
     ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewCascade->setDropIndicatorShown(true);
+    ui->tableViewCascade->setStyleSheet("QTableView::item:drop-indicator { border-top: 2px solid #0000ff; border-bottom: 2px solid #0000ff; }");
     setupTableColumns(ui->tableViewCascade);
 }
 
@@ -203,19 +205,20 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
             m_network_cascade_model->insertRow(row, items);
         }
     } else {
-        m_cascade->insertNetwork(row, network);
+        Network* cloned = network->clone(m_cascade);
+        m_cascade->insertNetwork(row, cloned);
 
         QList<QStandardItem*> items;
         QStandardItem* checkItem = new QStandardItem();
         checkItem->setCheckable(true);
         checkItem->setCheckState(Qt::Checked);
-        checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
+        checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(cloned)), Qt::UserRole);
         items.append(checkItem);
         QStandardItem* colorItem = new QStandardItem();
         colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-        colorItem->setBackground(network->color());
+        colorItem->setBackground(cloned->color());
         items.append(colorItem);
-        items.append(new QStandardItem(network->name()));
+        items.append(new QStandardItem(cloned->name()));
         m_network_cascade_model->insertRow(row, items);
     }
 

@@ -7,6 +7,15 @@ NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
     m_fmax = 10e9;
 }
 
+NetworkCascade::~NetworkCascade()
+{
+    for (auto net : m_networks) {
+        if (net->parent() == this) {
+            net->setParent(nullptr);
+        }
+    }
+}
+
 void NetworkCascade::addNetwork(Network* network)
 {
     insertNetwork(m_networks.size(), network);
@@ -151,4 +160,19 @@ QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_
     }
 
     return qMakePair(xValues, yValues);
+}
+
+Network* NetworkCascade::clone(QObject* parent) const
+{
+    NetworkCascade* copy = new NetworkCascade(parent);
+    copy->setColor(m_color);
+    copy->setVisible(m_is_visible);
+    copy->setUnwrapPhase(m_unwrap_phase);
+    copy->setActive(m_is_active);
+    copy->setFmin(m_fmin);
+    copy->setFmax(m_fmax);
+    for (const auto& net : m_networks) {
+        copy->addNetwork(net->clone(copy));
+    }
+    return copy;
 }

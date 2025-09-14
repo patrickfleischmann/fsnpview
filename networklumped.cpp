@@ -9,6 +9,18 @@ NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
     m_is_visible = false;
 }
 
+Network* NetworkLumped::clone(QObject* parent) const
+{
+    NetworkLumped* copy = new NetworkLumped(m_type, m_value, parent);
+    copy->setColor(m_color);
+    copy->setVisible(m_is_visible);
+    copy->setUnwrapPhase(m_unwrap_phase);
+    copy->setActive(m_is_active);
+    copy->setFmin(m_fmin);
+    copy->setFmax(m_fmax);
+    return copy;
+}
+
 QString NetworkLumped::name() const
 {
     QString name;

@@ -10,6 +10,7 @@ class NetworkCascade : public Network
     Q_OBJECT
 public:
     explicit NetworkCascade(QObject *parent = nullptr);
+    ~NetworkCascade();
 
     void addNetwork(Network* network);
     void insertNetwork(int index, Network* network);
@@ -21,6 +22,7 @@ public:
     QString name() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
+    Network* clone(QObject* parent = nullptr) const override;
 
 private:
     void updateFrequencyRange();
