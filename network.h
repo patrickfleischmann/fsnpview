@@ -25,6 +25,7 @@ public:
     virtual Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const = 0;
     virtual QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) = 0;
     virtual Network* clone(QObject* parent = nullptr) const = 0;
+    virtual QVector<double> frequencies() const = 0;
 
     double fmin() const;
     void setFmin(double fmin);

@@ -116,3 +116,9 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
 
     return qMakePair(xValues, yValues);
 }
+
+QVector<double> NetworkLumped::frequencies() const
+{
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
+    return QVector<double>(freq.data(), freq.data() + freq.size());
+}

@@ -16,6 +16,9 @@ public:
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
     Network* clone(QObject* parent = nullptr) const override;
 
+    QVector<double> frequencies() const override;
+
+
     QString filePath() const;
 
 private:

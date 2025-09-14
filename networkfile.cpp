@@ -132,6 +132,13 @@ std::complex<double> NetworkFile::interpolate_s_param(double freq, int s_param_i
     return std::polar(interpolated_mag, interpolated_phase);
 }
 
+QVector<double> NetworkFile::frequencies() const
+{
+    if (!m_data)
+        return {};
+    return QVector<double>(m_data->freq.data(), m_data->freq.data() + m_data->freq.size());
+}
+
 Eigen::MatrixXcd NetworkFile::abcd(const Eigen::VectorXd& freq) const
 {
     if (!m_data) {

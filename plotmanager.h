@@ -6,6 +6,7 @@
 #include <QList>
 #include <QColor>
 #include <QMouseEvent>
+#include <QMap>
 
 #include "network.h"
 
@@ -43,7 +44,7 @@ public slots:
     void keepAspectRatio();
 
 private:
-    enum class DragMode { None, Vertical, Horizontal, Free };
+    enum class DragMode { None, Vertical, Horizontal, Free, Curve };
     QCPAbstractPlottable* plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
               const QString &name, Network* network, PlotType type,
               Qt::PenStyle style = Qt::SolidLine);
@@ -71,6 +72,9 @@ private:
     QList<QCPCurve*> m_smithGridCurves;
     QList<QCPAbstractItem*> m_smithGridItems;
     QList<QCPAbstractItem*> m_smithMarkers;
+    QMap<QCPCurve*, QVector<double>> m_curveFreqs;
+    QMap<QCPItemTracer*, QCPCurve*> m_tracerCurves;
+    QMap<QCPItemTracer*, int> m_tracerIndices;
     bool m_keepAspectConnected;
 };
 
