@@ -7,6 +7,8 @@
 #include <QVariant>
 #include <QLineF>
 #include <set>
+#include <limits>
+#include <cmath>
 
 using namespace std;
 
@@ -28,9 +30,9 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_plot->setRangeDragButton(Qt::RightButton);
 
     mTracerA = new QCPItemTracer(m_plot);
-    mTracerA->setPen(QPen(Qt::black,0));
-    mTracerA->setBrush(Qt::NoBrush);
-    mTracerA->setStyle(QCPItemTracer::tsCrosshair);
+    mTracerA->setPen(QPen(Qt::red, 0));
+    mTracerA->setBrush(Qt::red);
+    mTracerA->setStyle(QCPItemTracer::tsTriangle);
     mTracerA->setVisible(false);
     mTracerA->setInterpolating(true);
 
@@ -39,9 +41,9 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     mTracerTextA->setVisible(false);
 
     mTracerB = new QCPItemTracer(m_plot);
-    mTracerB->setPen(QPen(Qt::darkGray,0));
-    mTracerB->setBrush(Qt::NoBrush);
-    mTracerB->setStyle(QCPItemTracer::tsCrosshair);
+    mTracerB->setPen(QPen(Qt::blue, 0));
+    mTracerB->setBrush(Qt::blue);
+    mTracerB->setStyle(QCPItemTracer::tsSquare);
     mTracerB->setVisible(false);
     mTracerB->setInterpolating(true);
 
@@ -142,6 +144,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     } else {
         clearSmithGrid();
         clearSmithMarkers();
+        m_curveFreqs.clear();
+        m_tracerCurves.clear();
+        m_tracerIndices.clear();
         m_plot->xAxis->setTicks(true);
         m_plot->yAxis->setTicks(true);
         m_plot->xAxis->setTickLabels(true);
@@ -173,8 +178,16 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         QCPAbstractPlottable *pl = m_plot->plottable(i);
         if (type == PlotType::Smith && m_smithGridCurves.contains(qobject_cast<QCPCurve*>(pl)))
             continue;
-        if (!required_graphs.contains(pl->name()))
+        if (!required_graphs.contains(pl->name())) {
+            if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
+                m_curveFreqs.remove(curve);
+                if (m_tracerCurves.value(mTracerA) == curve)
+                    m_tracerCurves.remove(mTracerA), m_tracerIndices.remove(mTracerA);
+                if (m_tracerCurves.value(mTracerB) == curve)
+                    m_tracerCurves.remove(mTracerB), m_tracerIndices.remove(mTracerB);
+            }
             m_plot->removePlottable(pl);
+        }
     }
 
     if (type == PlotType::Smith)
@@ -202,11 +215,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             }
 
             auto plotData = network->getPlotData(sparam_idx_to_plot, type);
+            QVector<double> freqs = network->frequencies();
             if (pl) {
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
                         curve->setPen(QPen(network->color(), 1, Qt::SolidLine));
+                        m_curveFreqs[curve] = freqs;
                     }
                 } else {
                     if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl)) {
@@ -217,6 +232,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             } else {
                 pl = plot(plotData.first, plotData.second,
                               network->color(), graph_name, network, type);
+                if (type == PlotType::Smith)
+                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
+                        m_curveFreqs[curve] = freqs;
             }
 
             if (type == PlotType::Smith)
@@ -235,10 +253,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             }
 
             auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
+            QVector<double> freqs = m_cascade->frequencies();
             if (pl) {
                 if (type == PlotType::Smith) {
-                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
+                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
+                        m_curveFreqs[curve] = freqs;
+                    }
                 } else {
                     if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl))
                         graph->setData(plotData.first, plotData.second);
@@ -246,6 +267,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             } else {
                 pl = plot(plotData.first, plotData.second, Qt::black,
                               graph_name, nullptr, type, Qt::DashLine);
+                if (type == PlotType::Smith)
+                    if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
+                        m_curveFreqs[curve] = freqs;
             }
             if (type == PlotType::Smith)
                 addSmithMarkers(plotData.first, plotData.second, Qt::black);
@@ -305,6 +329,15 @@ void PlotManager::setCursorAVisible(bool visible)
         if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
             mTracerA->setGraph(graph);
             mTracerA->setGraphKey(m_plot->xAxis->range().center());
+        } else if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottable(0))) {
+            mTracerA->setGraph(nullptr);
+            mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
+            if (!curve->data()->isEmpty()) {
+                auto it = curve->data()->constBegin();
+                mTracerA->position->setCoords(it->key, it->value);
+                m_tracerCurves[mTracerA] = curve;
+                m_tracerIndices[mTracerA] = 0;
+            }
         } else {
             mTracerA->setGraph(nullptr);
             mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
@@ -332,6 +365,15 @@ void PlotManager::setCursorBVisible(bool visible)
         if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
             mTracerB->setGraph(graph);
             mTracerB->setGraphKey(m_plot->xAxis->range().center());
+        } else if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottable(0))) {
+            mTracerB->setGraph(nullptr);
+            mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
+            if (!curve->data()->isEmpty()) {
+                auto it = curve->data()->constBegin();
+                mTracerB->position->setCoords(it->key, it->value);
+                m_tracerCurves[mTracerB] = curve;
+                m_tracerIndices[mTracerB] = 0;
+            }
         } else {
             mTracerB->setGraph(nullptr);
             mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
@@ -371,7 +413,9 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
     if (!m_smithGridCurves.isEmpty()) {
         if (QLineF(event->pos(), tracerPos).length() < 8) {
             mDraggedTracer = tracer;
-            mDragMode = DragMode::Free;
+            mDragMode = DragMode::Curve;
+            if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottableAt(event->pos(), true)))
+                m_tracerCurves[tracer] = curve;
         }
     } else {
         if (qAbs(event->pos().x() - tracerPos.x()) < 5) {
@@ -409,6 +453,34 @@ void PlotManager::mouseMove(QMouseEvent *event)
             double y = m_plot->yAxis->pixelToCoord(event->pos().y());
             mDraggedTracer->position->setCoords(x, y);
         }
+        else if (mDragMode == DragMode::Curve)
+        {
+            QCPCurve *curve = m_tracerCurves.value(mDraggedTracer, nullptr);
+            if (curve)
+            {
+                double x = m_plot->xAxis->pixelToCoord(event->pos().x());
+                double y = m_plot->yAxis->pixelToCoord(event->pos().y());
+                auto data = curve->data();
+                double minDist = std::numeric_limits<double>::max();
+                int closestIndex = m_tracerIndices.value(mDraggedTracer, 0);
+                int i = 0;
+                for (auto it = data->constBegin(); it != data->constEnd(); ++it, ++i)
+                {
+                    double dx = it->key - x;
+                    double dy = it->value - y;
+                    double dist = dx*dx + dy*dy;
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        closestIndex = i;
+                    }
+                }
+                auto it = data->constBegin();
+                std::advance(it, closestIndex);
+                mDraggedTracer->position->setCoords(it->key, it->value);
+                m_tracerIndices[mDraggedTracer] = closestIndex;
+            }
+        }
 
         updateTracers();
         m_plot->replot();
@@ -439,17 +511,32 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
 
     QString labelText;
     if (!m_smithGridCurves.isEmpty()) {
-        labelText = QString("Re: %1\nIm: %2").arg(QString::number(x, 'f', 2))
-                                              .arg(QString::number(y, 'f', 2));
+        double mag = std::sqrt(x*x + y*y);
+        double angle = std::atan2(y, x) * 180.0 / M_PI;
+        double freq = 0;
+        QCPCurve *curve = m_tracerCurves.value(tracer, nullptr);
+        int idx = m_tracerIndices.value(tracer, -1);
+        if (curve && m_curveFreqs.contains(curve) && idx >= 0 && idx < m_curveFreqs[curve].size())
+            freq = m_curveFreqs[curve].at(idx);
+        labelText = QString("f: %1Hz\n|\u0393|: %2\n\u2220: %3\u00B0")
+                        .arg(QString::number(freq, 'g', 4))
+                        .arg(QString::number(mag, 'f', 2))
+                        .arg(QString::number(angle, 'f', 2));
         if (tracer == mTracerB && mTracerA->visible()) {
             mTracerA->updatePosition();
             double xA = mTracerA->position->coords().x();
             double yA = mTracerA->position->coords().y();
-            double dx = x - xA;
-            double dy = y - yA;
-            labelText += QString("\nΔRe: %1 ΔIm: %2")
-                             .arg(QString::number(dx, 'f', 2))
-                             .arg(QString::number(dy, 'f', 2));
+            double magA = std::sqrt(xA*xA + yA*yA);
+            double angleA = std::atan2(yA, xA) * 180.0 / M_PI;
+            double freqA = 0;
+            QCPCurve *curveA = m_tracerCurves.value(mTracerA, nullptr);
+            int idxA = m_tracerIndices.value(mTracerA, -1);
+            if (curveA && m_curveFreqs.contains(curveA) && idxA >= 0 && idxA < m_curveFreqs[curveA].size())
+                freqA = m_curveFreqs[curveA].at(idxA);
+            labelText += QString("\n\u0394f: %1Hz \u0394|\u0393|: %2 \u0394\u2220: %3\u00B0")
+                             .arg(QString::number(freq - freqA, 'g', 4))
+                             .arg(QString::number(mag - magA, 'f', 2))
+                             .arg(QString::number(angle - angleA, 'f', 2));
         }
     } else {
         labelText = QString::number(x, 'g', 4) + "Hz " + QString::number(y, 'f', 2);

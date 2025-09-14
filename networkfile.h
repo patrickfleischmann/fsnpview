@@ -14,6 +14,7 @@ public:
     QString name() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
+    QVector<double> frequencies() const override;
 
     QString filePath() const;
 

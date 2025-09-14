@@ -6882,6 +6882,7 @@ public:
                      ,tsCrosshair  ///< A plus shaped crosshair which spans the complete axis rect
                      ,tsCircle     ///< A circle
                      ,tsSquare     ///< A square
+                     ,tsTriangle   ///< An upward pointing triangle
                    };
   Q_ENUMS(TracerStyle)
 
