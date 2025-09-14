@@ -24,6 +24,7 @@ public:
     Network* clone(QObject* parent = nullptr) const override;
     QVector<double> frequencies() const override;
 
+
 private:
     NetworkType m_type;
     double m_value;

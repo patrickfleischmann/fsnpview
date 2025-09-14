@@ -183,3 +183,4 @@ QVector<double> NetworkCascade::frequencies() const
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
     return QVector<double>(freq.data(), freq.data() + freq.size());
 }
+
