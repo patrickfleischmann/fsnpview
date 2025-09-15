@@ -31,6 +31,48 @@ Eigen::Vector4cd Network::abcd2s(const Eigen::Matrix2cd& abcd, double z0)
     return s;
 }
 
+QString Network::formatEngineering(double value)
+{
+    if (!std::isfinite(value))
+        return QString::number(value);
+
+    if (value == 0.0)
+        return QStringLiteral("000.00e+00");
+
+    double absValue = std::fabs(value);
+    int exponent = static_cast<int>(std::floor(std::log10(absValue)));
+    int exponentOffset = ((exponent % 3) + 3) % 3;
+    int engineeringExponent = exponent - exponentOffset;
+    double mantissa = absValue / std::pow(10.0, engineeringExponent);
+    double roundedMantissa = std::round(mantissa * 100.0) / 100.0;
+
+    if (roundedMantissa >= 1000.0)
+    {
+        roundedMantissa /= 1000.0;
+        engineeringExponent += 3;
+    }
+
+    QString mantissaStr = QString::number(roundedMantissa, 'f', 2);
+    int dotIndex = mantissaStr.indexOf('.');
+    if (dotIndex < 0)
+    {
+        mantissaStr.append(".00");
+        dotIndex = mantissaStr.indexOf('.');
+    }
+
+    int integerDigits = dotIndex;
+    if (integerDigits < 3)
+        mantissaStr.prepend(QString(3 - integerDigits, '0'));
+
+    QString signStr = value < 0 ? QStringLiteral("-") : QString();
+    QString exponentStr = QString::number(std::abs(engineeringExponent)).rightJustified(2, '0');
+
+    return QStringLiteral("%1%2e%3%4")
+        .arg(signStr, mantissaStr,
+             engineeringExponent >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
+             exponentStr);
+}
+
 Network::Network(QObject *parent)
     : QObject(parent),
       m_fmin(0),
