@@ -121,7 +121,7 @@ Eigen::MatrixXcd NetworkCascade::abcd(const Eigen::VectorXd& freq) const
 QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_idx, PlotType type)
 {
     updateFrequencyRange();
-    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(2001, m_fmin, m_fmax);
     Eigen::MatrixXcd abcd_matrix = abcd(freq);
     QVector<double> xValues, yValues;
 

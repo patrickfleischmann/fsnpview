@@ -705,9 +705,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             double val = valueItem->text().toDouble(&ok);
             if (ok) {
                 if (wheelEvent->angleDelta().y() > 0)
-                    val *= 1.25;
+                    val *= 1.1;
                 else if (wheelEvent->angleDelta().y() < 0)
-                    val *= 0.8;
+                    val *=  1 / 1.1;
                 valueItem->setText(Network::formatEngineering(val));
             }
             return true;
