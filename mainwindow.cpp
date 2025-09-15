@@ -162,7 +162,7 @@ void MainWindow::populateLumpedNetworkTable()
             nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             row.append(nameItem);
             NetworkLumped* lumped = static_cast<NetworkLumped*>(network_ptr);
-            QStandardItem* valueItem = new QStandardItem(QString::number(lumped->value()));
+            QStandardItem* valueItem = new QStandardItem(Network::formatEngineering(lumped->value()));
             row.append(valueItem);
             m_network_lumped_model->appendRow(row);
         }
@@ -234,7 +234,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
 
         QStandardItem* valueItem = new QStandardItem();
         if (auto lumped = dynamic_cast<NetworkLumped*>(cloned)) {
-            valueItem->setText(QString::number(lumped->value()));
+            valueItem->setText(Network::formatEngineering(lumped->value()));
         } else {
             valueItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         }
@@ -325,6 +325,10 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
                 m_network_lumped_model->item(item->row(), 2)->setText(network->name());
                 updatePlots();
             }
+            {
+                QSignalBlocker blocker(m_network_lumped_model);
+                item->setText(Network::formatEngineering(network->value()));
+            }
         }
     }
 }
@@ -348,6 +352,10 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
                 network->setValue(val);
                 m_network_cascade_model->item(item->row(), 2)->setText(network->name());
                 updatePlots();
+            }
+            {
+                QSignalBlocker blocker(m_network_cascade_model);
+                item->setText(Network::formatEngineering(network->value()));
             }
         }
     }
@@ -674,7 +682,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     val *= 1.25;
                 else if (wheelEvent->angleDelta().y() < 0)
                     val *= 0.8;
-                valueItem->setText(QString::number(val));
+                valueItem->setText(Network::formatEngineering(val));
             }
             return true;
         };

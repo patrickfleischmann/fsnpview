@@ -32,7 +32,7 @@ QString NetworkLumped::name() const
     case NetworkType::L_series: name = "L_series"; break;
     case NetworkType::L_shunt:  name = "L_shunt";  break;
     }
-    return name + "_" + QString::number(m_value);
+    return name + "_" + Network::formatEngineering(m_value);
 }
 
 Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
