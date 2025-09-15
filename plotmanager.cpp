@@ -18,6 +18,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_cascade(nullptr)
     , m_color_index(0)
     , m_keepAspectConnected(false)
+    , m_currentPlotType(PlotType::Magnitude)
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
@@ -32,7 +33,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     mTracerA = new QCPItemTracer(m_plot);
     mTracerA->setPen(QPen(Qt::red, 0));
     mTracerA->setBrush(Qt::red);
-    mTracerA->setStyle(QCPItemTracer::tsTriangle);
+    mTracerA->setStyle(QCPItemTracer::tsCrosshair);
     mTracerA->setVisible(false);
     mTracerA->setInterpolating(true);
 
@@ -43,7 +44,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     mTracerB = new QCPItemTracer(m_plot);
     mTracerB->setPen(QPen(Qt::blue, 0));
     mTracerB->setBrush(Qt::blue);
-    mTracerB->setStyle(QCPItemTracer::tsSquare);
+    mTracerB->setStyle(QCPItemTracer::tsCrosshair);
     mTracerB->setVisible(false);
     mTracerB->setInterpolating(true);
 
@@ -115,6 +116,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     qInfo("  updatePlots()");
     QStringList required_graphs;
     QString suffix;
+
+    m_currentPlotType = type;
+    updateTracerStyles();
 
     switch (type) {
     case PlotType::Magnitude:
@@ -276,9 +280,21 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
     }
 
+    if (mTracerA->visible()) {
+        if ((type == PlotType::Smith && !m_tracerCurves.contains(mTracerA)) ||
+            (type != PlotType::Smith && !mTracerA->graph()))
+            initializeTracer(mTracerA);
+    }
+    if (mTracerB->visible()) {
+        if ((type == PlotType::Smith && !m_tracerCurves.contains(mTracerB)) ||
+            (type != PlotType::Smith && !mTracerB->graph()))
+            initializeTracer(mTracerB);
+    }
+
+    updateTracers();
+
     m_plot->replot();
     selectionChanged();
-    updateTracers();
 
     if (type == PlotType::Smith) {
         m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
@@ -326,24 +342,12 @@ void PlotManager::setCursorAVisible(bool visible)
 
     if (visible)
     {
-        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
-            mTracerA->setGraph(graph);
-            mTracerA->setGraphKey(m_plot->xAxis->range().center());
-        } else if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottable(0))) {
-            mTracerA->setGraph(nullptr);
-            mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
-            if (!curve->data()->isEmpty()) {
-                auto it = curve->data()->constBegin();
-                mTracerA->position->setCoords(it->key, it->value);
-                m_tracerCurves[mTracerA] = curve;
-                m_tracerIndices[mTracerA] = 0;
-            }
-        } else {
-            mTracerA->setGraph(nullptr);
-            mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
-            mTracerA->position->setCoords(m_plot->xAxis->range().center(),
-                                          m_plot->yAxis->range().center());
-        }
+        initializeTracer(mTracerA);
+    }
+    else
+    {
+        m_tracerCurves.remove(mTracerA);
+        m_tracerIndices.remove(mTracerA);
     }
     updateTracers();
     m_plot->replot();
@@ -362,24 +366,12 @@ void PlotManager::setCursorBVisible(bool visible)
 
     if (visible)
     {
-        if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(0))) {
-            mTracerB->setGraph(graph);
-            mTracerB->setGraphKey(m_plot->xAxis->range().center());
-        } else if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottable(0))) {
-            mTracerB->setGraph(nullptr);
-            mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
-            if (!curve->data()->isEmpty()) {
-                auto it = curve->data()->constBegin();
-                mTracerB->position->setCoords(it->key, it->value);
-                m_tracerCurves[mTracerB] = curve;
-                m_tracerIndices[mTracerB] = 0;
-            }
-        } else {
-            mTracerB->setGraph(nullptr);
-            mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
-            mTracerB->position->setCoords(m_plot->xAxis->range().center(),
-                                          m_plot->yAxis->range().center());
-        }
+        initializeTracer(mTracerB);
+    }
+    else
+    {
+        m_tracerCurves.remove(mTracerB);
+        m_tracerIndices.remove(mTracerB);
     }
     updateTracers();
     m_plot->replot();
@@ -414,8 +406,10 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
         if (QLineF(event->pos(), tracerPos).length() < 8) {
             mDraggedTracer = tracer;
             mDragMode = DragMode::Curve;
-            if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottableAt(event->pos(), true)))
-                m_tracerCurves[tracer] = curve;
+            if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottableAt(event->pos(), true))) {
+                if (m_curveFreqs.contains(curve))
+                    m_tracerCurves[tracer] = curve;
+            }
         }
     } else {
         if (qAbs(event->pos().x() - tracerPos.x()) < 5) {
@@ -425,6 +419,71 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
             mDraggedTracer = tracer;
             mDragMode = DragMode::Horizontal;
         }
+    }
+}
+
+void PlotManager::initializeTracer(QCPItemTracer *tracer)
+{
+    if (!tracer || m_plot->plottableCount() == 0)
+        return;
+
+    m_tracerCurves.remove(tracer);
+    m_tracerIndices.remove(tracer);
+
+    if (m_currentPlotType == PlotType::Smith)
+    {
+        tracer->setGraph(nullptr);
+        tracer->position->setType(QCPItemPosition::ptPlotCoords);
+
+        for (int i = 0; i < m_plot->plottableCount(); ++i)
+        {
+            if (QCPCurve *curve = qobject_cast<QCPCurve*>(m_plot->plottable(i)))
+            {
+                if (!m_curveFreqs.contains(curve))
+                    continue;
+                auto data = curve->data();
+                if (data->isEmpty())
+                    continue;
+                auto dataIt = data->constBegin();
+                tracer->position->setCoords(dataIt->key, dataIt->value);
+                m_tracerCurves[tracer] = curve;
+                m_tracerIndices[tracer] = 0;
+                return;
+            }
+        }
+
+        tracer->position->setCoords(m_plot->xAxis->range().center(),
+                                    m_plot->yAxis->range().center());
+    }
+    else
+    {
+        for (int i = 0; i < m_plot->plottableCount(); ++i)
+        {
+            if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(i)))
+            {
+                tracer->setGraph(graph);
+                tracer->setGraphKey(m_plot->xAxis->range().center());
+                return;
+            }
+        }
+
+        tracer->setGraph(nullptr);
+        tracer->position->setType(QCPItemPosition::ptPlotCoords);
+        tracer->position->setCoords(m_plot->xAxis->range().center(),
+                                    m_plot->yAxis->range().center());
+    }
+
+void PlotManager::updateTracerStyles()
+{
+    if (m_currentPlotType == PlotType::Smith)
+    {
+        mTracerA->setStyle(QCPItemTracer::tsTriangle);
+        mTracerB->setStyle(QCPItemTracer::tsSquare);
+    }
+    else
+    {
+        mTracerA->setStyle(QCPItemTracer::tsCrosshair);
+        mTracerB->setStyle(QCPItemTracer::tsCrosshair);
     }
 }
 
@@ -455,30 +514,70 @@ void PlotManager::mouseMove(QMouseEvent *event)
         }
         else if (mDragMode == DragMode::Curve)
         {
-            QCPCurve *curve = m_tracerCurves.value(mDraggedTracer, nullptr);
-            if (curve)
+            const double pixelX = event->pos().x();
+            const double pixelY = event->pos().y();
+            auto findClosestOnCurve = [&](QCPCurve *curve, int &index, QPointF &coords) -> double
             {
-                double x = m_plot->xAxis->pixelToCoord(event->pos().x());
-                double y = m_plot->yAxis->pixelToCoord(event->pos().y());
+                if (!curve)
+                    return std::numeric_limits<double>::max();
                 auto data = curve->data();
-                double minDist = std::numeric_limits<double>::max();
-                int closestIndex = m_tracerIndices.value(mDraggedTracer, 0);
+                if (data->isEmpty())
+                    return std::numeric_limits<double>::max();
+                double bestDist = std::numeric_limits<double>::max();
                 int i = 0;
                 for (auto it = data->constBegin(); it != data->constEnd(); ++it, ++i)
                 {
-                    double dx = it->key - x;
-                    double dy = it->value - y;
+                    double px, py;
+                    curve->coordsToPixels(it->key, it->value, px, py);
+                    double dx = px - pixelX;
+                    double dy = py - pixelY;
                     double dist = dx*dx + dy*dy;
-                    if (dist < minDist)
+                    if (dist < bestDist)
                     {
-                        minDist = dist;
-                        closestIndex = i;
+                        bestDist = dist;
+                        index = i;
+                        coords = QPointF(it->key, it->value);
                     }
                 }
-                auto it = data->constBegin();
-                std::advance(it, closestIndex);
-                mDraggedTracer->position->setCoords(it->key, it->value);
-                m_tracerIndices[mDraggedTracer] = closestIndex;
+                return bestDist;
+            };
+
+            QPointF coords;
+            int index = -1;
+            double bestDist = std::numeric_limits<double>::max();
+            QCPCurve *closestCurve = nullptr;
+            for (auto it = m_curveFreqs.constBegin(); it != m_curveFreqs.constEnd(); ++it)
+            {
+                int candidateIndex = -1;
+                QPointF candidateCoords;
+                double candidateDist = findClosestOnCurve(it.key(), candidateIndex, candidateCoords);
+                if (candidateDist < bestDist)
+                {
+                    bestDist = candidateDist;
+                    closestCurve = it.key();
+                    index = candidateIndex;
+                    coords = candidateCoords;
+                }
+            }
+
+            const double maxCurveDist = 12.0 * 12.0;
+            if (closestCurve && bestDist <= maxCurveDist)
+            {
+                m_tracerCurves[mDraggedTracer] = closestCurve;
+                m_tracerIndices[mDraggedTracer] = index;
+                mDraggedTracer->position->setCoords(coords);
+            }
+            else if (QCPCurve *currentCurve = m_tracerCurves.value(mDraggedTracer, nullptr))
+            {
+                int currentIndex = -1;
+                QPointF currentCoords;
+                double currentDist = findClosestOnCurve(currentCurve, currentIndex, currentCoords);
+                if (currentDist < std::numeric_limits<double>::max())
+                {
+                    m_tracerCurves[mDraggedTracer] = currentCurve;
+                    m_tracerIndices[mDraggedTracer] = currentIndex;
+                    mDraggedTracer->position->setCoords(currentCoords);
+                }
             }
         }
 
