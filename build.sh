@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # This script builds the test binaries.
-set -e
+set -euo pipefail
+set -x
 
 MOC=/usr/lib/qt6/libexec/moc
 MOC_INCLUDES="$(pkg-config --cflags Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)"
