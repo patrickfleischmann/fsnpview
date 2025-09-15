@@ -18,6 +18,7 @@
 #include <QColorDialog>
 #include <QVariant>
 #include <QHeaderView>
+#include <QWheelEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -39,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupModels();
     setupViews();
     populateLumpedNetworkTable();
+    ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
 
     m_plot_manager->setNetworks(m_networks);
     m_plot_manager->setCascade(m_cascade);
@@ -84,8 +86,8 @@ void MainWindow::setupModels()
     m_network_files_model->setHorizontalHeaderLabels({"Plot", "Color", "File"});
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
-    m_network_lumped_model->setColumnCount(3);
-    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Color", "Name"});
+    m_network_lumped_model->setColumnCount(4);
+    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Color", "Name", "Value"});
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
     m_network_cascade_model->setColumnCount(3);
@@ -128,7 +130,9 @@ void MainWindow::setupTableColumns(QTableView* view)
     QHeaderView *header = view->horizontalHeader();
     header->setSectionResizeMode(0, QHeaderView::Fixed);
     header->setSectionResizeMode(1, QHeaderView::Fixed);
-    header->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    for (int i = 2; i < view->model()->columnCount(); ++i) {
+        header->setSectionResizeMode(i, QHeaderView::ResizeToContents);
+    }
 }
 
 void MainWindow::populateLumpedNetworkTable()
@@ -153,7 +157,12 @@ void MainWindow::populateLumpedNetworkTable()
             colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             colorItem->setBackground(network_ptr->color());
             row.append(colorItem);
-            row.append(new QStandardItem(network_ptr->name()));
+            QStandardItem* nameItem = new QStandardItem(network_ptr->name());
+            nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+            row.append(nameItem);
+            NetworkLumped* lumped = static_cast<NetworkLumped*>(network_ptr);
+            QStandardItem* valueItem = new QStandardItem(QString::number(lumped->value()));
+            row.append(valueItem);
             m_network_lumped_model->appendRow(row);
         }
     }
@@ -293,6 +302,18 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
         if(network) {
             network->setVisible(item->checkState() == Qt::Checked);
             updatePlots();
+        }
+    } else if (item->column() == 3) {
+        quintptr net_ptr_val = m_network_lumped_model->item(item->row(), 0)->data(Qt::UserRole).value<quintptr>();
+        NetworkLumped* network = dynamic_cast<NetworkLumped*>(reinterpret_cast<Network*>(net_ptr_val));
+        if(network) {
+            bool ok = false;
+            double val = item->text().toDouble(&ok);
+            if (ok) {
+                network->setValue(val);
+                m_network_lumped_model->item(item->row(), 2)->setText(network->name());
+                updatePlots();
+            }
         }
     }
 }
@@ -601,4 +622,26 @@ void MainWindow::on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxVSWR->setChecked(false);
     }
     updatePlots();
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == ui->tableViewNetworkLumped->viewport() && event->type() == QEvent::Wheel) {
+        QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+        QModelIndex index = ui->tableViewNetworkLumped->indexAt(wheelEvent->position().toPoint());
+        if (index.isValid() && index.column() == 3) {
+            QStandardItem *valueItem = m_network_lumped_model->item(index.row(), 3);
+            bool ok = false;
+            double val = valueItem->text().toDouble(&ok);
+            if (ok) {
+                if (wheelEvent->angleDelta().y() > 0)
+                    val *= 1.25;
+                else if (wheelEvent->angleDelta().y() < 0)
+                    val *= 0.8;
+                valueItem->setText(QString::number(val));
+            }
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
