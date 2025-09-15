@@ -41,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupViews();
     populateLumpedNetworkTable();
     ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
+    ui->tableViewCascade->viewport()->installEventFilter(this);
 
     m_plot_manager->setNetworks(m_networks);
     m_plot_manager->setCascade(m_cascade);
@@ -90,8 +91,8 @@ void MainWindow::setupModels()
     m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Color", "Name", "Value"});
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
-    m_network_cascade_model->setColumnCount(3);
-    m_network_cascade_model->setHorizontalHeaderLabels({"Active", "Color", "Name"});
+    m_network_cascade_model->setColumnCount(4);
+    m_network_cascade_model->setHorizontalHeaderLabels({"Active", "Color", "Name", "Value"});
     connect(m_network_cascade_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkCascadeModelChanged);
     connect(m_network_cascade_model, &NetworkItemModel::networkDropped, this, &MainWindow::onNetworkDropped);
 }
@@ -227,7 +228,17 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         colorItem->setBackground(cloned->color());
         items.append(colorItem);
-        items.append(new QStandardItem(cloned->name()));
+        QStandardItem* nameItem = new QStandardItem(cloned->name());
+        nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        items.append(nameItem);
+
+        QStandardItem* valueItem = new QStandardItem();
+        if (auto lumped = dynamic_cast<NetworkLumped*>(cloned)) {
+            valueItem->setText(QString::number(lumped->value()));
+        } else {
+            valueItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        }
+        items.append(valueItem);
         m_network_cascade_model->insertRow(row, items);
     }
 
@@ -326,6 +337,18 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
         if(network) {
             network->setActive(item->checkState() == Qt::Checked);
             updatePlots();
+        }
+    } else if (item->column() == 3) {
+        quintptr net_ptr_val = m_network_cascade_model->item(item->row(), 0)->data(Qt::UserRole).value<quintptr>();
+        Network* network_base = reinterpret_cast<Network*>(net_ptr_val);
+        if(auto network = dynamic_cast<NetworkLumped*>(network_base)) {
+            bool ok = false;
+            double val = item->text().toDouble(&ok);
+            if (ok) {
+                network->setValue(val);
+                m_network_cascade_model->item(item->row(), 2)->setText(network->name());
+                updatePlots();
+            }
         }
     }
 }
@@ -626,11 +649,24 @@ void MainWindow::on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1)
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == ui->tableViewNetworkLumped->viewport() && event->type() == QEvent::Wheel) {
-        QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
-        QModelIndex index = ui->tableViewNetworkLumped->indexAt(wheelEvent->position().toPoint());
-        if (index.isValid() && index.column() == 3) {
-            QStandardItem *valueItem = m_network_lumped_model->item(index.row(), 3);
+    if (event->type() == QEvent::Wheel) {
+        auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model) -> bool {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+            QModelIndex index = view->indexAt(wheelEvent->position().toPoint());
+            if (!index.isValid() || index.column() != 3)
+                return false;
+
+            QStandardItem *ptrItem = model->item(index.row(), 0);
+            QStandardItem *valueItem = model->item(index.row(), 3);
+            if (!ptrItem || !valueItem)
+                return false;
+
+            quintptr ptrVal = ptrItem->data(Qt::UserRole).value<quintptr>();
+            Network *network_base = reinterpret_cast<Network*>(ptrVal);
+            auto network = dynamic_cast<NetworkLumped*>(network_base);
+            if (!network)
+                return false;
+
             bool ok = false;
             double val = valueItem->text().toDouble(&ok);
             if (ok) {
@@ -641,6 +677,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 valueItem->setText(QString::number(val));
             }
             return true;
+        };
+
+        if (obj == ui->tableViewNetworkLumped->viewport()) {
+            if (handleValueWheel(ui->tableViewNetworkLumped, m_network_lumped_model))
+                return true;
+        } else if (obj == ui->tableViewCascade->viewport()) {
+            if (handleValueWheel(ui->tableViewCascade, m_network_cascade_model))
+                return true;
         }
     }
     return QMainWindow::eventFilter(obj, event);
