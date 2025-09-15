@@ -1,0 +1,64 @@
+#pragma once
+
+#include <complex>
+#include <cstddef>
+#include <vector>
+
+namespace Eigen {
+
+using Index = std::ptrdiff_t;
+
+class ArrayXd {
+public:
+    ArrayXd() = default;
+    explicit ArrayXd(Index size) { resize(size); }
+
+    void resize(Index size) {
+        data_.assign(static_cast<std::size_t>(size), 0.0);
+    }
+
+    Index size() const {
+        return static_cast<Index>(data_.size());
+    }
+
+    double& operator[](Index idx) {
+        return data_[static_cast<std::size_t>(idx)];
+    }
+
+    const double& operator[](Index idx) const {
+        return data_[static_cast<std::size_t>(idx)];
+    }
+
+private:
+    std::vector<double> data_;
+};
+
+class ArrayXXcd {
+public:
+    ArrayXXcd() : rows_(0), cols_(0) {}
+
+    void resize(Index rows, Index cols) {
+        rows_ = rows;
+        cols_ = cols;
+        data_.assign(static_cast<std::size_t>(rows * cols), std::complex<double>(0.0, 0.0));
+    }
+
+    std::complex<double>& operator()(Index row, Index col) {
+        return data_[static_cast<std::size_t>(row * cols_ + col)];
+    }
+
+    const std::complex<double>& operator()(Index row, Index col) const {
+        return data_[static_cast<std::size_t>(row * cols_ + col)];
+    }
+
+    Index rows() const { return rows_; }
+    Index cols() const { return cols_; }
+
+private:
+    Index rows_;
+    Index cols_;
+    std::vector<std::complex<double>> data_;
+};
+
+} // namespace Eigen
+
