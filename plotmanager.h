@@ -7,6 +7,7 @@
 #include <QColor>
 #include <QMouseEvent>
 #include <QMap>
+#include <QPoint>
 
 #include "network.h"
 
@@ -51,6 +52,10 @@ private:
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
     void checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer);
+    void configureCursorStyles(PlotType type);
+    QCPGraph *firstGraph() const;
+    QCPCurve *firstSmithCurve() const;
+    QCPCurve *smithCurveAt(const QPoint &pos) const;
     void setupSmithGrid();
     void clearSmithGrid();
     void clearSmithMarkers();
@@ -76,6 +81,7 @@ private:
     QMap<QCPItemTracer*, QCPCurve*> m_tracerCurves;
     QMap<QCPItemTracer*, int> m_tracerIndices;
     bool m_keepAspectConnected;
+    PlotType m_currentPlotType;
 };
 
 #endif // PLOTMANAGER_H
