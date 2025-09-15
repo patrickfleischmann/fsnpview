@@ -659,12 +659,6 @@ void PlotManager::mouseMove(QMouseEvent *event)
             double key = m_plot->xAxis->pixelToCoord(event->pos().x());
             mDraggedTracer->setGraphKey(key);
         }
-        else if (mDragMode == DragMode::Free)
-        {
-            double x = m_plot->xAxis->pixelToCoord(event->pos().x());
-            double y = m_plot->yAxis->pixelToCoord(event->pos().y());
-            mDraggedTracer->position->setCoords(x, y);
-        }
         else if (mDragMode == DragMode::Curve)
         {
             QCPCurve *curve = m_tracerCurves.value(mDraggedTracer, nullptr);
