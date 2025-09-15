@@ -1,5 +1,10 @@
 #include "networklumped.h"
 #include <complex>
+#include <cmath>
+
+namespace {
+constexpr double pi = 3.14159265358979323846;
+}
 
 NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
     : Network(parent), m_type(type), m_value(value)
@@ -31,6 +36,7 @@ QString NetworkLumped::name() const
     case NetworkType::C_shunt:  name = "C_shunt";  break;
     case NetworkType::L_series: name = "L_series"; break;
     case NetworkType::L_shunt:  name = "L_shunt";  break;
+    case NetworkType::TransmissionLine: name = "TL_50ohm"; break;
     }
     return name + "_" + Network::formatEngineering(m_value);
 }
@@ -39,9 +45,11 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
 {
     Eigen::MatrixXcd abcd_matrix(freq.size(), 4);
     std::complex<double> j(0, 1);
+    constexpr double z0 = 50.0;
+    constexpr double c0 = 299792458.0; // Speed of light in vacuum (m/s)
 
     for (int i = 0; i < freq.size(); ++i) {
-        double w = 2 * M_PI * freq(i);
+        double w = 2.0 * pi * freq(i);
         Eigen::Matrix2cd abcd_point;
         abcd_point.setIdentity();
 
@@ -64,6 +72,17 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
         case NetworkType::L_shunt:
             abcd_point(1, 0) = 1.0 / (j * w * m_value);
             break;
+        case NetworkType::TransmissionLine: {
+            double beta = w / c0;
+            double theta = beta * m_value;
+            double cos_theta = std::cos(theta);
+            double sin_theta = std::sin(theta);
+            abcd_point(0, 0) = cos_theta;
+            abcd_point(0, 1) = j * z0 * sin_theta;
+            abcd_point(1, 0) = j * (sin_theta / z0);
+            abcd_point(1, 1) = cos_theta;
+            break;
+        }
         }
         abcd_matrix.row(i) << abcd_point(0, 0), abcd_point(0, 1), abcd_point(1, 0), abcd_point(1, 1);
     }
@@ -93,7 +112,7 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
             break;
         case PlotType::Phase:
             xValues.append(freq(i));
-            yValues.append(std::arg(s_param) * 180.0 / M_PI);
+            yValues.append(std::arg(s_param) * 180.0 / pi);
             break;
         case PlotType::VSWR:
             xValues.append(freq(i));

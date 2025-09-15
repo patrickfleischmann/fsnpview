@@ -170,6 +170,7 @@ void MainWindow::populateLumpedNetworkTable()
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, 1e-12));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, 1e-9));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, 1e-9));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, 0.1));
 
     for (auto network_ptr : qAsConst(m_networks)) {
         if (dynamic_cast<NetworkLumped*>(network_ptr)) {
