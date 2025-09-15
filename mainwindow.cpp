@@ -19,6 +19,29 @@
 #include <QVariant>
 #include <QHeaderView>
 #include <QWheelEvent>
+#include <QStyledItemDelegate>
+#include <QFont>
+#include <QStyle>
+
+namespace {
+
+class SelectionBoldDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+protected:
+    void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override
+    {
+        QStyledItemDelegate::initStyleOption(option, index);
+        if (option->state.testFlag(QStyle::State_Selected)) {
+            option->state.setFlag(QStyle::State_Selected, false);
+            option->font.setBold(true);
+        }
+    }
+};
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -103,12 +126,14 @@ void MainWindow::setupViews()
     ui->tableViewNetworkFiles->setDragDropMode(QAbstractItemView::DragOnly);
     ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewNetworkFiles->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkFiles));
     setupTableColumns(ui->tableViewNetworkFiles);
 
     ui->tableViewNetworkLumped->setModel(m_network_lumped_model);
     ui->tableViewNetworkLumped->setDragDropMode(QAbstractItemView::DragOnly);
     ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableViewNetworkLumped->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkLumped));
     setupTableColumns(ui->tableViewNetworkLumped);
 
 
@@ -121,6 +146,7 @@ void MainWindow::setupViews()
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableViewCascade->setDropIndicatorShown(true);
     ui->tableViewCascade->setStyleSheet("QTableView::item:drop-indicator { border-top: 2px solid #0000ff; border-bottom: 2px solid #0000ff; }");
+    ui->tableViewCascade->setItemDelegate(new SelectionBoldDelegate(ui->tableViewCascade));
     setupTableColumns(ui->tableViewCascade);
 }
 

@@ -10,7 +10,7 @@ This project requires a C++ compiler, Qt6 development tools, and the Eigen3 libr
 On a Debian-based system (like Ubuntu), you can install these dependencies using the following command:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y build-essential qt6-base-dev libeigen3-dev
+sudo apt-get update && sudo apt-get install -y build-essential qt6-base-dev qt6-base-dev-tools libeigen3-dev
 ```
 
 ## 2. Building the Application
