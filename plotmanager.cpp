@@ -112,7 +112,9 @@ QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<
 
 void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 {
-    qInfo("  updatePlots()");
+#ifdef FSNPVIEW_ENABLE_PLOT_DEBUG
+    qDebug() << "  updatePlots()";
+#endif
     QStringList required_graphs;
     QString suffix;
 
