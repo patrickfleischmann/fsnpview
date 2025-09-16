@@ -9,6 +9,35 @@
 #include <set>
 #include <limits>
 #include <cmath>
+#include <QSharedPointer>
+#include <QLocale>
+
+namespace
+{
+class EngineeringAxisTicker : public QCPAxisTicker
+{
+protected:
+    QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override
+    {
+        Q_UNUSED(locale)
+        Q_UNUSED(formatChar)
+        Q_UNUSED(precision)
+        return Network::formatEngineering(tick, false);
+    }
+};
+
+class EngineeringAxisTickerLog : public QCPAxisTickerLog
+{
+protected:
+    QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override
+    {
+        Q_UNUSED(locale)
+        Q_UNUSED(formatChar)
+        Q_UNUSED(precision)
+        return Network::formatEngineering(tick, false);
+    }
+};
+}
 
 using namespace std;
 
@@ -62,6 +91,8 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_colors.append(QColor(119, 172, 48));   // Green
     m_colors.append(QColor(77, 190, 238));   // Light Blue
     m_colors.append(QColor(162, 20, 47));    // Red
+
+    updateAxisTickers();
 }
 
 void PlotManager::setNetworks(const QList<Network*>& networks)
@@ -79,6 +110,41 @@ QColor PlotManager::nextColor()
     QColor color = m_colors.at(m_color_index % m_colors.size());
     m_color_index++;
     return color;
+}
+
+void PlotManager::setXAxisScaleType(QCPAxis::ScaleType type)
+{
+    m_plot->xAxis->setScaleType(type);
+    m_plot->xAxis2->setScaleType(type);
+    updateAxisTickers();
+}
+
+void PlotManager::updateAxisTickers()
+{
+    if (!m_plot)
+        return;
+
+    m_plot->xAxis2->setScaleType(m_plot->xAxis->scaleType());
+    m_plot->yAxis2->setScaleType(m_plot->yAxis->scaleType());
+
+    if (m_plot->xAxis->scaleType() == QCPAxis::stLogarithmic)
+    {
+        QSharedPointer<EngineeringAxisTickerLog> logTicker(new EngineeringAxisTickerLog);
+        logTicker->setLogBase(10);
+        logTicker->setSubTickCount(8);
+        m_plot->xAxis->setTicker(logTicker);
+        m_plot->xAxis2->setTicker(logTicker);
+    }
+    else
+    {
+        QSharedPointer<EngineeringAxisTicker> ticker(new EngineeringAxisTicker);
+        m_plot->xAxis->setTicker(ticker);
+        m_plot->xAxis2->setTicker(ticker);
+    }
+
+    QSharedPointer<EngineeringAxisTicker> yTicker(new EngineeringAxisTicker);
+    m_plot->yAxis->setTicker(yTicker);
+    m_plot->yAxis2->setTicker(yTicker);
 }
 
 QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,

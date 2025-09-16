@@ -20,7 +20,7 @@ public:
 
     static Eigen::Matrix2cd s2abcd(const std::complex<double>& s11, const std::complex<double>& s12, const std::complex<double>& s21, const std::complex<double>& s22, double z0 = 50.0);
     static Eigen::Vector4cd abcd2s(const Eigen::Matrix2cd& abcd, double z0 = 50.0);
-    static QString formatEngineering(double value);
+    static QString formatEngineering(double value, bool padMantissa = true);
 
     virtual QString name() const = 0;
     virtual Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const = 0;

@@ -31,13 +31,13 @@ Eigen::Vector4cd Network::abcd2s(const Eigen::Matrix2cd& abcd, double z0)
     return s;
 }
 
-QString Network::formatEngineering(double value)
+QString Network::formatEngineering(double value, bool padMantissa)
 {
     if (!std::isfinite(value))
         return QString::number(value);
 
     if (value == 0.0)
-        return QStringLiteral("000.00e+00");
+        return padMantissa ? QStringLiteral("000.00e+00") : QStringLiteral("0");
 
     double absValue = std::fabs(value);
     int exponent = static_cast<int>(std::floor(std::log10(absValue)));
@@ -60,17 +60,45 @@ QString Network::formatEngineering(double value)
         dotIndex = mantissaStr.indexOf('.');
     }
 
-    int integerDigits = dotIndex;
-    if (integerDigits < 3)
-        mantissaStr.prepend(QString(3 - integerDigits, '0'));
+    if (padMantissa)
+    {
+        int integerDigits = dotIndex;
+        if (integerDigits < 3)
+            mantissaStr.prepend(QString(3 - integerDigits, '0'));
 
-    QString signStr = value < 0 ? QStringLiteral("-") : QString();
-    QString exponentStr = QString::number(std::abs(engineeringExponent)).rightJustified(2, '0');
+        QString signStr = value < 0 ? QStringLiteral("-") : QString();
+        QString exponentStr = QString::number(std::abs(engineeringExponent)).rightJustified(2, '0');
 
-    return QStringLiteral("%1%2e%3%4")
-        .arg(signStr, mantissaStr,
-             engineeringExponent >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
-             exponentStr);
+        return QStringLiteral("%1%2e%3%4")
+            .arg(signStr, mantissaStr,
+                 engineeringExponent >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
+                 exponentStr);
+    }
+
+    if (mantissaStr.contains('.'))
+    {
+        while (mantissaStr.endsWith('0'))
+            mantissaStr.chop(1);
+        if (mantissaStr.endsWith('.'))
+            mantissaStr.chop(1);
+    }
+
+    if (mantissaStr.isEmpty())
+        mantissaStr = QStringLiteral("0");
+
+    QString mantissaWithSign;
+    if (value < 0 && mantissaStr != QStringLiteral("0"))
+        mantissaWithSign = QStringLiteral("-") + mantissaStr;
+    else
+        mantissaWithSign = mantissaStr;
+
+    if (mantissaWithSign == QStringLiteral("-0"))
+        mantissaWithSign = QStringLiteral("0");
+
+    if (engineeringExponent == 0 || mantissaStr == QStringLiteral("0"))
+        return mantissaWithSign;
+
+    return mantissaWithSign + QStringLiteral("e%1").arg(engineeringExponent);
 }
 
 Network::Network(QObject *parent)
