@@ -37,10 +37,53 @@ void test_malformed() {
     assert(threw);
 }
 
+void test_write_roundtrip() {
+    ts::TouchstoneData original = ts::parse_touchstone("test/a (1).s2p");
+    std::ostringstream oss;
+    ts::write_touchstone_stream(original, oss);
+
+    std::istringstream iss(oss.str());
+    ts::TouchstoneData reparsed = ts::parse_touchstone_stream(iss, "<roundtrip>");
+
+    assert(reparsed.ports == original.ports);
+    assert(reparsed.freq.size() == original.freq.size());
+    for (Eigen::Index i = 0; i < original.freq.size(); ++i) {
+        assert(std::abs(reparsed.freq[i] - original.freq[i]) < 1e-6);
+    }
+
+    assert(reparsed.sparams.rows() == original.sparams.rows());
+    assert(reparsed.sparams.cols() == original.sparams.cols());
+    for (Eigen::Index r = 0; r < original.sparams.rows(); ++r) {
+        for (Eigen::Index c = 0; c < original.sparams.cols(); ++c) {
+            std::complex<double> a = original.sparams(r, c);
+            std::complex<double> b = reparsed.sparams(r, c);
+            assert(std::abs(a - b) < 1e-9);
+        }
+    }
+}
+
+void test_write_invalid_dimensions() {
+    ts::TouchstoneData data;
+    data.ports = 1;
+    data.freq = Eigen::ArrayXd::Constant(1, 1.0e9);
+    data.sparams = Eigen::ArrayXXcd::Zero(2, 1);
+
+    std::ostringstream oss;
+    bool threw = false;
+    try {
+        ts::write_touchstone_stream(data, oss);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+}
+
 int main() {
     test_basic_parse();
     test_second_file();
     test_malformed();
+    test_write_roundtrip();
+    test_write_invalid_dimensions();
     std::cout << "All parser tests passed." << std::endl;
     return 0;
 }
