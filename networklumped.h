@@ -13,7 +13,8 @@ public:
         C_series,
         C_shunt,
         L_series,
-        L_shunt
+        L_shunt,
+        TransmissionLine
     };
 
     explicit NetworkLumped(NetworkType type, double value, QObject *parent = nullptr);
