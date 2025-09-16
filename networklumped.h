@@ -2,6 +2,8 @@
 #define NETWORKLUMPED_H
 
 #include "network.h"
+#include <initializer_list>
+#include <QVector>
 
 class NetworkLumped : public Network
 {
@@ -17,7 +19,9 @@ public:
         TransmissionLine
     };
 
-    explicit NetworkLumped(NetworkType type, double value, QObject *parent = nullptr);
+    explicit NetworkLumped(NetworkType type, QObject *parent = nullptr);
+    NetworkLumped(NetworkType type, const QVector<double>& values, QObject *parent = nullptr);
+    NetworkLumped(NetworkType type, std::initializer_list<double> values, QObject *parent = nullptr);
 
     QString name() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
@@ -25,13 +29,26 @@ public:
     Network* clone(QObject* parent = nullptr) const override;
     QVector<double> frequencies() const override;
 
+    int parameterCount() const;
+    QString parameterDescription(int index) const;
+    double parameterValue(int index) const;
+    void setParameterValue(int index, double value);
+
     double value() const;
     void setValue(double value);
 
 
 private:
     NetworkType m_type;
-    double m_value;
+    struct Parameter {
+        QString description;
+        double value;
+        double scale;
+    };
+    QVector<Parameter> m_parameters;
+
+    void initializeParameters(const QVector<double>& values);
+    double parameterValueSI(int index) const;
 };
 
 #endif // NETWORKLUMPED_H
