@@ -31,13 +31,13 @@ Eigen::Vector4cd Network::abcd2s(const Eigen::Matrix2cd& abcd, double z0)
     return s;
 }
 
-QString Network::formatEngineering(double value)
+QString Network::formatEngineering(double value, bool padMantissa)
 {
     if (!std::isfinite(value))
         return QString::number(value);
 
     if (value == 0.0)
-        return QStringLiteral("000.00e+00");
+        return padMantissa ? QStringLiteral("000.00e+00") : QStringLiteral("0.00e+00");
 
     double absValue = std::fabs(value);
     int exponent = static_cast<int>(std::floor(std::log10(absValue)));
@@ -60,9 +60,12 @@ QString Network::formatEngineering(double value)
         dotIndex = mantissaStr.indexOf('.');
     }
 
-    int integerDigits = dotIndex;
-    if (integerDigits < 3)
-        mantissaStr.prepend(QString(3 - integerDigits, '0'));
+    if (padMantissa)
+    {
+        int integerDigits = dotIndex;
+        if (integerDigits < 3)
+            mantissaStr.prepend(QString(3 - integerDigits, '0'));
+    }
 
     QString signStr = value < 0 ? QStringLiteral("-") : QString();
     QString exponentStr = QString::number(std::abs(engineeringExponent)).rightJustified(2, '0');

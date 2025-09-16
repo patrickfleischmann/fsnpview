@@ -527,14 +527,9 @@ void MainWindow::on_checkBoxLegend_checkStateChanged(const Qt::CheckState &arg1)
 void MainWindow::on_checkBox_checkStateChanged(const Qt::CheckState &arg1)
 {
     if (arg1 == Qt::Checked) {
-        ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLogarithmic);
-        QSharedPointer<QCPAxisTickerLog> logTicker(new QCPAxisTickerLog);
-        logTicker->setSubTickCount(8);
-        logTicker->setLogBase(10);
-        ui->widgetGraph->xAxis->setTicker(logTicker);
+        m_plot_manager->setXAxisScaleType(QCPAxis::stLogarithmic);
     } else {
-        ui->widgetGraph->xAxis->setScaleType(QCPAxis::stLinear);
-        ui->widgetGraph->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
+        m_plot_manager->setXAxisScaleType(QCPAxis::stLinear);
     }
     ui->widgetGraph->replot();
 }

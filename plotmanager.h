@@ -10,6 +10,7 @@
 #include <QPoint>
 
 #include "network.h"
+#include "qcustomplot.h"
 
 class QCustomPlot;
 class Network;
@@ -32,6 +33,7 @@ public:
     void updatePlots(const QStringList& sparams, PlotType type);
     void autoscale();
     QColor nextColor();
+    void setXAxisScaleType(QCPAxis::ScaleType type);
 
 public slots:
     void mouseDoubleClick(QMouseEvent *event);
@@ -60,6 +62,7 @@ private:
     void clearSmithGrid();
     void clearSmithMarkers();
     void addSmithMarkers(const QVector<double>& x, const QVector<double>& y, const QColor& color);
+    void updateAxisTickers();
 
 
     QCustomPlot* m_plot;
