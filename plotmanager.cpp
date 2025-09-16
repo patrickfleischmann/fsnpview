@@ -736,9 +736,9 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
         if (curve && m_curveFreqs.contains(curve) && idx >= 0 && idx < m_curveFreqs[curve].size())
             freq = m_curveFreqs[curve].at(idx);
         labelText = QString("f: %1Hz\n|\u0393|: %2\n\u2220: %3\u00B0")
-                        .arg(QString::number(freq, 'g', 4))
-                        .arg(QString::number(mag, 'f', 2))
-                        .arg(QString::number(angle, 'f', 2));
+                        .arg(Network::formatEngineering(freq))
+                        .arg(Network::formatEngineering(mag))
+                        .arg(Network::formatEngineering(angle));
         if (tracer == mTracerB && mTracerA->visible()) {
             mTracerA->updatePosition();
             double xA = mTracerA->position->coords().x();
@@ -751,14 +751,14 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
             if (curveA && m_curveFreqs.contains(curveA) && idxA >= 0 && idxA < m_curveFreqs[curveA].size())
                 freqA = m_curveFreqs[curveA].at(idxA);
             labelText += QString("\n\u0394f: %1Hz \u0394|\u0393|: %2 \u0394\u2220: %3\u00B0")
-                             .arg(QString::number(freq - freqA, 'g', 4))
-                             .arg(QString::number(mag - magA, 'f', 2))
-                             .arg(QString::number(angle - angleA, 'f', 2));
+                             .arg(Network::formatEngineering(freq - freqA))
+                             .arg(Network::formatEngineering(mag - magA))
+                             .arg(Network::formatEngineering(angle - angleA));
         }
     } else {
         if (!tracer->graph())
             return;
-        labelText = QString::number(x, 'g', 4) + "Hz " + QString::number(y, 'f', 2);
+        labelText = Network::formatEngineering(x) + "Hz " + Network::formatEngineering(y);
         if (tracer == mTracerB && mTracerA->visible())
         {
             mTracerA->updatePosition();
@@ -767,8 +767,8 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
             double dx = x - xA;
             double dy = y - yA;
             labelText += QString("\nΔx: %1Hz Δy: %2")
-                             .arg(QString::number(dx, 'g', 4))
-                             .arg(QString::number(dy, 'f', 2));
+                             .arg(Network::formatEngineering(dx))
+                             .arg(Network::formatEngineering(dy));
         }
     }
 
