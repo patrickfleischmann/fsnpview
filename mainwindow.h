@@ -87,5 +87,16 @@ private:
     NetworkItemModel* m_network_files_model;
     NetworkItemModel* m_network_lumped_model;
     NetworkItemModel* m_network_cascade_model;
+
+    enum class SelectionOrigin
+    {
+        None,
+        Graph,
+        Files,
+        Lumped,
+        Cascade
+    };
+
+    SelectionOrigin m_lastSelectionOrigin;
 };
 #endif // MAINWINDOW_H

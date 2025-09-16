@@ -217,6 +217,17 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         m_plot->yAxis->grid()->setVisible(true);
     }
 
+    bool cascadeHasActive = false;
+    if (m_cascade) {
+        const QList<Network*> cascadeNetworks = m_cascade->getNetworks();
+        for (Network *network : cascadeNetworks) {
+            if (network && network->isActive()) {
+                cascadeHasActive = true;
+                break;
+            }
+        }
+    }
+
     // Build list of required graphs from individual networks
     for (auto network : qAsConst(m_networks)) {
         if (network->isVisible()) {
@@ -228,7 +239,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     }
 
     // Build list from cascade
-    if (m_cascade && m_cascade->getNetworks().size() > 0) {
+    if (cascadeHasActive) {
         for (const auto& sparam : sparams) {
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
             required_graphs << graph_name;
@@ -304,7 +315,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
 
         // Cascade
-        if (m_cascade && m_cascade->getNetworks().size() > 0) {
+        if (cascadeHasActive) {
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
             QCPAbstractPlottable *pl = nullptr;
             for (int i = 0; i < m_plot->plottableCount(); ++i) {
@@ -317,6 +328,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
             QVector<double> freqs = m_cascade->frequencies();
             if (pl) {
+                pl->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(m_cascade)));
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
@@ -328,7 +340,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 }
             } else {
                 pl = plot(plotData.first, plotData.second, Qt::magenta,
-                              graph_name, nullptr, type);
+                              graph_name, m_cascade, type);
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
