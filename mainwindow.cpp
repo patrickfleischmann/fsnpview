@@ -637,7 +637,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
                 quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
                 if (reinterpret_cast<Network *>(ptrVal) == network) {
                     if (item->checkState() != Qt::Unchecked) {
-                        QSignalBlocker blocker(model);
                         item->setCheckState(Qt::Unchecked);
                     }
                     break;
@@ -720,7 +719,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
                 network->setVisible(false);
                 if (item->checkState() != Qt::Unchecked) {
-                    QSignalBlocker blocker(m_network_lumped_model);
                     item->setCheckState(Qt::Unchecked);
                 }
                 plotsNeedUpdate = true;
@@ -729,21 +727,29 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
         if (cascadeContext && ui->tableViewCascade->selectionModel()) {
             QModelIndexList selectedRows = ui->tableViewCascade->selectionModel()->selectedRows();
-            for (const QModelIndex &index : selectedRows) {
-                QStandardItem *item = m_network_cascade_model->item(index.row(), 0);
-                if (!item)
-                    continue;
-                quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
-                Network *network = reinterpret_cast<Network*>(ptrVal);
-                if (!network)
-                    continue;
+            if (!selectedRows.isEmpty()) {
+                std::sort(selectedRows.begin(), selectedRows.end(),
+                          [](const QModelIndex &a, const QModelIndex &b) { return a.row() > b.row(); });
 
-                network->setActive(false);
-                if (item->checkState() != Qt::Unchecked) {
-                    QSignalBlocker blocker(m_network_cascade_model);
-                    item->setCheckState(Qt::Unchecked);
+                for (const QModelIndex &index : selectedRows) {
+                    QStandardItem *item = m_network_cascade_model->item(index.row(), 0);
+                    if (!item)
+                        continue;
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    Network *network = reinterpret_cast<Network*>(ptrVal);
+                    if (!network)
+                        continue;
+
+                    int cascadeIndex = m_cascade->getNetworks().indexOf(network);
+                    if (cascadeIndex >= 0) {
+                        m_cascade->removeNetwork(cascadeIndex);
+                    }
+                    if (network->parent() == m_cascade) {
+                        delete network;
+                    }
+                    m_network_cascade_model->removeRow(index.row());
+                    plotsNeedUpdate = true;
                 }
-                plotsNeedUpdate = true;
             }
         }
 
