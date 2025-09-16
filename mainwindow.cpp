@@ -22,6 +22,9 @@
 #include <QStyledItemDelegate>
 #include <QFont>
 #include <QStyle>
+#include <QApplication>
+
+#include <algorithm>
 
 namespace {
 
@@ -547,83 +550,151 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Delete) {
         qInfo() << "Delete key pressed";
 
-        QSet<Network*> fileNetworksToDelete;
-        QSet<Network*> lumpedNetworksToHide;
-
-        // Collect from selected graphs
-        const auto selectedGraphs = ui->widgetGraph->selectedGraphs();
-        for (QCPGraph *graph : selectedGraphs) {
-            quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
-            Network* network = reinterpret_cast<Network*>(ptrVal);
-            if (!network)
-                continue;
-            if (dynamic_cast<NetworkFile*>(network)) {
-                fileNetworksToDelete.insert(network);
-            } else if (dynamic_cast<NetworkLumped*>(network)) {
-                lumpedNetworksToHide.insert(network);
+        QWidget *focusWidget = QApplication::focusWidget();
+        auto viewHasFocus = [focusWidget](QTableView *view) {
+            if (!view)
+                return false;
+            if (focusWidget) {
+                if (focusWidget == view)
+                    return true;
+                if (view->isAncestorOf(focusWidget))
+                    return true;
             }
-        }
+            return view->hasFocus() || view->viewport()->hasFocus();
+        };
+        auto viewHasSelection = [](QTableView *view) {
+            if (!view)
+                return false;
+            if (QItemSelectionModel *selection = view->selectionModel())
+                return selection->hasSelection();
+            return false;
+        };
+        auto viewIsActive = [&](QTableView *view) {
+            return viewHasFocus(view) || viewHasSelection(view);
+        };
 
-        // Collect from selected rows in file list
-        QModelIndexList selectedFileRows = ui->tableViewNetworkFiles->selectionModel()->selectedRows();
-        for (const QModelIndex &index : selectedFileRows) {
-            quintptr ptrVal = m_network_files_model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
-            Network* network = reinterpret_cast<Network*>(ptrVal);
-            if (network)
-                fileNetworksToDelete.insert(network);
-        }
+        if (viewIsActive(ui->tableViewCascade)) {
+            QModelIndexList selectedCascadeRows;
+            if (ui->tableViewCascade->selectionModel())
+                selectedCascadeRows = ui->tableViewCascade->selectionModel()->selectedRows();
 
-        // Collect from selected rows in lumped list
-        QModelIndexList selectedLumpedRows = ui->tableViewNetworkLumped->selectionModel()->selectedRows();
-        for (const QModelIndex &index : selectedLumpedRows) {
-            quintptr ptrVal = m_network_lumped_model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
-            Network* network = reinterpret_cast<Network*>(ptrVal);
-            if (network)
-                lumpedNetworksToHide.insert(network);
-        }
+            if (!selectedCascadeRows.isEmpty()) {
+                std::sort(selectedCascadeRows.begin(), selectedCascadeRows.end(),
+                          [](const QModelIndex &a, const QModelIndex &b) { return a.row() > b.row(); });
 
-        bool changed = false;
+                for (const QModelIndex &index : selectedCascadeRows) {
+                    QStandardItem *item = m_network_cascade_model->item(index.row(), 0);
+                    if (!item)
+                        continue;
 
-        // Delete file networks
-        for (Network* network : fileNetworksToDelete) {
-            // remove from file model
-            for (int r = 0; r < m_network_files_model->rowCount(); ++r) {
-                quintptr ptrVal = m_network_files_model->item(r, 0)->data(Qt::UserRole).value<quintptr>();
-                if (reinterpret_cast<Network*>(ptrVal) == network) {
-                    m_network_files_model->removeRow(r);
-                    break;
+                    Network *network = reinterpret_cast<Network *>(item->data(Qt::UserRole).value<quintptr>());
+                    if (network) {
+                        int cascadeIndex = m_cascade->getNetworks().indexOf(network);
+                        if (cascadeIndex >= 0) {
+                            m_cascade->removeNetwork(cascadeIndex);
+                        }
+                        if (network->parent() == m_cascade) {
+                            delete network;
+                        }
+                    }
+                    m_network_cascade_model->removeRow(index.row());
+                }
+                updatePlots();
+            }
+        } else {
+            QSet<Network*> fileNetworksToDelete;
+            QSet<Network*> lumpedNetworksToHide;
+
+            // Collect from selected graphs
+            const auto selectedGraphs = ui->widgetGraph->selectedGraphs();
+            for (QCPGraph *graph : selectedGraphs) {
+                quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+                Network* network = reinterpret_cast<Network*>(ptrVal);
+                if (!network)
+                    continue;
+                if (dynamic_cast<NetworkFile*>(network)) {
+                    fileNetworksToDelete.insert(network);
+                } else if (dynamic_cast<NetworkLumped*>(network)) {
+                    lumpedNetworksToHide.insert(network);
                 }
             }
-            // remove from cascade if present; network may appear multiple times
-            int index = -1;
-            while ((index = m_cascade->getNetworks().indexOf(network)) != -1) {
-                m_cascade->removeNetwork(index);
-                m_network_cascade_model->removeRow(index);
-            }
-            m_networks.removeOne(network);
-            delete network;
-            changed = true;
-        }
 
-        // Hide lumped networks
-        for (Network* network : lumpedNetworksToHide) {
-            for (int r = 0; r < m_network_lumped_model->rowCount(); ++r) {
-                quintptr ptrVal = m_network_lumped_model->item(r, 0)->data(Qt::UserRole).value<quintptr>();
-                if (reinterpret_cast<Network*>(ptrVal) == network) {
+            // Collect from selected rows in file list when active
+            if (viewIsActive(ui->tableViewNetworkFiles) && ui->tableViewNetworkFiles->selectionModel()) {
+                QModelIndexList selectedFileRows = ui->tableViewNetworkFiles->selectionModel()->selectedRows();
+                for (const QModelIndex &index : selectedFileRows) {
+                    QStandardItem *item = m_network_files_model->item(index.row(), 0);
+                    if (!item)
+                        continue;
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    Network* network = reinterpret_cast<Network*>(ptrVal);
+                    if (network)
+                        fileNetworksToDelete.insert(network);
+                }
+            }
+
+            // Collect from selected rows in lumped list when active
+            if (viewIsActive(ui->tableViewNetworkLumped) && ui->tableViewNetworkLumped->selectionModel()) {
+                QModelIndexList selectedLumpedRows = ui->tableViewNetworkLumped->selectionModel()->selectedRows();
+                for (const QModelIndex &index : selectedLumpedRows) {
+                    QStandardItem *item = m_network_lumped_model->item(index.row(), 0);
+                    if (!item)
+                        continue;
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    Network* network = reinterpret_cast<Network*>(ptrVal);
+                    if (network)
+                        lumpedNetworksToHide.insert(network);
+                }
+            }
+
+            bool changed = false;
+
+            // Delete file networks
+            for (Network* network : fileNetworksToDelete) {
+                // remove from file model
+                for (int r = 0; r < m_network_files_model->rowCount(); ++r) {
+                    QStandardItem *item = m_network_files_model->item(r, 0);
+                    if (!item)
+                        continue;
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    if (reinterpret_cast<Network*>(ptrVal) == network) {
+                        m_network_files_model->removeRow(r);
+                        break;
+                    }
+                }
+                // remove from cascade if present; network may appear multiple times
+                int index = -1;
+                while ((index = m_cascade->getNetworks().indexOf(network)) != -1) {
+                    m_cascade->removeNetwork(index);
+                    m_network_cascade_model->removeRow(index);
+                }
+                m_networks.removeOne(network);
+                delete network;
+                changed = true;
+            }
+
+            // Hide lumped networks
+            for (Network* network : lumpedNetworksToHide) {
+                for (int r = 0; r < m_network_lumped_model->rowCount(); ++r) {
                     QStandardItem *item = m_network_lumped_model->item(r, 0);
-                    if (item->checkState() == Qt::Checked)
-                        item->setCheckState(Qt::Unchecked);
-                    else
-                        network->setVisible(false);
-                    changed = true;
-                    break;
+                    if (!item)
+                        continue;
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    if (reinterpret_cast<Network*>(ptrVal) == network) {
+                        if (item->checkState() == Qt::Checked)
+                            item->setCheckState(Qt::Unchecked);
+                        else
+                            network->setVisible(false);
+                        changed = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        if (changed) {
-            m_plot_manager->setNetworks(m_networks);
-            updatePlots();
+            if (changed) {
+                m_plot_manager->setNetworks(m_networks);
+                updatePlots();
+            }
         }
 
     } else if (event->key() == Qt::Key_Minus)
