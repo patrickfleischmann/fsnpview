@@ -327,14 +327,14 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                         graph->setData(plotData.first, plotData.second);
                 }
             } else {
-                pl = plot(plotData.first, plotData.second, Qt::black,
-                              graph_name, nullptr, type, Qt::DashLine);
+                pl = plot(plotData.first, plotData.second, Qt::magenta,
+                              graph_name, nullptr, type);
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
             }
             if (type == PlotType::Smith)
-                addSmithMarkers(plotData.first, plotData.second, Qt::black);
+                addSmithMarkers(plotData.first, plotData.second, Qt::magenta);
         }
     }
 

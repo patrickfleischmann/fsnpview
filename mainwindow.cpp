@@ -107,15 +107,15 @@ MainWindow::~MainWindow()
 void MainWindow::setupModels()
 {
     m_network_files_model->setColumnCount(3);
-    m_network_files_model->setHorizontalHeaderLabels({"Plot", "Color", "File"});
+    m_network_files_model->setHorizontalHeaderLabels({"  ", "  ", "File"}); //Plot, Color, File
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
     m_network_lumped_model->setColumnCount(4);
-    m_network_lumped_model->setHorizontalHeaderLabels({"Plot", "Color", "Name", "Value"});
+    m_network_lumped_model->setHorizontalHeaderLabels({"  ", "  ", "Name", "Value"}); //Plot, Color, Name Value
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
     m_network_cascade_model->setColumnCount(4);
-    m_network_cascade_model->setHorizontalHeaderLabels({"Active", "Color", "Name", "Value"});
+    m_network_cascade_model->setHorizontalHeaderLabels({"  ", "  ", "Name", "Value"}); //Active, Color, Name, Value
     connect(m_network_cascade_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkCascadeModelChanged);
     connect(m_network_cascade_model, &NetworkItemModel::networkDropped, this, &MainWindow::onNetworkDropped);
 }
@@ -145,7 +145,6 @@ void MainWindow::setupViews()
     ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableViewCascade->setDropIndicatorShown(true);
-    ui->tableViewCascade->setStyleSheet("QTableView::item:drop-indicator { border-top: 2px solid #0000ff; border-bottom: 2px solid #0000ff; }");
     ui->tableViewCascade->setItemDelegate(new SelectionBoldDelegate(ui->tableViewCascade));
     setupTableColumns(ui->tableViewCascade);
 }
