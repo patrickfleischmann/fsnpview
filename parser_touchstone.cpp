@@ -16,6 +16,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <deque>
 
 namespace ts {
 
@@ -229,57 +230,65 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
     std::vector<double> frequencies_hz;
     std::vector<std::complex<double>> sparams_values;
 
-    std::string logical_line;
-    std::size_t logical_line_number = 0;
+    std::deque<double> pending_numbers;
+    std::size_t pending_line_number = 0;
 
-    const auto process_line = [&](const std::string& logical, std::size_t line_number) {
-        if (logical.empty()) {
-            return;
-        }
-        if (logical[0] == '#') {
-            opts = parse_options_line(logical);
-            freq_scale = unit_scale_to_hz(opts.freq_unit);
-            return;
-        }
-
-        const std::vector<double> numbers = tokenize_numbers(logical);
-        if (numbers.empty()) {
+    const auto flush_pending_numbers = [&](std::size_t line_number, bool final_flush) {
+        if (pending_numbers.empty()) {
             return;
         }
 
         if (ports <= 0) {
-            const std::size_t cols = numbers.size();
-            bool matched = false;
             constexpr int kMaxPortsToInfer = 128;
+            int matched_ports = 0;
             for (int candidate = 1; candidate <= kMaxPortsToInfer; ++candidate) {
                 const std::size_t candidate_cols = 1 + 2ull * static_cast<std::size_t>(candidate) * static_cast<std::size_t>(candidate);
-                if (cols == candidate_cols) {
-                    ports = candidate;
-                    values_per_row = static_cast<std::size_t>(ports) * static_cast<std::size_t>(ports);
-                    expected_cols = candidate_cols;
-                    matched = true;
-                    break;
+                if (pending_numbers.size() >= candidate_cols && (pending_numbers.size() % candidate_cols == 0 || final_flush)) {
+                    matched_ports = candidate;
                 }
             }
-            if (!matched) {
-                throw std::runtime_error("Could not infer port count from column count (" + std::to_string(cols) + ") in " + source_name + ", line " + std::to_string(line_number));
+            if (matched_ports > 0) {
+                ports = matched_ports;
+                values_per_row = static_cast<std::size_t>(ports) * static_cast<std::size_t>(ports);
+                expected_cols = 1 + 2ull * values_per_row;
+            } else {
+                if (final_flush) {
+                    const std::size_t line_ref = pending_line_number != 0 ? pending_line_number : line_number;
+                    throw std::runtime_error("Could not infer port count from data near line " + std::to_string(line_ref) + " in " + source_name);
+                }
+                return;
             }
-        }
-
-        if (expected_cols == 0) {
+        } else if (expected_cols == 0) {
             values_per_row = static_cast<std::size_t>(ports) * static_cast<std::size_t>(ports);
             expected_cols = 1 + 2ull * values_per_row;
         }
 
-        if (numbers.size() != expected_cols) {
-            throw std::runtime_error("Row at line " + std::to_string(line_number) + " in " + source_name + ": expected " + std::to_string(expected_cols) + " numeric columns, got " + std::to_string(numbers.size()));
+        if (expected_cols == 0) {
+            return;
         }
 
-        frequencies_hz.push_back(numbers[0] * freq_scale);
-        for (std::size_t idx = 0; idx < values_per_row; ++idx) {
-            const double a = numbers[1 + idx * 2];
-            const double b = numbers[1 + idx * 2 + 1];
-            sparams_values.push_back(pair_to_complex(a, b, opts.format));
+        while (pending_numbers.size() >= expected_cols) {
+            std::vector<double> numbers;
+            numbers.reserve(expected_cols);
+            for (std::size_t idx = 0; idx < expected_cols; ++idx) {
+                numbers.push_back(pending_numbers.front());
+                pending_numbers.pop_front();
+            }
+
+            frequencies_hz.push_back(numbers[0] * freq_scale);
+            for (std::size_t idx = 0; idx < values_per_row; ++idx) {
+                const double a = numbers[1 + idx * 2];
+                const double b = numbers[1 + idx * 2 + 1];
+                sparams_values.push_back(pair_to_complex(a, b, opts.format));
+            }
+            pending_line_number = line_number;
+        }
+
+        if (pending_numbers.empty()) {
+            pending_line_number = 0;
+        } else if (final_flush) {
+            const std::size_t line_ref = pending_line_number != 0 ? pending_line_number : line_number;
+            throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name + " is incomplete");
         }
     };
 
@@ -298,32 +307,39 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
             continue;
         }
 
-        if (!trimmed.empty() && trimmed[0] == '+') {
-            trimmed.erase(trimmed.begin());
-            trimmed = trim(trimmed);
-            if (logical_line.empty()) {
-                logical_line = trimmed;
-                logical_line_number = physical_line_number;
-            } else {
-                if (!trimmed.empty()) {
-                    logical_line.push_back(' ');
-                    logical_line += trimmed;
-                }
+        if (trimmed[0] == '#') {
+            flush_pending_numbers(physical_line_number, false);
+            if (!pending_numbers.empty()) {
+                const std::size_t line_ref = pending_line_number != 0 ? pending_line_number : physical_line_number;
+                throw std::runtime_error("Dangling data before options line near line " + std::to_string(line_ref) + " in " + source_name);
             }
+            opts = parse_options_line(trimmed);
+            freq_scale = unit_scale_to_hz(opts.freq_unit);
             continue;
         }
 
-        if (!logical_line.empty()) {
-            process_line(logical_line, logical_line_number);
-            logical_line.clear();
+        if (trimmed[0] == '+' && trimmed.size() > 1 && std::isspace(static_cast<unsigned char>(trimmed[1]))) {
+            trimmed.erase(trimmed.begin());
+            trimmed = trim(trimmed);
         }
-        logical_line = trimmed;
-        logical_line_number = physical_line_number;
+
+        const std::vector<double> numbers = tokenize_numbers(trimmed);
+        if (numbers.empty()) {
+            continue;
+        }
+
+        if (pending_numbers.empty()) {
+            pending_line_number = physical_line_number;
+        }
+
+        for (double value : numbers) {
+            pending_numbers.push_back(value);
+        }
+
+        flush_pending_numbers(physical_line_number, false);
     }
 
-    if (!logical_line.empty()) {
-        process_line(logical_line, logical_line_number);
-    }
+    flush_pending_numbers(physical_line_number, true);
 
     if (frequencies_hz.empty()) {
         throw std::runtime_error("No numeric data rows found in: " + source_name);
@@ -372,7 +388,7 @@ TouchstoneData parse_touchstone(const std::string& path) {
 }
 
 std::complex<double> get_sparam(const TouchstoneData& data, Eigen::Index k, int i, int j) {
-    return data.sparams(k, i * data.ports + j);
+    return data.sparams(k, j * data.ports + i);
 }
 
 void write_touchstone_stream(const TouchstoneData& data, std::ostream& out) {

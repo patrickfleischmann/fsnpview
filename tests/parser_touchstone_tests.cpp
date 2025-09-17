@@ -18,6 +18,13 @@ void test_basic_parse() {
     std::complex<double> expected = std::polar(expected_mag, expected_ang_rad);
     assert(std::abs(std::real(s11) - std::real(expected)) < 1e-6);
     assert(std::abs(std::imag(s11) - std::imag(expected)) < 1e-6);
+
+    std::complex<double> s21 = ts::get_sparam(data, 0, 1, 0);
+    double expected_s21_mag = std::pow(10.0, -0.078 / 20.0);
+    double expected_s21_ang_rad = -8.647 * M_PI / 180.0;
+    std::complex<double> expected_s21 = std::polar(expected_s21_mag, expected_s21_ang_rad);
+    assert(std::abs(std::real(s21) - std::real(expected_s21)) < 1e-6);
+    assert(std::abs(std::imag(s21) - std::imag(expected_s21)) < 1e-6);
 }
 
 void test_second_file() {
@@ -78,12 +85,25 @@ void test_write_invalid_dimensions() {
     assert(threw);
 }
 
+void test_multiport_files() {
+    ts::TouchstoneData data6 = ts::parse_touchstone("test/a (12).s6p");
+    assert(data6.ports == 6);
+    assert(data6.freq.size() > 0);
+    assert(data6.sparams.cols() == data6.ports * data6.ports);
+
+    ts::TouchstoneData data9 = ts::parse_touchstone("test/a (11).s9p");
+    assert(data9.ports == 9);
+    assert(data9.freq.size() > 0);
+    assert(data9.sparams.cols() == data9.ports * data9.ports);
+}
+
 int main() {
     test_basic_parse();
     test_second_file();
     test_malformed();
     test_write_roundtrip();
     test_write_invalid_dimensions();
+    test_multiport_files();
     std::cout << "All parser tests passed." << std::endl;
     return 0;
 }
