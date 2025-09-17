@@ -38,17 +38,23 @@
         <item>
          <widget class="QTableView" name="tableViewNetworkFiles">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <family>Consolas</family>
+            <pointsize>10</pointsize>
+           </font>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QTableView" name="tableViewNetworkLumped">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -58,7 +64,7 @@
         <item>
          <widget class="QTableView" name="tableViewCascade">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -67,7 +73,7 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -219,9 +225,15 @@
          <widget class="QCustomPlot" name="widgetGraph" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
+            <horstretch>100</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="baseSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
           </property>
          </widget>
         </item>

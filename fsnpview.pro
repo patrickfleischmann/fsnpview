@@ -54,7 +54,7 @@ FORMS += \
 
 
 win32 {
-    INCLUDEPATH += C:\home\projekte\Qt\eigen-3.4.0
+    #INCLUDEPATH += C:\home\projekte\Qt\eigen-3.4.0
     release {
        # QMAKE_POST_LINK = windeployqt --compiler-runtime --release "C:\home\projekte\Qt\fsnpview\build\fsnpview"
         DESTDIR = $$PWD/bin
