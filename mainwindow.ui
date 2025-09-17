@@ -200,6 +200,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="checkBoxTDR">
+            <property name="text">
+             <string>TDR</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QCheckBox" name="checkBoxLegend">
             <property name="text">
              <string>Legend</string>

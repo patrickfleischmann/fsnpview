@@ -9,7 +9,7 @@
 #include <Eigen/Dense>
 #include <complex>
 
-enum class PlotType { Magnitude, Phase, VSWR, Smith };
+enum class PlotType { Magnitude, Phase, VSWR, Smith, TDR };
 
 class Network : public QObject
 {

@@ -1,4 +1,5 @@
 #include "networkfile.h"
+#include "tdrcalculator.h"
 #include <QFileInfo>
 #include <iostream>
 #include <numeric>
@@ -52,7 +53,7 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
     Eigen::ArrayXcd s_param_col = m_data->sparams.col(s_param_idx);
 
     // Renormalize to 50 Ohm when needed
-    if (type == PlotType::VSWR || type == PlotType::Smith) {
+    if (type == PlotType::VSWR || type == PlotType::Smith || type == PlotType::TDR) {
         double R = m_data->R;
         Eigen::ArrayXcd z = R * (1.0 + s_param_col) / (1.0 - s_param_col);
         s_param_col = (z - 50.0) / (z + 50.0);
@@ -79,6 +80,14 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         xValues = s_param_col.real();
         yValues = s_param_col.imag();
         break;
+    case PlotType::TDR:
+        if (s_param_idx == 1 || s_param_idx == 2)
+            return {};
+        {
+            TDRCalculator calculator;
+            auto result = calculator.compute(m_data->freq, s_param_col);
+            return qMakePair(result.distance, result.impedance);
+        }
     }
 
     QVector<double> xValuesQVector = QVector<double>(xValues.data(), xValues.data() + xValues.size());

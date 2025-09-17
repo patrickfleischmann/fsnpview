@@ -1,4 +1,5 @@
 #include "networklumped.h"
+#include "tdrcalculator.h"
 #include <complex>
 #include <cmath>
 #include <QStringList>
@@ -151,6 +152,21 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
     }
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
     Eigen::MatrixXcd abcd_matrix = abcd(freq);
+    if (type == PlotType::TDR) {
+        if (s_param_idx != 0 && s_param_idx != 3)
+            return {};
+        Eigen::ArrayXcd sparam(freq.size());
+        for (int i = 0; i < freq.size(); ++i) {
+            Eigen::Matrix2cd abcd_point;
+            abcd_point << abcd_matrix(i, 0), abcd_matrix(i, 1), abcd_matrix(i, 2), abcd_matrix(i, 3);
+            Eigen::Vector4cd s = abcd2s(abcd_point);
+            sparam(i) = s(s_param_idx);
+        }
+        TDRCalculator calculator;
+        auto result = calculator.compute(freq.array(), sparam);
+        return qMakePair(result.distance, result.impedance);
+    }
+
     QVector<double> xValues, yValues;
 
     for (int i = 0; i < freq.size(); ++i) {
@@ -175,6 +191,8 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         case PlotType::Smith:
             xValues.append(std::real(s_param));
             yValues.append(std::imag(s_param));
+            break;
+        case PlotType::TDR:
             break;
         }
     }

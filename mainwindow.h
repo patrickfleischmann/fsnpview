@@ -52,6 +52,7 @@ private slots:
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1);
 
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
