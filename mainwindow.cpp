@@ -258,7 +258,7 @@ void MainWindow::populateLumpedNetworkTable()
             colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             colorItem->setBackground(network_ptr->color());
             row.append(colorItem);
-            QStandardItem* nameItem = new QStandardItem(network_ptr->name());
+            QStandardItem* nameItem = new QStandardItem(network_ptr->displayName());
             nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             row.append(nameItem);
             appendParameterItems(row, network_ptr);
@@ -329,7 +329,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         colorItem->setBackground(cloned->color());
         items.append(colorItem);
-        QStandardItem* nameItem = new QStandardItem(cloned->name());
+        QStandardItem* nameItem = new QStandardItem(cloned->displayName());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         items.append(nameItem);
         appendParameterItems(items, cloned);
@@ -431,7 +431,7 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
             double val = item->text().toDouble(&ok);
             if (ok) {
                 network->setParameterValue(parameterIndex, val);
-                m_network_lumped_model->item(item->row(), 2)->setText(network->name());
+                m_network_lumped_model->item(item->row(), 2)->setText(network->displayName());
                 updatePlots();
             }
             {
@@ -470,7 +470,7 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
             double val = item->text().toDouble(&ok);
             if (ok) {
                 network->setParameterValue(parameterIndex, val);
-                m_network_cascade_model->item(item->row(), 2)->setText(network->name());
+                m_network_cascade_model->item(item->row(), 2)->setText(network->displayName());
                 updatePlots();
             }
             {

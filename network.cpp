@@ -33,11 +33,20 @@ Eigen::Vector4cd Network::abcd2s(const Eigen::Matrix2cd& abcd, double z0)
 
 QString Network::formatEngineering(double value, bool padMantissa)
 {
+    auto applyPadding = [padMantissa](const QString& text) {
+        if (!padMantissa)
+            return text;
+        constexpr int fixedWidth = 12;
+        if (text.length() >= fixedWidth)
+            return text;
+        return text.rightJustified(fixedWidth, QLatin1Char(' '));
+    };
+
     if (!std::isfinite(value))
-        return QString::number(value);
+        return applyPadding(QString::number(value));
 
     if (value == 0.0)
-        return padMantissa ? QStringLiteral("000.00e+00") : QStringLiteral("0");
+        return applyPadding(QStringLiteral("0"));
 
     double absValue = std::fabs(value);
     int exponent = static_cast<int>(std::floor(std::log10(absValue)));
@@ -53,28 +62,6 @@ QString Network::formatEngineering(double value, bool padMantissa)
     }
 
     QString mantissaStr = QString::number(roundedMantissa, 'f', 2);
-    int dotIndex = mantissaStr.indexOf('.');
-    if (dotIndex < 0)
-    {
-        mantissaStr.append(".00");
-        dotIndex = mantissaStr.indexOf('.');
-    }
-
-    if (padMantissa)
-    {
-        int integerDigits = dotIndex;
-        if (integerDigits < 3)
-            mantissaStr.prepend(QString(3 - integerDigits, '0'));
-
-        QString signStr = value < 0 ? QStringLiteral("-") : QString();
-        QString exponentStr = QString::number(std::abs(engineeringExponent)).rightJustified(2, '0');
-
-        return QStringLiteral("%1%2e%3%4")
-            .arg(signStr, mantissaStr,
-                 engineeringExponent >= 0 ? QStringLiteral("+") : QStringLiteral("-"),
-                 exponentStr);
-    }
-
     if (mantissaStr.contains('.'))
     {
         while (mantissaStr.endsWith('0'))
@@ -96,9 +83,14 @@ QString Network::formatEngineering(double value, bool padMantissa)
         mantissaWithSign = QStringLiteral("0");
 
     if (engineeringExponent == 0 || mantissaStr == QStringLiteral("0"))
-        return mantissaWithSign;
+        return applyPadding(mantissaWithSign);
 
-    return mantissaWithSign + QStringLiteral("e%1").arg(engineeringExponent);
+    return applyPadding(mantissaWithSign + QStringLiteral("e%1").arg(engineeringExponent));
+}
+
+QString Network::displayName() const
+{
+    return name();
 }
 
 Network::Network(QObject *parent)

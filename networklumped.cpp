@@ -54,18 +54,28 @@ Network* NetworkLumped::clone(QObject* parent) const
     return copy;
 }
 
+QString NetworkLumped::typeName() const
+{
+    switch (m_type) {
+    case NetworkType::R_series: return QStringLiteral("R_series");
+    case NetworkType::R_shunt:  return QStringLiteral("R_shunt");
+    case NetworkType::C_series: return QStringLiteral("C_series");
+    case NetworkType::C_shunt:  return QStringLiteral("C_shunt");
+    case NetworkType::L_series: return QStringLiteral("L_series");
+    case NetworkType::L_shunt:  return QStringLiteral("L_shunt");
+    case NetworkType::TransmissionLine: return QStringLiteral("TL_50Ω");
+    }
+    return QString();
+}
+
+QString NetworkLumped::displayName() const
+{
+    return typeName();
+}
+
 QString NetworkLumped::name() const
 {
-    QString name;
-    switch (m_type) {
-    case NetworkType::R_series: name = QStringLiteral("R_series"); break;
-    case NetworkType::R_shunt:  name = QStringLiteral("R_shunt");  break;
-    case NetworkType::C_series: name = QStringLiteral("C_series"); break;
-    case NetworkType::C_shunt:  name = QStringLiteral("C_shunt");  break;
-    case NetworkType::L_series: name = QStringLiteral("L_series"); break;
-    case NetworkType::L_shunt:  name = QStringLiteral("L_shunt");  break;
-    case NetworkType::TransmissionLine: name = QStringLiteral("TL_50Ω"); break;
-    }
+    QString name = typeName();
     QStringList parameterParts;
     for (const auto& parameter : m_parameters) {
         parameterParts.append(QStringLiteral("%1=%2").arg(parameter.description,
