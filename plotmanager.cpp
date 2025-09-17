@@ -7,6 +7,7 @@
 #include <QVariant>
 #include <QLineF>
 #include <set>
+#include <algorithm>
 #include <limits>
 #include <cmath>
 #include <QSharedPointer>
@@ -238,6 +239,81 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 #ifdef FSNPVIEW_ENABLE_PLOT_DEBUG
     qDebug() << "  updatePlots()";
 #endif
+    PlotType previousPlotType = m_currentPlotType;
+
+    auto suffixForType = [](PlotType plotType) -> QString
+    {
+        switch (plotType)
+        {
+        case PlotType::Magnitude:
+            return QString();
+        case PlotType::Phase:
+            return QStringLiteral("_phase");
+        case PlotType::VSWR:
+            return QStringLiteral("_vswr");
+        case PlotType::Smith:
+            return QStringLiteral("_smith");
+        }
+        return QString();
+    };
+
+    auto baseNameFor = [&](const QString &name, PlotType plotType) -> QString
+    {
+        if (name.isEmpty())
+            return QString();
+        QString suffix = suffixForType(plotType);
+        if (suffix.isEmpty())
+            return name;
+        if (name.endsWith(suffix))
+            return name.left(name.size() - suffix.size());
+        return QString();
+    };
+
+    struct TracerState
+    {
+        bool visible = false;
+        QString baseName;
+        double frequency = std::numeric_limits<double>::quiet_NaN();
+    };
+
+    auto captureTracerState = [&](QCPItemTracer *tracer) -> TracerState
+    {
+        TracerState state;
+        if (!tracer || !tracer->visible())
+            return state;
+
+        state.visible = true;
+
+        if (previousPlotType == PlotType::Smith)
+        {
+            QCPCurve *curve = m_tracerCurves.value(tracer, nullptr);
+            int idx = m_tracerIndices.value(tracer, -1);
+            if (curve)
+            {
+                state.baseName = baseNameFor(curve->name(), previousPlotType);
+                if (idx >= 0)
+                {
+                    const QVector<double> freqs = m_curveFreqs.value(curve);
+                    if (idx < freqs.size())
+                        state.frequency = freqs.at(idx);
+                }
+            }
+        }
+        else
+        {
+            if (QCPGraph *graph = tracer->graph())
+            {
+                state.baseName = baseNameFor(graph->name(), previousPlotType);
+                state.frequency = tracer->graphKey();
+            }
+        }
+
+        return state;
+    };
+
+    TracerState tracerAState = captureTracerState(mTracerA);
+    TracerState tracerBState = captureTracerState(mTracerB);
+
     QStringList required_graphs;
     QString suffix;
 
@@ -245,24 +321,22 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     case PlotType::Magnitude:
         m_plot->yAxis->setLabel("Magnitude (dB)");
         m_plot->xAxis->setLabel("Frequency (Hz)");
-        suffix = "";
         break;
     case PlotType::Phase:
         m_plot->yAxis->setLabel("Phase (deg)");
         m_plot->xAxis->setLabel("Frequency (Hz)");
-        suffix = "_phase";
         break;
     case PlotType::VSWR:
         m_plot->yAxis->setLabel("VSWR");
         m_plot->xAxis->setLabel("Frequency (Hz)");
-        suffix = "_vswr";
         break;
     case PlotType::Smith:
         m_plot->yAxis->setLabel("Imag");
         m_plot->xAxis->setLabel("Real");
-        suffix = "_smith";
         break;
     }
+
+    suffix = suffixForType(type);
 
     m_currentPlotType = type;
     configureCursorStyles(type);
@@ -416,85 +490,155 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
     }
 
+    auto nameForCurrentType = [&](const TracerState &state) -> QString
+    {
+        if (state.baseName.isEmpty())
+            return QString();
+        return state.baseName + suffix;
+    };
+
+    auto findPlottableByName = [&](const QString &name) -> QCPAbstractPlottable*
+    {
+        if (name.isEmpty())
+            return nullptr;
+        for (int i = 0; i < m_plot->plottableCount(); ++i)
+        {
+            if (m_plot->plottable(i)->name() == name)
+                return m_plot->plottable(i);
+        }
+        return nullptr;
+    };
+
+    auto restoreCartesianTracer = [&](QCPItemTracer *tracer, const TracerState &state)
+    {
+        m_tracerCurves.remove(tracer);
+        m_tracerIndices.remove(tracer);
+
+        if (!tracer)
+            return;
+
+        if (!state.visible)
+        {
+            tracer->setGraph(nullptr);
+            return;
+        }
+
+        QCPGraph *targetGraph = nullptr;
+        if (QCPAbstractPlottable *pl = findPlottableByName(nameForCurrentType(state)))
+            targetGraph = qobject_cast<QCPGraph*>(pl);
+
+        if (!targetGraph)
+            targetGraph = firstGraph();
+
+        if (targetGraph)
+        {
+            tracer->setGraph(targetGraph);
+            double key = state.frequency;
+            if (!std::isfinite(key))
+            {
+                key = m_plot->xAxis->range().center();
+            }
+            else
+            {
+                auto data = targetGraph->data();
+                if (!data->isEmpty())
+                {
+                    double minKey = data->constBegin()->key;
+                    auto itEnd = data->constEnd();
+                    --itEnd;
+                    double maxKey = itEnd->key;
+                    if (key < minKey)
+                        key = minKey;
+                    else if (key > maxKey)
+                        key = maxKey;
+                }
+            }
+            tracer->setGraphKey(key);
+        }
+        else
+        {
+            tracer->setGraph(nullptr);
+            tracer->position->setType(QCPItemPosition::ptPlotCoords);
+            tracer->position->setCoords(m_plot->xAxis->range().center(),
+                                        m_plot->yAxis->range().center());
+        }
+    };
+
+    auto restoreSmithTracer = [&](QCPItemTracer *tracer, const TracerState &state)
+    {
+        m_tracerCurves.remove(tracer);
+        m_tracerIndices.remove(tracer);
+
+        if (!tracer)
+            return;
+
+        tracer->setGraph(nullptr);
+        tracer->position->setType(QCPItemPosition::ptPlotCoords);
+
+        if (!state.visible)
+            return;
+
+        QCPCurve *targetCurve = nullptr;
+        if (QCPAbstractPlottable *pl = findPlottableByName(nameForCurrentType(state)))
+            targetCurve = qobject_cast<QCPCurve*>(pl);
+
+        if (!targetCurve)
+            targetCurve = firstSmithCurve();
+
+        if (targetCurve)
+        {
+            auto data = targetCurve->data();
+            if (!data->isEmpty())
+            {
+                QVector<double> freqs = m_curveFreqs.value(targetCurve);
+                int index = 0;
+                if (!freqs.isEmpty() && std::isfinite(state.frequency))
+                {
+                    auto lower = std::lower_bound(freqs.constBegin(), freqs.constEnd(), state.frequency);
+                    if (lower == freqs.constEnd())
+                        index = freqs.size() - 1;
+                    else if (lower == freqs.constBegin())
+                        index = 0;
+                    else
+                    {
+                        index = lower - freqs.constBegin();
+                        double lowerDiff = qAbs(*lower - state.frequency);
+                        auto prev = lower;
+                        --prev;
+                        double prevDiff = qAbs(state.frequency - *prev);
+                        if (prevDiff <= lowerDiff)
+                            index = prev - freqs.constBegin();
+                    }
+                }
+
+                int dataSize = data->size();
+                if (index < 0)
+                    index = 0;
+                else if (index >= dataSize)
+                    index = dataSize - 1;
+
+                auto it = data->constBegin();
+                std::advance(it, index);
+                tracer->position->setCoords(it->key, it->value);
+                m_tracerCurves[tracer] = targetCurve;
+                m_tracerIndices[tracer] = index;
+                return;
+            }
+        }
+
+        tracer->position->setCoords(m_plot->xAxis->range().center(),
+                                    m_plot->yAxis->range().center());
+    };
+
     if (type != PlotType::Smith)
     {
-        if (mTracerA->visible() && !mTracerA->graph())
-        {
-            if (QCPGraph *graph = firstGraph())
-            {
-                mTracerA->setGraph(graph);
-                mTracerA->setGraphKey(m_plot->xAxis->range().center());
-            }
-        }
-        if (mTracerB->visible() && !mTracerB->graph())
-        {
-            if (QCPGraph *graph = firstGraph())
-            {
-                mTracerB->setGraph(graph);
-                mTracerB->setGraphKey(m_plot->xAxis->range().center());
-            }
-        }
+        restoreCartesianTracer(mTracerA, tracerAState);
+        restoreCartesianTracer(mTracerB, tracerBState);
     }
     else
     {
-        if (mTracerA->visible())
-        {
-            mTracerA->setGraph(nullptr);
-            mTracerA->position->setType(QCPItemPosition::ptPlotCoords);
-            if (!m_tracerCurves.contains(mTracerA))
-            {
-                if (QCPCurve *curve = firstSmithCurve())
-                {
-                    auto data = curve->data();
-                    if (!data->isEmpty())
-                    {
-                        auto it = data->constBegin();
-                        mTracerA->position->setCoords(it->key, it->value);
-                        m_tracerCurves[mTracerA] = curve;
-                        m_tracerIndices[mTracerA] = 0;
-                    }
-                    else
-                    {
-                        mTracerA->position->setCoords(m_plot->xAxis->range().center(),
-                                                      m_plot->yAxis->range().center());
-                    }
-                }
-                else
-                {
-                    mTracerA->position->setCoords(m_plot->xAxis->range().center(),
-                                                  m_plot->yAxis->range().center());
-                }
-            }
-        }
-        if (mTracerB->visible())
-        {
-            mTracerB->setGraph(nullptr);
-            mTracerB->position->setType(QCPItemPosition::ptPlotCoords);
-            if (!m_tracerCurves.contains(mTracerB))
-            {
-                if (QCPCurve *curve = firstSmithCurve())
-                {
-                    auto data = curve->data();
-                    if (!data->isEmpty())
-                    {
-                        auto it = data->constBegin();
-                        mTracerB->position->setCoords(it->key, it->value);
-                        m_tracerCurves[mTracerB] = curve;
-                        m_tracerIndices[mTracerB] = 0;
-                    }
-                    else
-                    {
-                        mTracerB->position->setCoords(m_plot->xAxis->range().center(),
-                                                      m_plot->yAxis->range().center());
-                    }
-                }
-                else
-                {
-                    mTracerB->position->setCoords(m_plot->xAxis->range().center(),
-                                                  m_plot->yAxis->range().center());
-                }
-            }
-        }
+        restoreSmithTracer(mTracerA, tracerAState);
+        restoreSmithTracer(mTracerB, tracerBState);
     }
 
     m_plot->replot();
