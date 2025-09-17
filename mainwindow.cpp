@@ -173,8 +173,8 @@ void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
 
     QStringList headers = {"  ", "  ", "Name"};
     for (int i = 0; i < parameterCount; ++i) {
-        headers << QStringLiteral("Param%1").arg(i + 1);
-        headers << QStringLiteral("Value%1").arg(i + 1);
+        headers << QStringLiteral("Par%1").arg(i + 1);
+        headers << QStringLiteral("Val%1").arg(i + 1);
     }
 
     m_network_lumped_model->setColumnCount(headers.size());
