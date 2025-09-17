@@ -388,7 +388,9 @@ void MainWindow::updatePlots()
     if (ui->checkBoxS22->isChecked()) checked_sparams << "s22";
 
     PlotType type = PlotType::Magnitude;
-    if (ui->checkBoxPhase->isChecked())
+    if (ui->checkBoxTDR->isChecked())
+        type = PlotType::TDR;
+    else if (ui->checkBoxPhase->isChecked())
         type = PlotType::Phase;
     else if (ui->checkBoxVSWR->isChecked())
         type = PlotType::VSWR;
@@ -871,6 +873,7 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
     if (ui->checkBoxPhase->isChecked()) {
         ui->checkBoxVSWR->setChecked(false);
         ui->checkBoxSmith->setChecked(false);
+        ui->checkBoxTDR->setChecked(false);
     }
     updatePlots();
 }
@@ -881,6 +884,7 @@ void MainWindow::on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1)
     if (ui->checkBoxVSWR->isChecked()) {
         ui->checkBoxPhase->setChecked(false);
         ui->checkBoxSmith->setChecked(false);
+        ui->checkBoxTDR->setChecked(false);
     }
     updatePlots();
 }
@@ -891,6 +895,21 @@ void MainWindow::on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1)
     if (ui->checkBoxSmith->isChecked()) {
         ui->checkBoxPhase->setChecked(false);
         ui->checkBoxVSWR->setChecked(false);
+        ui->checkBoxTDR->setChecked(false);
+    }
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    if (ui->checkBoxTDR->isChecked()) {
+        ui->checkBoxPhase->setChecked(false);
+        ui->checkBoxVSWR->setChecked(false);
+        ui->checkBoxSmith->setChecked(false);
+        if (ui->checkBox->isChecked()) {
+            ui->checkBox->setChecked(false);
+        }
     }
     updatePlots();
 }

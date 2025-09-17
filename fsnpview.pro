@@ -34,7 +34,8 @@ SOURCES += \
     networklumped.cpp \
     networkcascade.cpp \
     networkitemmodel.cpp \
-    plotmanager.cpp
+    plotmanager.cpp \
+    tdrcalculator.cpp
 
 HEADERS += \
     SmithChartGrid.h \
@@ -47,7 +48,8 @@ HEADERS += \
     networklumped.h \
     networkcascade.h \
     networkitemmodel.h \
-    plotmanager.h
+    plotmanager.h \
+    tdrcalculator.h
 
 FORMS += \
     mainwindow.ui

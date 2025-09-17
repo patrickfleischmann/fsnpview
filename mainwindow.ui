@@ -223,6 +223,13 @@
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
+             <item>
+              <widget class="QCheckBox" name="checkBoxTDR">
+               <property name="text">
+                <string>TDR</string>
+               </property>
+              </widget>
+            </item>
             <item>
              <widget class="QCheckBox" name="checkBoxCursorA">
               <property name="text">

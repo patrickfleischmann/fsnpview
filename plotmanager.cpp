@@ -253,6 +253,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             return QStringLiteral("_vswr");
         case PlotType::Smith:
             return QStringLiteral("_smith");
+        case PlotType::TDR:
+            return QStringLiteral("_tdr");
         }
         return QString();
     };
@@ -333,6 +335,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     case PlotType::Smith:
         m_plot->yAxis->setLabel("Imag");
         m_plot->xAxis->setLabel("Real");
+        break;
+    case PlotType::TDR:
+        m_plot->yAxis->setLabel(QString::fromUtf8("Impedance (Ω)"));
+        m_plot->xAxis->setLabel("Distance (m)");
+        m_plot->xAxis->setScaleType(QCPAxis::stLinear);
+        m_plot->xAxis2->setScaleType(QCPAxis::stLinear);
+        updateAxisTickers();
         break;
     }
 
@@ -428,6 +437,21 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             }
 
             auto plotData = network->getPlotData(sparam_idx_to_plot, type);
+            if (plotData.first.isEmpty() || plotData.second.isEmpty()) {
+                if (pl) {
+                    if (type == PlotType::Smith) {
+                        if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
+                            m_curveFreqs.remove(curve);
+                            if (m_tracerCurves.value(mTracerA) == curve)
+                                m_tracerCurves.remove(mTracerA), m_tracerIndices.remove(mTracerA);
+                            if (m_tracerCurves.value(mTracerB) == curve)
+                                m_tracerCurves.remove(mTracerB), m_tracerIndices.remove(mTracerB);
+                        }
+                    }
+                    m_plot->removePlottable(pl);
+                }
+                continue;
+            }
             QVector<double> freqs = network->frequencies();
             if (pl) {
                 if (type == PlotType::Smith) {
@@ -466,6 +490,21 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             }
 
             auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
+            if (plotData.first.isEmpty() || plotData.second.isEmpty()) {
+                if (pl) {
+                    if (type == PlotType::Smith) {
+                        if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
+                            m_curveFreqs.remove(curve);
+                            if (m_tracerCurves.value(mTracerA) == curve)
+                                m_tracerCurves.remove(mTracerA), m_tracerIndices.remove(mTracerA);
+                            if (m_tracerCurves.value(mTracerB) == curve)
+                                m_tracerCurves.remove(mTracerB), m_tracerIndices.remove(mTracerB);
+                        }
+                    }
+                    m_plot->removePlottable(pl);
+                }
+                continue;
+            }
             QVector<double> freqs = m_cascade->frequencies();
             if (pl) {
                 pl->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(m_cascade)));
