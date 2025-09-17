@@ -232,9 +232,17 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
 
     std::deque<double> pending_numbers;
     std::size_t pending_line_number = 0;
+    std::vector<double> current_row_numbers;
+    std::size_t current_row_start_line = 0;
 
     const auto flush_pending_numbers = [&](std::size_t line_number, bool final_flush) {
         if (pending_numbers.empty()) {
+            if (final_flush && !current_row_numbers.empty()) {
+                const std::size_t line_ref = current_row_start_line != 0 ? current_row_start_line :
+                                             (pending_line_number != 0 ? pending_line_number : line_number);
+                throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name +
+                                         " is incomplete");
+            }
             return;
         }
 
@@ -267,28 +275,77 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
             return;
         }
 
-        while (pending_numbers.size() >= expected_cols) {
-            std::vector<double> numbers;
-            numbers.reserve(expected_cols);
-            for (std::size_t idx = 0; idx < expected_cols; ++idx) {
-                numbers.push_back(pending_numbers.front());
-                pending_numbers.pop_front();
-            }
+        std::size_t rows_started_this_call = 0;
+        const bool row_in_progress_at_entry = !current_row_numbers.empty();
+        bool started_row_this_call = false;
 
-            frequencies_hz.push_back(numbers[0] * freq_scale);
-            for (std::size_t idx = 0; idx < values_per_row; ++idx) {
-                const double a = numbers[1 + idx * 2];
-                const double b = numbers[1 + idx * 2 + 1];
-                sparams_values.push_back(pair_to_complex(a, b, opts.format));
-            }
-            pending_line_number = line_number;
+        if (!current_row_numbers.empty() && current_row_start_line == 0) {
+            current_row_start_line = pending_line_number != 0 ? pending_line_number : line_number;
         }
 
-        if (pending_numbers.empty()) {
+        if (current_row_numbers.empty() && pending_line_number != 0 && current_row_start_line == 0) {
+            current_row_start_line = pending_line_number;
+        }
+
+        while (!pending_numbers.empty()) {
+            if (expected_cols > 0 && current_row_numbers.empty()) {
+                if (current_row_start_line == 0) {
+                    current_row_start_line = pending_line_number != 0 ? pending_line_number : line_number;
+                }
+                if (!final_flush) {
+                    if (row_in_progress_at_entry && !started_row_this_call) {
+                        const std::size_t line_ref = current_row_start_line != 0 ? current_row_start_line : line_number;
+                        throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name +
+                                                 " has too many values");
+                    }
+                    ++rows_started_this_call;
+                    if (rows_started_this_call > 1) {
+                        const std::size_t line_ref = current_row_start_line != 0 ? current_row_start_line : line_number;
+                        throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name +
+                                                 " has too many values");
+                    }
+                }
+                started_row_this_call = true;
+            }
+
+            current_row_numbers.push_back(pending_numbers.front());
+            pending_numbers.pop_front();
+
+            if (expected_cols > 0 && current_row_numbers.size() > expected_cols) {
+                const std::size_t line_ref = current_row_start_line != 0 ? current_row_start_line : line_number;
+                throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name +
+                                         " has too many values");
+            }
+
+            if (expected_cols > 0 && current_row_numbers.size() == expected_cols) {
+                frequencies_hz.push_back(current_row_numbers[0] * freq_scale);
+                for (std::size_t idx = 0; idx < values_per_row; ++idx) {
+                    const double a = current_row_numbers[1 + idx * 2];
+                    const double b = current_row_numbers[1 + idx * 2 + 1];
+                    sparams_values.push_back(pair_to_complex(a, b, opts.format));
+                }
+                current_row_numbers.clear();
+                current_row_start_line = 0;
+                pending_line_number = pending_numbers.empty() ? 0 : line_number;
+            }
+        }
+
+        if (!pending_numbers.empty()) {
+            pending_line_number = line_number;
+        } else if (!current_row_numbers.empty()) {
+            if (current_row_start_line == 0) {
+                current_row_start_line = pending_line_number != 0 ? pending_line_number : line_number;
+            }
+            pending_line_number = current_row_start_line;
+        } else {
             pending_line_number = 0;
-        } else if (final_flush) {
-            const std::size_t line_ref = pending_line_number != 0 ? pending_line_number : line_number;
-            throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name + " is incomplete");
+        }
+
+        if (final_flush && !current_row_numbers.empty()) {
+            const std::size_t line_ref = current_row_start_line != 0 ? current_row_start_line :
+                                         (pending_line_number != 0 ? pending_line_number : line_number);
+            throw std::runtime_error("Row starting near line " + std::to_string(line_ref) + " in " + source_name +
+                                     " is incomplete");
         }
     };
 
@@ -309,8 +366,9 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
 
         if (trimmed[0] == '#') {
             flush_pending_numbers(physical_line_number, false);
-            if (!pending_numbers.empty()) {
-                const std::size_t line_ref = pending_line_number != 0 ? pending_line_number : physical_line_number;
+            if (!pending_numbers.empty() || !current_row_numbers.empty()) {
+                const std::size_t line_ref = pending_line_number != 0 ? pending_line_number :
+                                             (current_row_start_line != 0 ? current_row_start_line : physical_line_number);
                 throw std::runtime_error("Dangling data before options line near line " + std::to_string(line_ref) + " in " + source_name);
             }
             opts = parse_options_line(trimmed);
@@ -328,7 +386,7 @@ TouchstoneData parse_touchstone_stream(std::istream& in, const std::string& sour
             continue;
         }
 
-        if (pending_numbers.empty()) {
+        if (pending_numbers.empty() && current_row_numbers.empty()) {
             pending_line_number = physical_line_number;
         }
 
