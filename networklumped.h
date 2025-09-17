@@ -24,6 +24,7 @@ public:
     NetworkLumped(NetworkType type, std::initializer_list<double> values, QObject *parent = nullptr);
 
     QString name() const override;
+    QString displayName() const override;
     Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
     Network* clone(QObject* parent = nullptr) const override;
@@ -49,6 +50,7 @@ private:
 
     void initializeParameters(const QVector<double>& values);
     double parameterValueSI(int index) const;
+    QString typeName() const;
 };
 
 #endif // NETWORKLUMPED_H
