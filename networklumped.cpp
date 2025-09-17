@@ -1,22 +1,50 @@
 #include "networklumped.h"
 #include <complex>
 #include <cmath>
+#include <QStringList>
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
+
+QVector<double> toVector(std::initializer_list<double> list)
+{
+    QVector<double> values;
+    values.reserve(static_cast<int>(list.size()));
+    for (double v : list) {
+        values.append(v);
+    }
+    return values;
+}
 }
 
-NetworkLumped::NetworkLumped(NetworkType type, double value, QObject *parent)
-    : Network(parent), m_type(type), m_value(value)
+NetworkLumped::NetworkLumped(NetworkType type, QObject *parent)
+    : NetworkLumped(type, QVector<double>(), parent)
 {
+}
+
+NetworkLumped::NetworkLumped(NetworkType type, const QVector<double>& values, QObject *parent)
+    : Network(parent), m_type(type)
+{
+    initializeParameters(values);
     m_fmin = 1e6;
     m_fmax = 50e9;
     m_is_visible = false;
 }
 
+NetworkLumped::NetworkLumped(NetworkType type, std::initializer_list<double> values, QObject *parent)
+    : NetworkLumped(type, toVector(values), parent)
+{
+}
+
 Network* NetworkLumped::clone(QObject* parent) const
 {
-    NetworkLumped* copy = new NetworkLumped(m_type, m_value, parent);
+    QVector<double> values;
+    values.reserve(m_parameters.size());
+    for (const auto& parameter : m_parameters) {
+        values.append(parameter.value);
+    }
+
+    NetworkLumped* copy = new NetworkLumped(m_type, values, parent);
     copy->setColor(m_color);
     copy->setVisible(m_is_visible);
     copy->setUnwrapPhase(m_unwrap_phase);
@@ -30,15 +58,25 @@ QString NetworkLumped::name() const
 {
     QString name;
     switch (m_type) {
-    case NetworkType::R_series: name = "R_series"; break;
-    case NetworkType::R_shunt:  name = "R_shunt";  break;
-    case NetworkType::C_series: name = "C_series"; break;
-    case NetworkType::C_shunt:  name = "C_shunt";  break;
-    case NetworkType::L_series: name = "L_series"; break;
-    case NetworkType::L_shunt:  name = "L_shunt";  break;
-    case NetworkType::TransmissionLine: name = "TL_50ohm"; break;
+    case NetworkType::R_series: name = QStringLiteral("R_series"); break;
+    case NetworkType::R_shunt:  name = QStringLiteral("R_shunt");  break;
+    case NetworkType::C_series: name = QStringLiteral("C_series"); break;
+    case NetworkType::C_shunt:  name = QStringLiteral("C_shunt");  break;
+    case NetworkType::L_series: name = QStringLiteral("L_series"); break;
+    case NetworkType::L_shunt:  name = QStringLiteral("L_shunt");  break;
+    case NetworkType::TransmissionLine: name = QStringLiteral("TL_50Ω"); break;
     }
-    return name + "_" + Network::formatEngineering(m_value);
+    QStringList parameterParts;
+    for (const auto& parameter : m_parameters) {
+        parameterParts.append(QStringLiteral("%1=%2").arg(parameter.description,
+                                                          Network::formatEngineering(parameter.value)));
+    }
+
+    if (!parameterParts.isEmpty()) {
+        name += QLatin1Char('_') + parameterParts.join(QLatin1Char('_'));
+    }
+
+    return name;
 }
 
 Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
@@ -55,26 +93,32 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
 
         switch (m_type) {
         case NetworkType::R_series:
-            abcd_point(0, 1) = m_value;
+            abcd_point(0, 1) = parameterValueSI(0);
             break;
         case NetworkType::R_shunt:
-            abcd_point(1, 0) = 1.0 / m_value;
+            abcd_point(1, 0) = 1.0 / parameterValueSI(0);
             break;
-        case NetworkType::C_series:
-            abcd_point(0, 1) = 1.0 / (j * w * m_value);
+        case NetworkType::C_series: {
+            std::complex<double> impedance = 1.0 / (j * w * parameterValueSI(0));
+            abcd_point(0, 1) = impedance;
             break;
+        }
         case NetworkType::C_shunt:
-            abcd_point(1, 0) = j * w * m_value;
+            abcd_point(1, 0) = j * w * parameterValueSI(0);
             break;
-        case NetworkType::L_series:
-            abcd_point(0, 1) = j * w * m_value;
+        case NetworkType::L_series: {
+            std::complex<double> impedance = parameterValueSI(1) + j * w * parameterValueSI(0);
+            abcd_point(0, 1) = impedance;
             break;
-        case NetworkType::L_shunt:
-            abcd_point(1, 0) = 1.0 / (j * w * m_value);
+        }
+        case NetworkType::L_shunt: {
+            std::complex<double> impedance = parameterValueSI(1) + j * w * parameterValueSI(0);
+            abcd_point(1, 0) = 1.0 / impedance;
             break;
+        }
         case NetworkType::TransmissionLine: {
             double beta = w / c0;
-            double theta = beta * m_value;
+            double theta = beta * parameterValueSI(0);
             double cos_theta = std::cos(theta);
             double sin_theta = std::sin(theta);
             abcd_point(0, 0) = cos_theta;
@@ -144,10 +188,84 @@ QVector<double> NetworkLumped::frequencies() const
 
 double NetworkLumped::value() const
 {
-    return m_value;
+    if (m_parameters.isEmpty())
+        return 0.0;
+    return m_parameters.first().value;
 }
 
 void NetworkLumped::setValue(double value)
 {
-    m_value = value;
+    setParameterValue(0, value);
+}
+
+int NetworkLumped::parameterCount() const
+{
+    return m_parameters.size();
+}
+
+QString NetworkLumped::parameterDescription(int index) const
+{
+    if (index < 0 || index >= m_parameters.size())
+        return QString();
+    return m_parameters.at(index).description;
+}
+
+double NetworkLumped::parameterValue(int index) const
+{
+    if (index < 0 || index >= m_parameters.size())
+        return 0.0;
+    return m_parameters.at(index).value;
+}
+
+void NetworkLumped::setParameterValue(int index, double value)
+{
+    if (index < 0 || index >= m_parameters.size())
+        return;
+    m_parameters[index].value = value;
+}
+
+void NetworkLumped::initializeParameters(const QVector<double>& values)
+{
+    m_parameters.clear();
+
+    const QString resistanceLabel = QStringLiteral("R_Ω");
+    const QString seriesResistanceLabel = QStringLiteral("R_ser_Ω");
+
+    switch (m_type) {
+    case NetworkType::R_series:
+        m_parameters.append({resistanceLabel, 50.0, 1.0});
+        break;
+    case NetworkType::R_shunt:
+        m_parameters.append({resistanceLabel, 50.0, 1.0});
+        break;
+    case NetworkType::C_series:
+        m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
+        break;
+    case NetworkType::C_shunt:
+        m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
+        break;
+    case NetworkType::L_series:
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+        m_parameters.append({seriesResistanceLabel, 1.0, 1.0});
+        break;
+    case NetworkType::L_shunt:
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+        m_parameters.append({seriesResistanceLabel, 1.0, 1.0});
+        break;
+    case NetworkType::TransmissionLine:
+        m_parameters.append({QStringLiteral("Len_m"), 1e-3, 1.0});
+        break;
+    }
+
+    for (int i = 0; i < values.size() && i < m_parameters.size(); ++i) {
+        m_parameters[i].value = values.at(i);
+    }
+}
+
+double NetworkLumped::parameterValueSI(int index) const
+{
+    if (index < 0 || index >= m_parameters.size())
+        return 0.0;
+    const auto &parameter = m_parameters.at(index);
+    return parameter.value * parameter.scale;
 }

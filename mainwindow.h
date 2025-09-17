@@ -75,6 +75,10 @@ private:
     void setupViews();
     void setupTableColumns(QTableView* view);
     void populateLumpedNetworkTable();
+    void configureLumpedAndCascadeColumns(int parameterCount);
+    void appendParameterItems(QList<QStandardItem*>& row, Network* network);
+    bool isParameterValueColumn(int column) const;
+    int parameterIndexFromColumn(int column) const;
     void updateGraphSelectionFromTables();
 
 
@@ -87,6 +91,8 @@ private:
     NetworkItemModel* m_network_files_model;
     NetworkItemModel* m_network_lumped_model;
     NetworkItemModel* m_network_cascade_model;
+
+    int m_lumpedParameterCount;
 
     enum class SelectionOrigin
     {

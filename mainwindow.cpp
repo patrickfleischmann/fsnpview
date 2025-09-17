@@ -23,6 +23,7 @@
 #include <QFont>
 #include <QStyle>
 #include <QApplication>
+#include <QStringList>
 
 #include <algorithm>
 
@@ -54,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_network_files_model(new NetworkItemModel(this))
     , m_network_lumped_model(new NetworkItemModel(this))
     , m_network_cascade_model(new NetworkItemModel(this))
+    , m_lumpedParameterCount(0)
     , m_lastSelectionOrigin(SelectionOrigin::None)
 {
     ui->setupUi(this);
@@ -114,12 +116,12 @@ void MainWindow::setupModels()
     m_network_files_model->setHorizontalHeaderLabels({"  ", "  ", "File"}); //Plot, Color, File
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
-    m_network_lumped_model->setColumnCount(4);
-    m_network_lumped_model->setHorizontalHeaderLabels({"  ", "  ", "Name", "Value"}); //Plot, Color, Name Value
+    m_network_lumped_model->setColumnCount(3);
+    m_network_lumped_model->setHorizontalHeaderLabels({"  ", "  ", "Name"});
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
-    m_network_cascade_model->setColumnCount(4);
-    m_network_cascade_model->setHorizontalHeaderLabels({"  ", "  ", "Name", "Value"}); //Active, Color, Name, Value
+    m_network_cascade_model->setColumnCount(3);
+    m_network_cascade_model->setHorizontalHeaderLabels({"  ", "  ", "Name"});
     connect(m_network_cascade_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkCascadeModelChanged);
     connect(m_network_cascade_model, &NetworkItemModel::networkDropped, this, &MainWindow::onNetworkDropped);
 }
@@ -165,15 +167,83 @@ void MainWindow::setupTableColumns(QTableView* view)
     }
 }
 
+void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
+{
+    m_lumpedParameterCount = parameterCount;
+
+    QStringList headers = {"  ", "  ", "Name"};
+    for (int i = 0; i < parameterCount; ++i) {
+        headers << QStringLiteral("Param%1").arg(i + 1);
+        headers << QStringLiteral("Value%1").arg(i + 1);
+    }
+
+    m_network_lumped_model->setColumnCount(headers.size());
+    m_network_lumped_model->setHorizontalHeaderLabels(headers);
+
+    m_network_cascade_model->setColumnCount(headers.size());
+    m_network_cascade_model->setHorizontalHeaderLabels(headers);
+}
+
+void MainWindow::appendParameterItems(QList<QStandardItem*>& row, Network* network)
+{
+    auto lumped = dynamic_cast<NetworkLumped*>(network);
+    for (int paramIndex = 0; paramIndex < m_lumpedParameterCount; ++paramIndex) {
+        QStandardItem* descriptionItem = new QStandardItem();
+        descriptionItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+
+        QStandardItem* valueItem = new QStandardItem();
+        if (lumped && paramIndex < lumped->parameterCount()) {
+            descriptionItem->setText(lumped->parameterDescription(paramIndex));
+            valueItem->setText(Network::formatEngineering(lumped->parameterValue(paramIndex)));
+            valueItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEditable | Qt::ItemIsEnabled);
+        } else {
+            valueItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        }
+
+        row.append(descriptionItem);
+        row.append(valueItem);
+    }
+}
+
+bool MainWindow::isParameterValueColumn(int column) const
+{
+    if (column < 4)
+        return false;
+
+    int maxColumn = 3 + 2 * m_lumpedParameterCount;
+    if (column >= maxColumn)
+        return false;
+
+    return column % 2 == 0;
+}
+
+int MainWindow::parameterIndexFromColumn(int column) const
+{
+    if (!isParameterValueColumn(column))
+        return -1;
+    return (column - 4) / 2;
+}
+
 void MainWindow::populateLumpedNetworkTable()
 {
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_series, 50));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_shunt, 50));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_series, 1e-12));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, 1e-12));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, 1e-9));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, 1e-9));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, 1e-3));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_series, {50.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::R_shunt, {50.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_series, {1.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, {1.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, {1.0, 1.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, {1.0, 1.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1e-3}));
+
+    m_lumpedParameterCount = 0;
+    for (auto network_ptr : qAsConst(m_networks)) {
+        if (auto lumped = dynamic_cast<NetworkLumped*>(network_ptr)) {
+            m_lumpedParameterCount = std::max(m_lumpedParameterCount, lumped->parameterCount());
+        }
+    }
+
+    configureLumpedAndCascadeColumns(m_lumpedParameterCount);
+
+    m_network_lumped_model->removeRows(0, m_network_lumped_model->rowCount());
 
     for (auto network_ptr : qAsConst(m_networks)) {
         if (dynamic_cast<NetworkLumped*>(network_ptr)) {
@@ -191,12 +261,13 @@ void MainWindow::populateLumpedNetworkTable()
             QStandardItem* nameItem = new QStandardItem(network_ptr->name());
             nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             row.append(nameItem);
-            NetworkLumped* lumped = static_cast<NetworkLumped*>(network_ptr);
-            QStandardItem* valueItem = new QStandardItem(Network::formatEngineering(lumped->value()));
-            row.append(valueItem);
+            appendParameterItems(row, network_ptr);
             m_network_lumped_model->appendRow(row);
         }
     }
+
+    setupTableColumns(ui->tableViewNetworkLumped);
+    setupTableColumns(ui->tableViewCascade);
 }
 
 void MainWindow::processFiles(const QStringList &files, bool autoscale)
@@ -261,14 +332,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         QStandardItem* nameItem = new QStandardItem(cloned->name());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         items.append(nameItem);
-
-        QStandardItem* valueItem = new QStandardItem();
-        if (auto lumped = dynamic_cast<NetworkLumped*>(cloned)) {
-            valueItem->setText(Network::formatEngineering(lumped->value()));
-        } else {
-            valueItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-        }
-        items.append(valueItem);
+        appendParameterItems(items, cloned);
         m_network_cascade_model->insertRow(row, items);
     }
 
@@ -356,21 +420,27 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
             network->setVisible(item->checkState() == Qt::Checked);
             updatePlots();
         }
-    } else if (item->column() == 3) {
+    } else if (isParameterValueColumn(item->column())) {
+        int parameterIndex = parameterIndexFromColumn(item->column());
+        if (parameterIndex < 0)
+            return;
         quintptr net_ptr_val = m_network_lumped_model->item(item->row(), 0)->data(Qt::UserRole).value<quintptr>();
         NetworkLumped* network = dynamic_cast<NetworkLumped*>(reinterpret_cast<Network*>(net_ptr_val));
-        if(network) {
+        if(network && parameterIndex < network->parameterCount()) {
             bool ok = false;
             double val = item->text().toDouble(&ok);
             if (ok) {
-                network->setValue(val);
+                network->setParameterValue(parameterIndex, val);
                 m_network_lumped_model->item(item->row(), 2)->setText(network->name());
                 updatePlots();
             }
             {
                 QSignalBlocker blocker(m_network_lumped_model);
-                item->setText(Network::formatEngineering(network->value()));
+                item->setText(Network::formatEngineering(network->parameterValue(parameterIndex)));
             }
+        } else {
+            QSignalBlocker blocker(m_network_lumped_model);
+            item->setText(QString());
         }
     }
 }
@@ -384,21 +454,32 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
             network->setActive(item->checkState() == Qt::Checked);
             updatePlots();
         }
-    } else if (item->column() == 3) {
+    } else if (isParameterValueColumn(item->column())) {
+        int parameterIndex = parameterIndexFromColumn(item->column());
+        if (parameterIndex < 0)
+            return;
         quintptr net_ptr_val = m_network_cascade_model->item(item->row(), 0)->data(Qt::UserRole).value<quintptr>();
         Network* network_base = reinterpret_cast<Network*>(net_ptr_val);
         if(auto network = dynamic_cast<NetworkLumped*>(network_base)) {
+            if (parameterIndex >= network->parameterCount()) {
+                QSignalBlocker blocker(m_network_cascade_model);
+                item->setText(QString());
+                return;
+            }
             bool ok = false;
             double val = item->text().toDouble(&ok);
             if (ok) {
-                network->setValue(val);
+                network->setParameterValue(parameterIndex, val);
                 m_network_cascade_model->item(item->row(), 2)->setText(network->name());
                 updatePlots();
             }
             {
                 QSignalBlocker blocker(m_network_cascade_model);
-                item->setText(Network::formatEngineering(network->value()));
+                item->setText(Network::formatEngineering(network->parameterValue(parameterIndex)));
             }
+        } else {
+            QSignalBlocker blocker(m_network_cascade_model);
+            item->setText(QString());
         }
     }
 }
@@ -820,18 +901,22 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model) -> bool {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             QModelIndex index = view->indexAt(wheelEvent->position().toPoint());
-            if (!index.isValid() || index.column() != 3)
+            if (!index.isValid() || !isParameterValueColumn(index.column()))
+                return false;
+
+            int parameterIndex = parameterIndexFromColumn(index.column());
+            if (parameterIndex < 0)
                 return false;
 
             QStandardItem *ptrItem = model->item(index.row(), 0);
-            QStandardItem *valueItem = model->item(index.row(), 3);
+            QStandardItem *valueItem = model->item(index.row(), index.column());
             if (!ptrItem || !valueItem)
                 return false;
 
             quintptr ptrVal = ptrItem->data(Qt::UserRole).value<quintptr>();
             Network *network_base = reinterpret_cast<Network*>(ptrVal);
             auto network = dynamic_cast<NetworkLumped*>(network_base);
-            if (!network)
+            if (!network || parameterIndex >= network->parameterCount())
                 return false;
 
             bool ok = false;
