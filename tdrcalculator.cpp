@@ -103,6 +103,8 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
         for (int i = 0; i < n; ++i)
         {
             double w = 0.5 * (1.0 - std::cos(2.0 * kPi * static_cast<double>(i) / denomCount));
+            if (i == 0)
+                w = 1.0;
             uniformReflection(i) *= w;
         }
     }
@@ -142,11 +144,19 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     result.distance.reserve(half);
     result.impedance.reserve(half);
 
+    std::vector<std::complex<double>> stepResponse(static_cast<std::size_t>(half));
+    std::complex<double> cumulative(0.0, 0.0);
+    for (int i = 0; i < half; ++i)
+    {
+        cumulative += timeDomain[static_cast<std::size_t>(i)];
+        stepResponse[static_cast<std::size_t>(i)] = cumulative;
+    }
+
     for (int i = 0; i < half; ++i)
     {
         double time = dt * static_cast<double>(i);
         double distance = 0.5 * velocity * time;
-        const std::complex<double>& gamma = timeDomain[static_cast<std::size_t>(i)];
+        const std::complex<double>& gamma = stepResponse[static_cast<std::size_t>(i)];
         std::complex<double> numerator = std::complex<double>(1.0, 0.0) + gamma;
         std::complex<double> denominator = std::complex<double>(1.0, 0.0) - gamma;
         double impedanceValue;
