@@ -9,6 +9,10 @@ MOC_INCLUDES="$(pkg-config --cflags Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)"
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. tests/parser_touchstone_tests.cpp parser_touchstone.cpp -o parser_touchstone_tests
 
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/tdrcalculator_tests.cpp tdrcalculator.cpp \
+    -o tdrcalculator_tests $(pkg-config --cflags --libs Qt6Core)
+
 # Generate moc files for Qt classes
 $MOC $MOC_INCLUDES plotmanager.h -o moc_plotmanager.cpp
 $MOC $MOC_INCLUDES network.h -o moc_network.cpp
@@ -21,11 +25,12 @@ $MOC $MOC_INCLUDES qcustomplot.h -o moc_qcustomplot.cpp
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/gui_plot_tests.cpp plotmanager.cpp network.cpp networkfile.cpp \
     networklumped.cpp networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp \
+    tdrcalculator.cpp \
     moc_plotmanager.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp \
     moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o gui_plot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/networkcascade_tests.cpp parser_touchstone.cpp network.cpp networkfile.cpp \
-    networkcascade.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp \
+    networkcascade.cpp tdrcalculator.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp \
     -o networkcascade_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)
