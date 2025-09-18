@@ -30,24 +30,25 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     if (frequencyHz.size() == 0 || reflection.size() == 0 || frequencyHz.size() != reflection.size())
         return result;
 
+    // Gather finite samples
     std::vector<Sample> samples;
     samples.reserve(static_cast<std::size_t>(frequencyHz.size()));
     for (Eigen::Index i = 0; i < frequencyHz.size(); ++i)
     {
-        double freq = frequencyHz(i);
-        std::complex<double> value = reflection(i);
-        if (!isFiniteSample(freq, value))
+        double f = frequencyHz(i);
+        std::complex<double> r = reflection(i);
+        if (!isFiniteSample(f, r))
             continue;
-        samples.push_back({freq, value});
+        samples.push_back({f, r});
     }
-
     if (samples.size() < 2)
         return result;
 
-    std::sort(samples.begin(), samples.end(), [](const Sample& a, const Sample& b) {
-        return a.frequency < b.frequency;
-    });
+    // Sort by frequency
+    std::sort(samples.begin(), samples.end(),
+              [](const Sample& a, const Sample& b){ return a.frequency < b.frequency; });
 
+    // Ensure a DC bin exists (duplicate first sample’s value at 0 Hz if needed)
     if (samples.front().frequency > 0.0)
         samples.insert(samples.begin(), Sample{0.0, samples.front().reflection});
 
@@ -63,7 +64,8 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
         refl[i] = samples[static_cast<std::size_t>(i)].reflection;
     }
 
-    Eigen::ArrayXd uniformFreq(n);
+    // Uniform linear re-sampling from fmin..fmax (simple linear interpolation)
+    Eigen::ArrayXd  uniformFreq(n);
     Eigen::ArrayXcd uniformReflection(n);
 
     const double fmin = freq.front();
@@ -98,20 +100,43 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
         }
     }
 
+    // Optional low-pass (models source risetime)
+    if (params.risetime > 0.0 && params.filter != Parameters::FilterType::None)
+    {
+        double fc = 0.35 / params.risetime;
+        for (int i = 0; i < n; ++i)
+        {
+            double f = uniformFreq(i);
+            double H = 1.0;
+            if (params.filter == Parameters::FilterType::Gaussian)
+            {
+                H = std::exp(-std::pow(f / fc, 2));
+            }
+            else if (params.filter == Parameters::FilterType::RaisedCosine)
+            {
+                double roll = std::clamp(params.rolloff, 0.0, 1.0);
+                double f0 = (1.0 - roll) * fc;
+                double f1 = (1.0 + roll) * fc;
+                if (f <= f0)       H = 1.0;
+                else if (f >= f1)  H = 0.0;
+                else               H = 0.5 * (1.0 + std::cos(kPi * (f - f0) / (2.0 * roll * fc)));
+            }
+            uniformReflection(i) *= H;
+        }
+    }
+
+    // Hann taper (keep DC untouched)
     if (n > 1)
     {
         for (int i = 0; i < n; ++i)
         {
             double w = 0.5 * (1.0 - std::cos(2.0 * kPi * static_cast<double>(i) / denomCount));
-            if (i == 0)
-                w = 1.0;
+            if (i == 0) w = 1.0;
             uniformReflection(i) *= w;
         }
     }
 
-    if (n < 2)
-        return result;
-
+    // Build a Hermitian spectrum (length 2*m-1) so impulse is real
     const int m = n;
     const int nTime = 2 * m - 1;
     std::vector<std::complex<double>> spectrum(static_cast<std::size_t>(nTime), std::complex<double>(0.0, 0.0));
@@ -120,52 +145,45 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     for (int i = 1; i < m; ++i)
         spectrum[static_cast<std::size_t>(nTime - i)] = std::conj(uniformReflection(i));
 
+    // IFFT → impulse reflection
     Eigen::FFT<double> fft;
     std::vector<std::complex<double>> timeDomain;
     fft.inv(timeDomain, spectrum);
-
     if (timeDomain.size() != static_cast<std::size_t>(nTime))
         return result;
 
+    // Time grid
     const double df = (m > 1) ? (uniformFreq(1) - uniformFreq(0)) : 0.0;
-    if (df <= 0.0)
+    if (!(df > 0.0))
         return result;
-
     const double dt = 1.0 / (static_cast<double>(nTime) * df);
     if (!(dt > 0.0))
         return result;
 
-    std::vector<std::complex<double>> shifted(static_cast<std::size_t>(nTime));
-    const int shift = nTime / 2;
-    for (int i = 0; i < nTime; ++i)
-        shifted[static_cast<std::size_t>(i)] = timeDomain[static_cast<std::size_t>((i + shift) % nTime)];
-
-    const int positiveCount = nTime - shift;
-    if (positiveCount <= 0)
+    // Use the causal half of the impulse (no circular shifts)
+    const int positiveCount = nTime / 2;
+    if (positiveCount <= 1)
         return result;
 
-    std::vector<std::complex<double>> stepResponse(static_cast<std::size_t>(positiveCount));
-    stepResponse[0] = std::complex<double>(0.0, 0.0);
-    std::complex<double> cumulative(0.0, 0.0);
+    std::vector<std::complex<double>> gammaImpulse(static_cast<std::size_t>(positiveCount));
+    for (int i = 0; i < positiveCount; ++i)
+        gammaImpulse[static_cast<std::size_t>(i)] = timeDomain[static_cast<std::size_t>(i)];
+
+    // ---- CRITICAL: Step = cumulative sum WITHOUT multiplying by dt ----
+    std::vector<std::complex<double>> gammaStep(static_cast<std::size_t>(positiveCount));
+    gammaStep[0] = std::complex<double>(0.0, 0.0);
+    std::complex<double> acc(0.0, 0.0);
     for (int i = 1; i < positiveCount; ++i)
     {
-        const std::complex<double>& y0 = shifted[static_cast<std::size_t>(shift + i - 1)];
-        const std::complex<double>& y1 = shifted[static_cast<std::size_t>(shift + i)];
-        cumulative += 0.5 * (y0 + y1) * dt;
-        stepResponse[static_cast<std::size_t>(i)] = cumulative;
+        const auto& y0 = gammaImpulse[static_cast<std::size_t>(i - 1)];
+        const auto& y1 = gammaImpulse[static_cast<std::size_t>(i)];
+        acc += 0.5 * (y0 + y1);           // trapezoid, NO * dt
+        gammaStep[static_cast<std::size_t>(i)] = acc;
     }
 
-    const std::complex<double> dcReflection = uniformReflection(0);
-    const std::complex<double>& finalValue = stepResponse.back();
-    if (std::abs(finalValue) > std::numeric_limits<double>::epsilon())
-    {
-        const std::complex<double> scale = dcReflection / finalValue;
-        for (std::complex<double>& value : stepResponse)
-            value *= scale;
-    }
+    // Convert step reflection → impedance
     double effPerm = params.effectivePermittivity;
-    if (!(effPerm > 0.0))
-        effPerm = 1.0;
+    if (!(effPerm > 0.0)) effPerm = 1.0;
     const double velocity = params.speedOfLight / std::sqrt(effPerm);
 
     result.distance.reserve(static_cast<int>(positiveCount));
@@ -175,21 +193,19 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     {
         double time = dt * static_cast<double>(i);
         double distance = 0.5 * velocity * time;
-        const std::complex<double>& gamma = stepResponse[static_cast<std::size_t>(i)];
-        std::complex<double> numerator = std::complex<double>(1.0, 0.0) + gamma;
-        std::complex<double> denominator = std::complex<double>(1.0, 0.0) - gamma;
-        double impedanceValue;
-        if (std::abs(denominator) < 1e-12)
-        {
-            impedanceValue = std::numeric_limits<double>::quiet_NaN();
-        }
+
+        const std::complex<double>& g = gammaStep[static_cast<std::size_t>(i)];
+        std::complex<double> num = std::complex<double>(1.0, 0.0) + g;
+        std::complex<double> den = std::complex<double>(1.0, 0.0) - g;
+
+        double Z;
+        if (std::abs(den) < 1e-12)
+            Z = std::numeric_limits<double>::quiet_NaN();
         else
-        {
-            std::complex<double> impedance = params.referenceImpedance * numerator / denominator;
-            impedanceValue = impedance.real();
-        }
+            Z = (params.referenceImpedance * num / den).real();
+
         result.distance.append(distance);
-        result.impedance.append(impedanceValue);
+        result.impedance.append(Z);
     }
 
     return result;

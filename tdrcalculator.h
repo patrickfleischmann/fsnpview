@@ -8,20 +8,32 @@
 class TDRCalculator
 {
 public:
+
     struct Parameters
     {
+        enum class FilterType { None, Gaussian, RaisedCosine };
         constexpr Parameters(double referenceImpedance = 50.0,
                              double effectivePermittivity = 2.9,
-                             double speedOfLight = 299792458.0)
+                             double speedOfLight = 299792458.0,
+                             double risetime = 20e-12,
+                             enum FilterType filter = Parameters::FilterType::Gaussian,
+                             double rolloff = 0.5)
             : referenceImpedance(referenceImpedance),
               effectivePermittivity(effectivePermittivity),
-              speedOfLight(speedOfLight)
+              speedOfLight(speedOfLight),
+              risetime(risetime),
+              filter(filter),
+              rolloff(rolloff)
         {
         }
 
         double referenceImpedance;
         double effectivePermittivity;
         double speedOfLight;
+
+        double risetime;   // source risetime [s] (0 = ideal step)
+        enum FilterType filter;
+        double rolloff;    // only used for RaisedCosine, range 0..1
     };
 
     struct Result
