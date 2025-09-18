@@ -232,7 +232,7 @@ void MainWindow::populateLumpedNetworkTable()
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, {1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, {1.0, 1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, {1.0, 1.0}));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1e-3}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1e-3, 50.0}));
 
     m_lumpedParameterCount = 0;
     for (auto network_ptr : qAsConst(m_networks)) {
