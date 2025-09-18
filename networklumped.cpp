@@ -6,6 +6,7 @@
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
+constexpr double defaultTransmissionLineImpedance = 50.0;
 
 QVector<double> toVector(std::initializer_list<double> list)
 {
@@ -64,7 +65,7 @@ QString NetworkLumped::typeName() const
     case NetworkType::C_shunt:  return QStringLiteral("C_shunt");
     case NetworkType::L_series: return QStringLiteral("L_series");
     case NetworkType::L_shunt:  return QStringLiteral("L_shunt");
-    case NetworkType::TransmissionLine: return QStringLiteral("TL_50Ω");
+    case NetworkType::TransmissionLine: return QStringLiteral("TL");
     }
     return QString();
 }
@@ -94,7 +95,6 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
 {
     Eigen::MatrixXcd abcd_matrix(freq.size(), 4);
     std::complex<double> j(0, 1);
-    constexpr double z0 = 50.0;
     constexpr double c0 = 299792458.0; // Speed of light in vacuum (m/s)
 
     for (int i = 0; i < freq.size(); ++i) {
@@ -128,8 +128,12 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
             break;
         }
         case NetworkType::TransmissionLine: {
+            const double length = parameterValueSI(0);
+            double z0 = parameterValueSI(1);
+            if (z0 == 0.0)
+                z0 = defaultTransmissionLineImpedance;
             double beta = w / c0;
-            double theta = beta * parameterValueSI(0);
+            double theta = beta * length;
             double cos_theta = std::cos(theta);
             double sin_theta = std::sin(theta);
             abcd_point(0, 0) = cos_theta;
@@ -282,6 +286,7 @@ void NetworkLumped::initializeParameters(const QVector<double>& values)
         break;
     case NetworkType::TransmissionLine:
         m_parameters.append({QStringLiteral("Len_m"), 1e-3, 1.0});
+        m_parameters.append({QStringLiteral("Z0_Ω"), defaultTransmissionLineImpedance, 1.0});
         break;
     }
 
