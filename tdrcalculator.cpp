@@ -109,50 +109,69 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
         }
     }
 
-    int nFft = 1;
-    while (nFft < 2 * n)
-        nFft <<= 1;
+    if (n < 2)
+        return result;
 
-    std::vector<std::complex<double>> spectrum(static_cast<std::size_t>(nFft), std::complex<double>(0.0, 0.0));
-    for (int i = 0; i < n && i < nFft; ++i)
+    const int m = n;
+    const int nTime = 2 * m - 1;
+    std::vector<std::complex<double>> spectrum(static_cast<std::size_t>(nTime), std::complex<double>(0.0, 0.0));
+    for (int i = 0; i < m; ++i)
         spectrum[static_cast<std::size_t>(i)] = uniformReflection(i);
-    for (int i = 1; i < n && i < nFft; ++i)
-        spectrum[static_cast<std::size_t>(nFft - i)] = std::conj(uniformReflection(i));
+    for (int i = 1; i < m; ++i)
+        spectrum[static_cast<std::size_t>(nTime - i)] = std::conj(uniformReflection(i));
 
     Eigen::FFT<double> fft;
     std::vector<std::complex<double>> timeDomain;
     fft.inv(timeDomain, spectrum);
 
-    if (timeDomain.empty())
+    if (timeDomain.size() != static_cast<std::size_t>(nTime))
         return result;
 
-    const double df = (n > 1) ? (uniformFreq(1) - uniformFreq(0)) : 0.0;
+    const double df = (m > 1) ? (uniformFreq(1) - uniformFreq(0)) : 0.0;
     if (df <= 0.0)
         return result;
 
-    const double sampleRate = df * static_cast<double>(nFft);
-    if (sampleRate <= 0.0)
+    const double dt = 1.0 / (static_cast<double>(nTime) * df);
+    if (!(dt > 0.0))
         return result;
 
-    const double dt = 1.0 / sampleRate;
+    std::vector<std::complex<double>> shifted(static_cast<std::size_t>(nTime));
+    const int shift = nTime / 2;
+    for (int i = 0; i < nTime; ++i)
+        shifted[static_cast<std::size_t>(i)] = timeDomain[static_cast<std::size_t>((i + shift) % nTime)];
+
+    const int positiveCount = nTime - shift;
+    if (positiveCount <= 0)
+        return result;
+
+    std::vector<std::complex<double>> stepResponse(static_cast<std::size_t>(positiveCount));
+    stepResponse[0] = std::complex<double>(0.0, 0.0);
+    std::complex<double> cumulative(0.0, 0.0);
+    for (int i = 1; i < positiveCount; ++i)
+    {
+        const std::complex<double>& y0 = shifted[static_cast<std::size_t>(shift + i - 1)];
+        const std::complex<double>& y1 = shifted[static_cast<std::size_t>(shift + i)];
+        cumulative += 0.5 * (y0 + y1) * dt;
+        stepResponse[static_cast<std::size_t>(i)] = cumulative;
+    }
+
+    const std::complex<double> dcReflection = uniformReflection(0);
+    const std::complex<double>& finalValue = stepResponse.back();
+    if (std::abs(finalValue) > std::numeric_limits<double>::epsilon())
+    {
+        const std::complex<double> scale = dcReflection / finalValue;
+        for (std::complex<double>& value : stepResponse)
+            value *= scale;
+    }
     double effPerm = params.effectivePermittivity;
     if (!(effPerm > 0.0))
         effPerm = 1.0;
     const double velocity = params.speedOfLight / std::sqrt(effPerm);
 
-    const int half = nFft / 2;
-    result.distance.reserve(half);
-    result.impedance.reserve(half);
+    result.distance.reserve(static_cast<int>(positiveCount));
+    result.impedance.reserve(static_cast<int>(positiveCount));
 
-    std::vector<std::complex<double>> stepResponse(static_cast<std::size_t>(half));
-    std::complex<double> cumulative(0.0, 0.0);
-    for (int i = 0; i < half; ++i)
-    {
-        cumulative += timeDomain[static_cast<std::size_t>(i)];
-        stepResponse[static_cast<std::size_t>(i)] = cumulative;
-    }
-
-    for (int i = 0; i < half; ++i)
+    for (int i = 0; i < positiveCount; ++i)
     {
         double time = dt * static_cast<double>(i);
         double distance = 0.5 * velocity * time;
