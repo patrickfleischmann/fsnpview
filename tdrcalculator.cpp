@@ -3,209 +3,211 @@
 #include <unsupported/Eigen/FFT>
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <limits>
+#include <numeric>
 #include <vector>
 
-namespace
-{
+namespace {
+
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kC0 = 299792458.0;
 
-struct Sample
-{
-    double frequency;
-    std::complex<double> reflection;
-};
+// Next power of two >= n
+inline std::size_t NextPow2(std::size_t n) {
+    if (n == 0) return 1;
+    --n;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+#if ULONG_MAX > 0xffffffffUL
+    n |= n >> 32;
+#endif
+    return n + 1;
+}
 
-bool isFiniteSample(double frequency, const std::complex<double>& value)
-{
-    return std::isfinite(frequency) && std::isfinite(value.real()) && std::isfinite(value.imag());
+// Apply a cosine taper only at the high-frequency tail
+inline void ApplyHighEndCosineTaper(Eigen::ArrayXcd& oneSided, int edgeCount) {
+    const int n = static_cast<int>(oneSided.size());
+    if (n <= 2 || edgeCount <= 0 || edgeCount >= n) return;
+
+    for (int i = n - edgeCount; i < n; ++i) {
+        const double x = double(i - (n - edgeCount)) / double(edgeCount - 1); // 0..1
+        const double w = 0.5 * (1.0 + std::cos(kPi * x)); // 1 → 0
+        oneSided(i) *= w;
+    }
 }
-}
+
+} // namespace
 
 TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
                                              const Eigen::ArrayXcd& reflection,
                                              const Parameters& params) const
 {
     Result result;
-    if (frequencyHz.size() == 0 || reflection.size() == 0 || frequencyHz.size() != reflection.size())
+
+    // Basic validation
+    const Eigen::Index m = std::min(frequencyHz.size(), reflection.size());
+    if (m < 4) {
         return result;
-
-    // Gather finite samples
-    std::vector<Sample> samples;
-    samples.reserve(static_cast<std::size_t>(frequencyHz.size()));
-    for (Eigen::Index i = 0; i < frequencyHz.size(); ++i)
-    {
-        double f = frequencyHz(i);
-        std::complex<double> r = reflection(i);
-        if (!isFiniteSample(f, r))
-            continue;
-        samples.push_back({f, r});
-    }
-    if (samples.size() < 2)
-        return result;
-
-    // Sort by frequency
-    std::sort(samples.begin(), samples.end(),
-              [](const Sample& a, const Sample& b){ return a.frequency < b.frequency; });
-
-    // Ensure a DC bin exists (duplicate first sample’s value at 0 Hz if needed)
-    if (samples.front().frequency > 0.0)
-        samples.insert(samples.begin(), Sample{0.0, samples.front().reflection});
-
-    if (samples.back().frequency <= samples.front().frequency)
-        return result;
-
-    const int n = static_cast<int>(samples.size());
-    std::vector<double> freq(n);
-    std::vector<std::complex<double>> refl(n);
-    for (int i = 0; i < n; ++i)
-    {
-        freq[i] = samples[static_cast<std::size_t>(i)].frequency;
-        refl[i] = samples[static_cast<std::size_t>(i)].reflection;
     }
 
-    // Uniform linear re-sampling from fmin..fmax (simple linear interpolation)
-    Eigen::ArrayXd  uniformFreq(n);
-    Eigen::ArrayXcd uniformReflection(n);
+    // Copy + sort by frequency
+    Eigen::ArrayXd f = frequencyHz.head(m);
+    Eigen::ArrayXcd s11 = reflection.head(m);
+    std::vector<int> idx(m);
+    std::iota(idx.begin(), idx.end(), 0);
+    std::stable_sort(idx.begin(), idx.end(),
+                     [&](int a, int b){ return f(a) < f(b); });
 
-    const double fmin = freq.front();
-    const double fmax = freq.back();
-    const double denomCount = static_cast<double>(n - 1);
+    Eigen::ArrayXd f_sorted(m);
+    Eigen::ArrayXcd s11_sorted(m);
+    for (Eigen::Index i = 0; i < m; ++i) {
+        f_sorted(i) = f(idx[i]);
+        s11_sorted(i) = s11(idx[i]);
+    }
 
-    for (int i = 0; i < n; ++i)
-    {
-        double alpha = (n == 1) ? 0.0 : static_cast<double>(i) / denomCount;
-        double targetFreq = fmin + alpha * (fmax - fmin);
-        uniformFreq(i) = targetFreq;
+    // Estimate df
+    Eigen::ArrayXd df = f_sorted.tail(m - 1) - f_sorted.head(m - 1);
+    const double df_est = df.mean();
+    if (!(df_est > 0.0)) return result;
 
-        auto lower = std::lower_bound(freq.begin(), freq.end(), targetFreq);
-        if (lower == freq.begin())
-        {
-            uniformReflection(i) = refl.front();
-        }
-        else if (lower == freq.end())
-        {
-            uniformReflection(i) = refl.back();
-        }
-        else
-        {
-            int idx = static_cast<int>(std::distance(freq.begin(), lower));
-            double f2 = freq[static_cast<std::size_t>(idx)];
-            double f1 = freq[static_cast<std::size_t>(idx - 1)];
-            std::complex<double> r2 = refl[static_cast<std::size_t>(idx)];
-            std::complex<double> r1 = refl[static_cast<std::size_t>(idx - 1)];
-            double denom = f2 - f1;
-            double t = (std::abs(denom) > std::numeric_limits<double>::epsilon()) ? (targetFreq - f1) / denom : 0.0;
-            uniformReflection(i) = r1 + (r2 - r1) * t;
+    // Nfft size
+    const std::size_t minimalNfft = static_cast<std::size_t>(2 * (m - 1));
+    std::size_t Nfft = NextPow2(minimalNfft);
+    Nfft = std::max<std::size_t>(Nfft, (1u << 17));
+    const std::size_t nBins = Nfft / 2 + 1;
+
+    // Interpolate onto uniform bins
+    Eigen::ArrayXd f_bins(nBins);
+    for (std::size_t i = 0; i < nBins; ++i) f_bins(i) = df_est * double(i);
+
+    Eigen::ArrayXcd S11_bins(nBins);
+    const double fmax_meas = f_sorted(m - 1);
+    for (std::size_t i = 0; i < nBins; ++i) {
+        const double fb = f_bins(i);
+        if (fb > fmax_meas) {
+            S11_bins(i) = std::complex<double>(0.0, 0.0);
+        } else {
+            auto it = std::lower_bound(f_sorted.data(), f_sorted.data() + m, fb);
+            if (it == f_sorted.data()) {
+                S11_bins(i) = s11_sorted(0);
+            } else if (it == f_sorted.data() + m) {
+                S11_bins(i) = s11_sorted(m - 1);
+            } else {
+                const Eigen::Index hi = static_cast<Eigen::Index>(it - f_sorted.data());
+                const Eigen::Index lo = hi - 1;
+                const double f0 = f_sorted(lo), f1 = f_sorted(hi);
+                const double t  = (fb - f0) / (f1 - f0 + 1e-30);
+                const std::complex<double> y0 = s11_sorted(lo);
+                const std::complex<double> y1 = s11_sorted(hi);
+                S11_bins(i) = y0 + (y1 - y0) * t;
+            }
         }
     }
 
-    // Optional low-pass (models source risetime)
-    if (params.risetime > 0.0 && params.filter != Parameters::FilterType::None)
-    {
-        double fc = 0.35 / params.risetime;
-        for (int i = 0; i < n; ++i)
-        {
-            double f = uniformFreq(i);
+    // === Optional filter (safe) ===
+    if (params.risetime > 0.0 && params.filter != Parameters::FilterType::None) {
+        const double fc = 0.35 / params.risetime;
+        for (std::size_t i = 0; i < nBins; ++i) {
+            const double fcur = f_bins(i);
             double H = 1.0;
-            if (params.filter == Parameters::FilterType::Gaussian)
-            {
-                H = std::exp(-std::pow(f / fc, 2));
+            if (params.filter == Parameters::FilterType::Gaussian) {
+                H = std::exp(-std::pow(fcur / fc, 2.0));
+            } else if (params.filter == Parameters::FilterType::RaisedCosine) {
+                const double roll = std::clamp(params.rolloff, 0.0, 1.0);
+                const double f0 = (1.0 - roll) * fc;
+                const double f1 = (1.0 + roll) * fc;
+                if (fcur <= f0) {
+                    H = 1.0;
+                } else if (fcur >= f1) {
+                    H = 0.0;
+                } else {
+                    H = 0.5 * (1.0 + std::cos(kPi * (fcur - f0) / (2.0 * roll * fc)));
+                }
             }
-            else if (params.filter == Parameters::FilterType::RaisedCosine)
-            {
-                double roll = std::clamp(params.rolloff, 0.0, 1.0);
-                double f0 = (1.0 - roll) * fc;
-                double f1 = (1.0 + roll) * fc;
-                if (f <= f0)       H = 1.0;
-                else if (f >= f1)  H = 0.0;
-                else               H = 0.5 * (1.0 + std::cos(kPi * (f - f0) / (2.0 * roll * fc)));
-            }
-            uniformReflection(i) *= H;
+            S11_bins(i) *= H;
         }
     }
 
-    // Hann taper (keep DC untouched)
-    if (n > 1)
+    // === High-end cosine taper ===
     {
-        for (int i = 0; i < n; ++i)
-        {
-            double w = 0.5 * (1.0 - std::cos(2.0 * kPi * static_cast<double>(i) / denomCount));
-            if (i == 0) w = 1.0;
-            uniformReflection(i) *= w;
-        }
+        const int edge = std::max<int>(1, int(0.10 * (nBins - 1)));
+        ApplyHighEndCosineTaper(S11_bins, edge);
     }
 
-    // Build a Hermitian spectrum (length 2*m-1) so impulse is real
-    const int m = n;
-    const int nTime = 2 * m - 1;
-    std::vector<std::complex<double>> spectrum(static_cast<std::size_t>(nTime), std::complex<double>(0.0, 0.0));
-    for (int i = 0; i < m; ++i)
-        spectrum[static_cast<std::size_t>(i)] = uniformReflection(i);
-    for (int i = 1; i < m; ++i)
-        spectrum[static_cast<std::size_t>(nTime - i)] = std::conj(uniformReflection(i));
+    // Build Hermitian spectrum
+    std::vector<std::complex<double>> specFull(Nfft, {0.0, 0.0});
+    for (std::size_t i = 0; i < nBins; ++i) {
+        specFull[i] = S11_bins(i);
+    }
+    for (std::size_t i = 1; i < nBins; ++i) {
+        specFull[Nfft - i] = std::conj(S11_bins(i));
+    }
 
-    // IFFT → impulse reflection
+    // IFFT → impulse response
     Eigen::FFT<double> fft;
-    std::vector<std::complex<double>> timeDomain;
-    fft.inv(timeDomain, spectrum);
-    if (timeDomain.size() != static_cast<std::size_t>(nTime))
-        return result;
+    std::vector<std::complex<double>> timeCmplx(Nfft);
+    fft.inv(timeCmplx, specFull);
 
-    // Time grid
-    const double df = (m > 1) ? (uniformFreq(1) - uniformFreq(0)) : 0.0;
-    if (!(df > 0.0))
-        return result;
-    const double dt = 1.0 / (static_cast<double>(nTime) * df);
-    if (!(dt > 0.0))
-        return result;
-
-    // Use the causal half of the impulse (no circular shifts)
-    const int positiveCount = nTime / 2;
-    if (positiveCount <= 1)
-        return result;
-
-    std::vector<std::complex<double>> gammaImpulse(static_cast<std::size_t>(positiveCount));
-    for (int i = 0; i < positiveCount; ++i)
-        gammaImpulse[static_cast<std::size_t>(i)] = timeDomain[static_cast<std::size_t>(i)];
-
-    // ---- CRITICAL: Step = cumulative sum WITHOUT multiplying by dt ----
-    std::vector<std::complex<double>> gammaStep(static_cast<std::size_t>(positiveCount));
-    gammaStep[0] = std::complex<double>(0.0, 0.0);
-    std::complex<double> acc(0.0, 0.0);
-    for (int i = 1; i < positiveCount; ++i)
-    {
-        const auto& y0 = gammaImpulse[static_cast<std::size_t>(i - 1)];
-        const auto& y1 = gammaImpulse[static_cast<std::size_t>(i)];
-        acc += 0.5 * (y0 + y1);           // trapezoid, NO * dt
-        gammaStep[static_cast<std::size_t>(i)] = acc;
+    Eigen::ArrayXd h(Nfft);
+    for (std::size_t i = 0; i < Nfft; ++i) {
+        h(i) = timeCmplx[i].real();
     }
 
-    // Convert step reflection → impedance
-    double effPerm = params.effectivePermittivity;
-    if (!(effPerm > 0.0)) effPerm = 1.0;
-    const double velocity = params.speedOfLight / std::sqrt(effPerm);
+    // Step response = cumulative sum
+    Eigen::ArrayXd rho(Nfft);
+    double acc = 0.0;
+    for (std::size_t i = 0; i < Nfft; ++i) {
+        acc += h(i);
+        rho(i) = acc;
+    }
 
-    result.distance.reserve(static_cast<int>(positiveCount));
-    result.impedance.reserve(static_cast<int>(positiveCount));
-
-    for (int i = 0; i < positiveCount; ++i)
+    // Baseline correction
     {
-        double time = dt * static_cast<double>(i);
-        double distance = 0.5 * velocity * time;
+        const std::size_t k = std::min<std::size_t>(Nfft, 64);
+        double base = 0.0;
+        for (std::size_t i = 0; i < k; ++i) base += rho(i);
+        base /= double(k);
+        for (std::size_t i = 0; i < Nfft; ++i) rho(i) -= base;
+    }
 
-        const std::complex<double>& g = gammaStep[static_cast<std::size_t>(i)];
-        std::complex<double> num = std::complex<double>(1.0, 0.0) + g;
-        std::complex<double> den = std::complex<double>(1.0, 0.0) - g;
+    // Clamp
+    for (std::size_t i = 0; i < Nfft; ++i) {
+        if (rho(i) > 0.999) rho(i) = 0.999;
+        if (rho(i) < -0.999) rho(i) = -0.999;
+    }
 
-        double Z;
-        if (std::abs(den) < 1e-12)
-            Z = std::numeric_limits<double>::quiet_NaN();
-        else
-            Z = (params.referenceImpedance * num / den).real();
+    // Convert to impedance
+    const double Z0 = params.referenceImpedance;
+    Eigen::ArrayXd Z(Nfft);
+    for (std::size_t i = 0; i < Nfft; ++i) {
+        const double g = rho(i);
+        const double den = 1.0 - g;
+        if (std::abs(den) < 1e-14) {
+            Z(i) = std::numeric_limits<double>::quiet_NaN();
+        } else {
+            Z(i) = Z0 * (1.0 + g) / den;
+        }
+    }
 
-        result.distance.append(distance);
-        result.impedance.append(Z);
+    // Time and distance axes
+    const double fmax = df_est * double(nBins - 1);
+    const double fs   = 2.0 * fmax;
+    const double dt   = (fs > 0.0) ? (1.0 / fs) : 0.0;
+
+    const double er_eff = std::max(params.effectivePermittivity, 1.0);
+    const double v = kC0 / std::sqrt(er_eff);
+
+    result.distance.reserve(static_cast<int>(Nfft));
+    result.impedance.reserve(static_cast<int>(Nfft));
+    for (std::size_t i = 0; i < Nfft; ++i) {
+        const double t  = dt * double(i);
+        const double d  = 0.5 * v * t; // round-trip
+        result.distance.append(d);
+        result.impedance.append(Z(i));
     }
 
     return result;
