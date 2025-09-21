@@ -2,6 +2,7 @@
 
 This document provides instructions for setting up the build environment and compiling the `fsnpview` project on a Linux system.
 Do not remove any Windows-related stuff just because you are working on a linux system. Use include guards if you need to.
+Do not remove debug prints unless you are specifically asked to.
 
 ## 1. Dependencies
 
