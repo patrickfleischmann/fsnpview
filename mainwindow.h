@@ -48,6 +48,11 @@ private slots:
     void on_checkBoxS21_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxS31_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxS32_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxS13_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxS23_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxS33_checkStateChanged(const Qt::CheckState &arg1);
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1);

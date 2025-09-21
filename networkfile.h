@@ -17,6 +17,7 @@ public:
     Network* clone(QObject* parent = nullptr) const override;
 
     QVector<double> frequencies() const override;
+    int portCount() const override;
 
 
     QString filePath() const;

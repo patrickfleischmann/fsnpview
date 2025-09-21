@@ -384,8 +384,13 @@ void MainWindow::updatePlots()
     QStringList checked_sparams;
     if (ui->checkBoxS11->isChecked()) checked_sparams << "s11";
     if (ui->checkBoxS21->isChecked()) checked_sparams << "s21";
+    if (ui->checkBoxS31->isChecked()) checked_sparams << "s31";
     if (ui->checkBoxS12->isChecked()) checked_sparams << "s12";
     if (ui->checkBoxS22->isChecked()) checked_sparams << "s22";
+    if (ui->checkBoxS32->isChecked()) checked_sparams << "s32";
+    if (ui->checkBoxS13->isChecked()) checked_sparams << "s13";
+    if (ui->checkBoxS23->isChecked()) checked_sparams << "s23";
+    if (ui->checkBoxS33->isChecked()) checked_sparams << "s33";
 
     PlotType type = PlotType::Magnitude;
     if (ui->checkBoxTDR->isChecked())
@@ -862,6 +867,36 @@ void MainWindow::on_checkBoxS12_checkStateChanged(const Qt::CheckState &arg1)
 }
 
 void MainWindow::on_checkBoxS22_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxS31_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxS32_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxS13_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxS23_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    updatePlots();
+}
+
+void MainWindow::on_checkBoxS33_checkStateChanged(const Qt::CheckState &arg1)
 {
     Q_UNUSED(arg1);
     updatePlots();

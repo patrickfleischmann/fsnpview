@@ -415,12 +415,49 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     if (type == PlotType::Smith)
         clearSmithMarkers();
 
+    auto parseSparamPorts = [](const QString &sparam, int &outputPort, int &inputPort) -> bool
+    {
+        if (sparam.size() < 3)
+            return false;
+        if (sparam.at(0).toLower() != QLatin1Char('s'))
+            return false;
+
+        QString portsPart = sparam.mid(1);
+        if (portsPart.size() % 2 != 0)
+            return false;
+
+        int half = portsPart.size() / 2;
+        if (half <= 0)
+            return false;
+
+        bool okOutput = false;
+        bool okInput = false;
+        outputPort = portsPart.left(half).toInt(&okOutput);
+        inputPort = portsPart.mid(half).toInt(&okInput);
+        return okOutput && okInput;
+    };
+
+    auto indexForNetwork = [&](Network *network, const QString &sparam) -> int
+    {
+        if (!network)
+            return -1;
+
+        int outputPort = 0;
+        int inputPort = 0;
+        if (!parseSparamPorts(sparam, outputPort, inputPort))
+            return -1;
+
+        int ports = network->portCount();
+        if (ports <= 0)
+            return -1;
+
+        if (outputPort < 1 || inputPort < 1 || outputPort > ports || inputPort > ports)
+            return -1;
+
+        return (inputPort - 1) * ports + (outputPort - 1);
+    };
+
     for (const auto& sparam : sparams) {
-        int sparam_idx_to_plot = -1;
-        if (sparam == "s11") sparam_idx_to_plot = 0;
-        else if (sparam == "s21") sparam_idx_to_plot = 1;
-        else if (sparam == "s12") sparam_idx_to_plot = 2;
-        else if (sparam == "s22") sparam_idx_to_plot = 3;
 
         // Individual networks
         for (auto network : qAsConst(m_networks)) {
@@ -436,7 +473,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 }
             }
 
-            auto plotData = network->getPlotData(sparam_idx_to_plot, type);
+            QPair<QVector<double>, QVector<double>> plotData;
+            int sparam_idx_to_plot = indexForNetwork(network, sparam);
+            if (sparam_idx_to_plot >= 0)
+                plotData = network->getPlotData(sparam_idx_to_plot, type);
             if (plotData.first.isEmpty() || plotData.second.isEmpty()) {
                 if (pl) {
                     if (type == PlotType::Smith) {
@@ -489,7 +529,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 }
             }
 
-            auto plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
+            QPair<QVector<double>, QVector<double>> plotData;
+            int sparam_idx_to_plot = indexForNetwork(m_cascade, sparam);
+            if (sparam_idx_to_plot >= 0)
+                plotData = m_cascade->getPlotData(sparam_idx_to_plot, type);
             if (plotData.first.isEmpty() || plotData.second.isEmpty()) {
                 if (pl) {
                     if (type == PlotType::Smith) {
