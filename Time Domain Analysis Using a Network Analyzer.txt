@@ -1,0 +1,818 @@
+APPLICATION NOTE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Time Domain Analysis Using a Network Analyzer
+
+Table of Contents
+1.0 Introduction	3
+2.0 Time Domain and the Network Analyzer	6
+3.0 Theoretical Issues with Time Domain	8
+4.0 Time Domain Modes with a VNA	12
+5.0 Windowing	19
+6.0 Gating	21
+7.0 Masking	27
+8.0 Measurement Range	30
+9.0 Resolution	32
+10.0 Conclusion	39
+Appendix A	40
+Appendix B	46
+Bibliography	53
+
+1.0 Introduction
+Time domain analysis is useful for measuring impedance values along a transmission line and for evaluating a device problem (discontinuity) in time or distance. Time domain display provides a more intuitive and direct look at the device under test (DUT) characteristics. In addition, it gives more meaningful information concerning the broadband response of a transmission system than other measuring techniques by showing the effect of each discontinuity as a function of time or distance. This document will focus on time domain analysis (displays) generated from vector network analyzers (VNAs). The intent is to provide engineers with frequency domain background, an in-depth view of how a time domain display is created from frequency domain data (S-parameters) and how to apply the time domain display to common problems in RF systems.
+Keysight Technologies offers other documents that cover in detail the use of time domain displays (using data captured with either a time domain reflectometer (oscilloscope) or VNA). See the bibliography for more details.
+
+
+
+
+1.1 A note on naming conventions
+The term time domain can mean different things, depending on the context. For the purposes of this application note, the following conventions will be used:
+Time domain: refers to time domain analysis or display(s), as defined by an X-Y graph where the X-axis is either distance (electrical length) or time and the Y-axis is magnitude (typically impedance or voltage).
+Time domain reflectometry (TDR): refers to the method of measurement using a fast step generator and a receiver to measure either transmission or reflection. TDR is the common name for an oscilloscope with this capability. Note that a TDR with appropriate software can generate S-parameters (see Figure 1).
+Vector network analyzer (VNA): refers to ratioed measurements where a swept CW source is tracked by a reflection or transmission receiver and results are typically displayed as S-parameters. This document will focus on how S-parameter data captured using a VNA can be transformed into a time domain display.
+
+1.2 History of TDR and time domain analysis
+The measurement technique of time domain reflectometry (TDR) was introduced in the early 1960's and works on the same principle as radar. A pulse of energy is transmitted down a cable (or other device - not necessarily a good conductor). When that pulse reaches the end of the cable, or a fault along the cable, part or all of the pulse energy is reflected back to the instrument. TDR measurements are made by launching an impulse or a step into the test device and observing the response in time. Using a step generator and a broadband oscilloscope, a fast edge is launched into the transmission line. The incident and reflected voltage waves are monitored by the broadband oscilloscope at a particular point on the line. By measuring the ratio of the input voltage to the reflected voltage, the impedance of simple discontinuities can be calculated. The position of the discontinuity can also be calculated as a function of time by applying the velocity of propagation along the transmission line. The type of discontinuity (capacitive or inductive) can be identified by its response.
+While the traditional TDR oscilloscope was useful as a qualitative tool, there were limitations that affected its accuracy and usefulness; a) TDR output step rise time - the spatial resolution of the measurement depends upon the step rise time; b) poor signal-to-noise ratio due to the wideband receiver architecture.8
+Then, in the 70's, it was shown that the relationship between the frequency domain and the time domain could be described using the Fourier Transform. The Fourier Transform of the network reflection coefficient as a function of frequency is the reflection coefficient as a function of time; i.e., the distance along a transmission line. It was possible to measure the response of a DUT in the frequency domain and then mathematically calculate the inverse Fourier Transform of the data to give the time domain response.
+A high performance VNA combined with fast computation power created unique measurement capabilities. Using error-corrected data measured in the frequency domain, the response of a network to step and impulse time stimuli can be calculated and displayed as a function of time. This gives traditional time domain reflectometry capability in reflection and transmission and adds measurement capability of band-limited networks. By locating network elements in time and removing their effects from measured data, the vector network analyzer makes more precise frequency domain measurements possible.
+Figure 1 shows how both time domain and frequency domain (S-parameter) displays can be generated by either a time domain reflectometer (TDR) oscilloscope or a vector network analyzer (VNA). Data captured using either a TDR or VNA can be transformed into both displays.2
+
+
+
+Figure 1. Relationship between time domain, frequency domain, TDR, and VNA.
+
+2.0 Time Domain and the Network Analyzer
+Even though the VNA provides a TDR-like display, there are differences between traditional TDR and VNA time domain techniques. Traditional TDR measurements are made by launching an impulse or step into the test device and observing the response in time with a wideband receiver such as an oscilloscope. The transform used by the VNA resembles time domain reflectometry, however, the analyzer makes swept frequency response measurements and mathematically transforms the data into a TDR-like display. In low-pass mode, the VNA measures discrete positive frequency points, extrapolates DC, and assumes that the negative frequency response is the conjugate of the positive, i.e., that the response is hermitian2. In the bandpass mode, the VNA measures discrete frequency points centered between the start and stop frequencies and will work over any frequency range. Utilizing a narrowband receiver (an architecture with down-conversion and filtering to result in an intermediate frequency or IF), the VNA allows for greatly reduced system noise levels. This translates into enhanced signal-to-noise ratio and therefore superior dynamic range to a TDR. This is significant in applications where low levels of crosstalk need to be measured in the gigabit per second range and higher.
+In any case, time domain analysis continues to be an effective tool and has a wide variety of applications including fault location, identifying impedance variations in connectors, selectively removing unwanted responses, and simplifying filter tuning.
+
+2.1 Fault location
+Fault location is a powerful example of the bandpass mode of a VNA. When viewing the frequency domain response, there are ripples due to mismatches but it is impossible to tell where the major reflections are within the cable. What is seen are all the reflections in the cable added together at each frequency point to give the composite response of all the elements in the transmission line. When viewed in the time domain, not only are the large connector responses obvious, but any discontinuities due to bends or mismatches within the cable are seen as discrete inductive or capacitive impedance discontinuities. Any positive or negative reflection that deviates from the characteristic impedance is clearly apparent. The locations and magnitudes of these discontinuities are easily determined. Herein lies the intuitive nature of time domain analysis.
+
+2.2 Identify impedance variation in connectors
+Time domain analysis can be useful to see the effects of mismatches in a transmission line. When measuring the reflection coefficient, r, or S11, of a DUT, the amount of reflected signal is proportional to the input impedance of the DUT. The S11 is a measurement of how different the DUT's impedance is from the characteristic impedance of the measurement system, Z0. Once the frequency data is transformed to the time domain, the time response to a step or impulse function can be examined. The time domain response can yield both the position of the individual circuit components and the actual impedances of each element. All of this information is available immediately from the analyzer's display.
+
+2.3 Use gating to remove effects of unwanted discontinuities
+The VNA has a powerful feature called gating that provides the flexibility to selectively remove reflection or transmission responses. Once the gate has been applied to the time domain data, the data can be converted back to the frequency domain. The time-gated response can now be evaluated in the frequency domain. This can be useful when designing and troubleshooting cable assemblies. The location of the gate in time can be controlled by setting the center positions and time span or the start and stop position of the gate with several gate shapes available for optimizing the measurement. There are different methods available to remove errors due to mismatch. Gating is one alternative and is often the simplest to use especially if there is no good precision standard available for calibration. De-embedding test fixture S-parameters, Thru-Reflect-Line (TRL) calibration and Line-Reflect-Match (LRM) calibration are advanced error-correction techniques that have proven to be extremely accurate in demanding low loss measurements.
+
+2.4 Simplify filter tuning5, 13
+Since time domain measurements can distinguish the individual responses of resonators and coupling apertures, each resonator of a filter can be tuned individually. Such clear identification of responses is extremely difficult in the frequency domain because the interactive nature of coupled-resonator filters makes it challenging to determine which resonator or coupling element needs to be tuned. A major benefit of using the time domain method is that it allows inexperienced tuners to successfully tune complex filters after only brief instruction. This technique can greatly simplify and accelerate the filter tuning process.
+
+3.0 Theoretical Issues with Time Domain4
+Figure 2 shows the analytically derived transform of the return loss of a 3-pole Butterworth filter along with the VNA time domain transform of the same function. In the analytic transform, the frequency response is calculated using standard network theory, and the Inverse Fourier Transform (IFT) is performed to get the time response. The differences between the analytic transform (IFT calculated) and the VNA transform are caused by the effects of discrete data sampling, frequency truncation, windowing, and renormalization.
+
+
+
+A. The ringing is caused by the frequency truncation
+
+B. The differences in the width are caused by windowing (between the gray and black traces)
+
+C. The finite impulse is determined by the frequency range of the VNA
+
+D. The difference in magnitude is caused by renormalization (between the gray and black traces)
+
+
+Figure 2. Comparing IFT calculated (analytic transform) and VNA time domain transform of the same function
+
+
+3.1 Effects of discrete sampling
+The Fourier Transform operates on continuous functions, while the VNA time domain transform must operate on discrete data. One way to look at this is to assume the measured data is a sampled version of a continuous response. The frequency sampling can be visualized as data points evenly distributed over the frequency range of the measurement as shown in Figure 3a. This also creates images of the original function called aliases which occur at repetitive intervals of 1/(frequency step size). Figure 3b illustrates both the discrete data sampling and the alias responses.
+
+
+
+Figure 3a. Continuous function and discrete (sampled) function
+
+Figure 3b. Alias responses due to discrete sampling
+
+3.2 Effects of truncated frequency
+For real world measurements, the data samples available are limited by the frequency response of the measuring equipment. Since the VNA is a real-world instrument with a specific frequency range rather than infinite range, the data is truncated at the ends of the data samples as shown in Figure 4a. (Taking the Inverse Fourier Transform (IFT) of the product of the original function and a rectangular window can represent the effect of truncated data in the VNA time domain transform.) The truncation causes ringing in the time domain and has a sin(x)/x response as shown in Figure 4b. The truncated time response is compared to the unit step function in Figure 4c.
+
+
+
+
+Figure 4a. Sample of truncated response in frequency domain
+
+Figure 4b. Truncation causes ringing in time domain
+
+
+
+
+Figure 4c. Comparing truncated time response to the unit step function
+
+3.3 Windowing to reduce the effects of truncation
+Data truncation adds ringing to the time domain data and the resulting sidelobes are high enough that they could obscure some responses of the device under test (DUT). A windowing function can be applied which gradually reduces the frequency response and controls the sidelobes created during the truncation process. However, the windowing function tends to reduce the sharpness of the response, spreading pulses, and stretching out slopes, thereby reducing the resolution of the transform and distorting the transitions of the frequency response. There is a trade-off between sidelobe height and resolution when determining the windowing function. Figure 5a shows windows with different ? values, Figure 5b shows these windows applied to a 1-pole filter response, and Figure 5c shows the time response of windowed functions as well as the unit step function (gray trace).
+
+
+
+
+Figure 5a. Applying windowing functions with different b values. Higher values of b reduce the height of the sidelobes. (KB stands for Kaiser-Bessel and is a commonly used window function.)
+
+Figure 5b. Windowing functions applied to a 1-pole filter response
+
+
+
+
+Figure 5c. Time response of windowed functions and the unit step function
+
+3.4 Scaling and renormalization
+There is also some scaling and renormalization that takes place to ensure the value of the time domain transform retains its physical meaning. For example, the frequency response of the S11 of an ideal open circuit, with no delay, has a value of 1 for all frequencies; its inverse transform is a delta function.
+However, when the data is sampled and windowed, the time domain transform of the response of an open circuit will be spread by the windowing function and does not return an impulse of unity height. Therefore, it is necessary to renormalize to ensure that the time domain response of the open circuit has a value of unity.
+
+4.0 Time Domain Modes with a VNA
+The VNA measures the frequency response of the device and mathematically calculates a time domain transform of the data to convert the frequency domain information into the time domain, with time as the horizontal display axis. The VNA makes this mathematical calculation using the chirp-Z Fast Fourier Transform technique3.
+In the reflection mode, a network analyzer measures reflection coefficient as a function of frequency. The reflection coefficient can be viewed as the transfer function relating the incident voltage and reflected voltage. An inverse transform converts the reflection coefficient to a function of time (the impulse response). Step and impulse responses can be calculated by convolving the input step or pulse with this reflection coefficient impulse response.
+In the transmission mode, a network analyzer measures the transfer function of a two port device as a function of frequency. An inverse transform converts the transfer function to the impulse response of the two port device. Step and impulse responses can be calculated by convolving the input step or pulse with the impulse response.
+The resulting measurement is a fully-corrected time domain reflection or transmission response of the test device, displayed in near real-time. Response values (measured on the vertical axis) now appear separated in time or distance, providing valuable insight into the behavior of the test device beyond simple frequency characteristics.
+Figures 6a and 6b illustrate the frequency and time domain reflection responses of the same cable. The frequency domain reflection measurement (Figure 6a) is the composite of all the signals reflected by the discontinuities present in the cable over the measured frequency range. It is difficult to estimate the locations of those mismatches. However, the time domain measurement (Figure 6b) shows the effect of each discontinuity as a function of time (or distance) and easily allows one to determine the location and magnitudes of the mismatches.
+
+
+
+Figure 6a. Reflection responses of a cable in frequency domain
+
+Figure 6b. Reflection responses of the same cable in time domain
+
+4.1 Time domain low-pass mode
+The time domain low-pass mode simulates a traditional TDR measurement and supports both the step and impulse excitation. There are some specific limitations on the frequency range of the measurement. It is required that the measured, positive data points be linearly spaced so that they are harmonically related from DC to the stop frequency. The measurement frequencies must be set so that the stop frequency is equal to the product of the start frequency and the number of points (which would yield harmonically related frequencies). The VNA has a function that performs this automatically. From this, the rise time is determined by the maximum slope of the highest frequency measured, although it varies with the window factor. Also, since the Fourier Transform includes effects of the DC value on the frequency response and VNA's do not measure the DC response, the DC value must be extrapolated. The DC value is required to generate the step stimulus. This limitation also exists for traditional TDR measurements.
+The remainder of the data is calculated from taking a mirror image of the original measured response. The assumption is that the response is hermitian2, in that the negative frequency response is the conjugate of the positive frequency response and thus, the time domain response must be pure real- valued (not complex). The low-pass mode contains information that is useful in determining the type of impedance, resistive, capacitive, or inductive that is present at the discontinuity. Because the DC value is included and the data is mirrored, both step and impulse low-pass modes yield better time domain resolution for a given frequency span than the bandpass mode.
+Figure 7 illustrates the low-pass responses of known discontinuities using the Real format. Each circuit element was simulated to show the corresponding low-pass time domain S11 response waveform.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Figure 7. Low-pass responses, both step and impulse, of known discontinuities
+
+4.1.1 Analyzing the low-pass reflection response
+The real power of low-pass mode is that the response to the step and the impulse stimulus contains information describing both where the impedance discontinuity is located as well as what type of impedance change is present.
+The horizontal axis for the low-pass measurement is the 2-way travel time of the impulse. The marker function on the VNA displays both the time and distance to a discontinuity and automatically accounts for the two-way response in computing the distance readout in the marker display. The distance displayed is based on the assumption that the signal travels at the speed of light (in seconds) 2.997925 x 108 m/s. In actuality, the signal travels slower than the speed of light in most media such as coax cables. The VNA has a velocity factor function which can be used to adjust for the velocity of the propagation medium.
+Common velocity factors are: 0.66 for polyethylene dielectric and 0.7 for Teflon dielectric.
+
+The vertical axis representation depends upon the format chosen. Since the frequency domain data is taken at harmonically related frequencies down to DC, the IFT has only a real part (the imaginary part is zero). Therefore, the most useful format is Real, which displays the response in reflection coefficient, ?. In the PNA, the default marker reading may be changed in the advanced menu to display impedance directly.
+The circuit in Figure 8 shows a low-pass step and impulse responses of impedance changes from Z0 to Z0/2 and back to Z0. The step response is shown by the black trace and the impulse response is shown by the gray trace. There is enough information to determine where (in time) the discontinuities are located and what type of discontinuity it is. The discontinuity at the first connection is a change in line impedance, where ZL1 < Z0. The second discontinuity shows that ZL2= Z0. Looking at the step trace, the response does not quite return to zero even though the impedance has changed back to Z0. Analyzing the impulse trace, the second discontinuity does not have quite the same absolute magnitude as the first discontinuity. Both of these illustrate the effects of masking. The section on masking explains why these apparent differences in impedance at the second discontinuity occur.
+
+
+
+Figure 8. Showing a low-pass step and impulse responses of impedance changes (circuit shown above)
+
+4.2 Time domain bandpass mode
+The bandpass mode is the more general-purpose mode of operation. It gives the impulse response of the device, works on any device over any frequency range, and is relatively simple to use. It is especially helpful for measuring band-limited devices and for making fault location measurements. Since the bandpass mode is the only mode that can be used over an arbitrary set of start and stop frequencies, it is useful for devices that have a limited range of operating frequencies. Not having any restrictions on the frequency range of the measurement is a distinct advantage over traditional TDR measurements (which require the DUT to be able to operate at DC). Since the bandpass mode does not include a DC value, only the impulse excitation is supported.
+The bandpass mode simulates a narrow-band TDR. It allows you to identify locations of mismatches but does not indicate whether the mismatches are capacitive, inductive, or resistive. However, it is suitable for displaying the magnitude of the response.
+The IFT is calculated only on the data points measured, rather than taking the negative frequency response to be the conjugate of the measured data as in the low-pass mode. This calculation gives a complex (real and imaginary parts) time domain response and the magnitude (linear or log mag) of the response is the most commonly displayed. In the bandpass mode, the window is centered between the start and stop frequencies. The IFT is applied from minus one-half of the frequency span to plus one-half of the span. This windows both sides of the data which increases the impulse width and reduces the effective bandwidth. The fact that the response is centered around the VNA center frequency has the effect of multiplying the normal time domain response by a "modulation" function producing a sinusoidal wave on top of the normal response. This is apparent in bandpass mode, real or imaginary formats, but is eliminated in the log mag or lin mag format. In contrast, the center of the windowing function in the low- pass mode is the DC term, or the first point of the data set. Compared to the low-pass mode, for the same frequency span and number of points, bandpass mode has twice the impulse width, which may obscure closely spaced responses.
+4.2.1 The bandpass reflection response
+In the bandpass reflection measurement, the horizontal axis represents the amount of time that it takes for an impulse, launched at the test port, to reach the discontinuity and return. The marker function available on the VNA reads out both the time and the distance to the discontinuity. The electrical length is obtained by multiplying the time (in seconds) by the velocity of light in free space (2.997925 x 108 m/s).
+This assumes a velocity factor of 1. To get the actual physical length, you must use the velocity factor function on the VNA or multiply the distance number by the relative velocity of the transmission medium.
+The vertical axis representation depends on the format selected. The linear magnitude format displays the response in reflection coefficient, ?, which is the average reflection coefficient of the discontinuity over the frequency range of the measurement. It is most useful when viewing responses that are close in amplitude. The log magnitude format displays return loss in dB. The value displayed represents the average return loss of the discontinuity of the frequency range of the measurement. It is most useful when examining responses that are very different in amplitude. The lin mag format is the average linear magnitude of the reflections over the frequency range that it has been measured. SWR format gives the average standing wave ratio of the discontinuity over the frequency range of the measurement.
+
+4.3 The transmission response (low-pass and bandpass)
+In time domain transmission measurements, the horizontal axis is displayed in units of time. The response of the through connection used in the calibration is an impulse at t = 0 seconds and with unit height, indicating that the impulse made it through in zero time and with no loss. When a device is inserted, the time axis indicates the propagation delay or electrical length of the device. Note that in time domain transmission measurements, the value displayed on the x-axis of the VNA is the actual electrical length, not two-way travel time as in reflection measurements. The marker still reads out the electrical length in both time and distance. The VNA allows for the entry of the velocity factor otherwise you must multiply the distance by the relative velocity of the transmission medium to get the actual physical length.
+The quantity displayed in the vertical axis depends on the format selected. In lin mag format, the vertical scale is transmission coefficient units. It represents the average transmission coefficient for the transmission path over the frequency range of the measurement. Log mag format displays the response in units of transmission loss or gain in dB. It represents the average loss or gain in the transmission path over the frequency range of interest.
+For a 20 dB attenuator, the bandpass response has a magnitude of -20 dB insertion loss as shown in
+Figure 9a and 0.10 transmission coefficient units shown in Figure 9b.
+
+
+
+
+
+
+
+
+
+
+
+
+
+(a)	(b)
+
+Figure 9. The bandpass response of a 20 dB attenuator displayed (a) in log mag format showing insertion loss in units of dB, and (b) in lin mag format showing transmission coefficient units.
+
+4.4 Summary on modes
+Table 1-1. Mapping modes
+
+Modes
+Low-passBandpass* Simulates traditional TDR* Same as narrow-band time domain* DC value extrapolated* Most general purpose mode* Start frequency harmonically related throughout span* Any arbitrary frequency range* Higher (twice) resolution than bandpassStep excitationIdeal for identifying discontinuities (location and
+type) in devices that pass low frequencies.Impulse excitation
+Ideal for seeing small responses in devices that pass low frequencies, such as cables.Ideal for measuring band-limited devices such as filters. Also useful for fault location (but not type) especially when system cannot pass low
+frequencies.ReflectionHorizontal axis shows 2-way travel time.TransmissionHorizontal axis shows 1-way (actual) travel time.
+
+The low-pass impulse mode has higher resolution than the bandpass mode and is most useful for seeing small responses in devices that pass low frequencies, such as cables. The start frequency is adjusted to be harmonically related throughout the frequency span. Be sure to calibrate after completely setting up the measurement.
+The low-pass step mode allows the user to easily identify location of the discontinuity as well as the type of discontinuity. It also has higher resolution than the bandpass mode. It is most useful for identifying discontinuities in devices that pass low frequencies. In both low-pass modes, frequencies down to DC, and negative frequencies are extrapolated.
+The bandpass impulse mode is the most general-purpose mode and does not require that the frequencies be harmonically related. It can be used over any arbitrary frequency range. It is most useful for measuring band-limited devices such as filters. It is also used for fault location. While it cannot be used to identify the type of discontinuity present, it is suitable for showing magnitude of responses.
+
+5.0 Windowing
+Ideally, the frequency domain measurement would be continuous over an infinite frequency range. Because the VNA is capable of measuring over a finite frequency range, methods have been developed to help us deal with real-world limitations. A feature that is designed to enhance time domain measurements in the VNA is windowing. Windowing improves the dynamic range of the time domain measurement by modifying (filtering) the frequency domain data prior to conversion to the time domain to produce an impulse stimulus with lower sidelobes. This greatly enhances the effectiveness in viewing time domain responses that are very different in magnitude; however, the sidelobe reduction is achieved with the trade-off of increased impulse width.
+Because of the limited bandwidth of the measurement system, there are abrupt transitions in the frequency domain measurement at the start and stop frequencies. It is this band-limiting (or data truncation) that causes overshoot and ringing in the time domain response and is seen as a sin(x)/x shape in the unwindowed impulse stimulus. This non-ideal impulse has two effects which limit the usefulness of the time domain response.
+First, the finite impulse width, caused by the band-limited nature of the test system, limits the ability to resolve between two closely spaced responses. The impulse width is inversely proportional to the frequency span of the measurement, and the only way that the impulse width can be made narrower is to increase the frequency span.
+Second, the impulse sidelobes, caused by the abrupt cutoff at the stop frequency, limit the dynamic range of the time domain measurement by hiding low level responses within the sidelobes of adjacent higher level responses.
+If the resulting sidelobes are too high, they can obscure the smaller responses from the DUT and limit the dynamic range of the time domain measurement. A windowing function may be applied to modify the data in the frequency domain, thus controlling the sidelobes created during the truncation process. This makes the response more useful in isolating and identifying individual responses. While the windowing process tends to reduce the sharpness of the original response thus reducing the ringing in the time domain, it can cause the impulse width to increase, or the step rise time to decrease. As mentioned before, the finite impulse width (or rise time) limits the ability to resolve between two closely spaced responses and the effects of the finite impulse width cannot be improved without increasing the frequency span of the measurement.
+A window function used commonly is the Kaiser-Bessel window where ß controls the amount of roll-off of the window function. Higher values of ß reduce the height of the sidelobes. Figure 10 shows various window factors.
+
+
+
+Figure 10. Various Kaiser-Bessel (KB) windows each with a different ß value
+
+Table 1-2. Approximate formulas for the relationship between step rise time, impulse width, and span
+
+WindowImpulse Sidelobe
+Level (dB)Low-pass Impulse
+Width (50%)Step Sidelobe
+Level (dB)Step Rise Time
+(10% to 90%)Type-130.60 / Freq Span-210.45 / Freq SpanMinimum-440.98 / Freq Span-600.99 / Freq SpanNormal-751.39 / Freq Span-701.48 / Freq Span
+Note: Bandpass impulse width is twice that of low-pass impulse width. The bandpass impulse sidelobe levels are the same as low-pass impulse sidelobe levels.
+
+Windowing affects only the time domain response. It is turned off when viewing the frequency domain response. Figure 11 shows the effect of windowing on the time domain response of a short circuit.
+
+
+Figure 11. Effects of windowing on the time domain response of a short circuit.
+
+6.0 Gating
+Gating provides the ability to selectively remove or include responses in time. The remaining time domain responses can then be transformed back to the frequency domain with the effect of the 'gated-out' responses being removed. This should improve the quality of the response, in that the gated frequency response should more closely resemble the device response as if it were measured with no other reflections. However, previous reflections do have some effect even when the measurement has been time-gated.
+In the real world, the gating is not a "brick-wall" function. If it were, there would be sharp transitions in the time domain causing ringing in the frequency domain. To avoid this, the gating function is windowed in the frequency domain before being transformed to the time domain. It is the Kaiser-Bessel window that sets the maximum gate transition slope in the time domain.
+Also, if a simple gating function was used, a curious effect would occur at the endpoints of the time-gated frequency domain response in that the endpoints would be lower by 6 dB. Gating is performed solely in the frequency domain. The start and stop gate times define gate width from which the equivalent frequency domain gating function can be directly determined. Over the frequency range of interest, the gated value at any point is determined by multiplying the original frequency response by the reverse of the gating frequency function centered at that frequency and then summing the result (convolving). At the last data point, the gate response center is at the endpoint of the band of interest. Any frequencies beyond the endpoint of the band will return zero so half of the gate function will be multiplied by zero and does not add to the sum. This creates the result that any gating will distort the endpoints of the gated frequency response by lowering them by 6 dB.
+The VNA time domain algorithm compensates for this roll-off through post-gate renormalization. This compensation function works perfectly for a unit time response at the center of the gate. However, if the gate is not symmetrical around the time function, then the result will show some errors in approximately the last 10 percent of the gated response when compared to the original frequency response. In the bandpass mode, these errors will show up in the first and last 10 percent (approximately) of the gated frequency response.
+Figure 12a shows the gating function for various gate center times. Figure 12b shows a unit frequency response in the time domain, with gates applied at various gate times. Note that the time domain response is nearly unchanged as the time-gate fully encompasses the impulse at all three center times. (The abrupt changes in the sidelobe levels of Figures 12a and 12b are likely due to the renormalization effect. Without renormalization, one would expect the sidelobe levels to be greatly reduced outside of the gate window.)
+Figure 12c shows the frequency response after gating. Here, there is a substantial difference in the response at high frequency for the different gate center times. It is clear that normalization is optimal when the gate is centered on the response being gated. For best results, the time domain response should be viewed in order to assign the proper gating start and stop values.
+
+	
+
+
+Figure 12a. Gating function for various gate center times
+
+Figure 12b. A unit frequency response in the time domain with gates applied at various gate times
+
+
+
+
+
+
+Figure 12c. Frequency response after gating
+
+6.1 Gating operation in the VNA
+Figure 12 illustrated the sequence of the gating operation. Figure 13a shows the frequency response of a cable. The time domain response is shown in Figure 13b. The discontinuity on the left is due to the input connector and the discontinuity on the right is due to the output connector. By using the gate function, the effect of the mismatch can be removed in order to see the frequency response of just the output connector. Figure 13c shows the gate applied. Figure 13d shows the frequency response of the output connector with the other connector "gated out". If the first reflections are small, this response closely resembles the response one would see if it were possible to measure only the second connector.
+
+
+
+Figure 13. Sequence of the gating operation: (a) frequency response of a cable, (b) time domain response, (c) gating applied to remove the first discontinuity, and (d) frequency response with gating on and off.
+
+Think of a gate as a filter in the time domain. Figure 14 shows the gate shape. The gate has a passband ripple, a cutoff rate, and sidelobe level just like a filter in the frequency domain. The gate's passband can be selected by the start and stop gate controls. The location of the gate in time can be controlled by setting the center and span times or the start and stop times, which are the -6 dB cutoff times. The gate shape controls the flatness, roll-off rate and sidelobe level of the gate. The minimum gate shape has the highest passband ripple and sidelobe level but has the fastest cutoff rate for separating closely spaced time domain responses. The maximum gate shape has extremely low sidelobes with almost no passband ripple but the cutoff rate is not fast.
+
+
+
+Figure 14. Sample of a gate shape and its parameters.
+
+The unwanted time domain responses will be reduced by the gate but not totally removed. Even the most simple impulse response is not localized in time, but may spread out and have sidelobe ripples that cannot be completely eliminated by gating.
+In the PNA and ENA, there are two types of gates, bandpass and notch. The bandpass gate is used to remove the responses outside the gate span. The notch gate is used to remove the responses within the gate span. The direction of the gate markers will define the region where gating is enabled. Figure 15 illustrates the gate markers. For best results, use the front panel knob to manually position the gate markers around the desired portion of the time domain trace. Gating flags indicate response removal outside the gate span.
+
+(a)   (b) 
+Figure 15. Sample of gate markers
+
+Figure 16 shows the time domain response of two capacitive discontinuities and is the circuit used to illustrate the effectiveness of gating in the following examples.
+
+Figure 16. Time domain response of two capacitive discontinuities (circuit shown above)
+
+
+6.2 Gating the first discontinuity
+Figure 17 shows the original frequency response in light gray, with the characteristic ripple pattern resulting from two discontinuities separated by a length of line. The dark gray trace is the calculated display of the ideal S11 of a single capacitive discontinuity terminated in Z0. Almost completely overlaying the dark gray trace is the response of gating around the first discontinuity, the black trace. The only difference is at the high frequencies. In this case, gating about the first discontinuity is very effective in removing the effects of other elements.
+
+
+Figure 17. Gating out the first discontinuity (circuit shown in Figure 16)
+
+6.3 Gating the second discontinuity
+Figure 18 looks at what happens when the gate is applied to the second discontinuity. In this example, the time-gated response is quite different. The differences here are quite substantial, and the response deviates from the expected response more as the frequency increases. This deviation is due to the masking effect of the discontinuity associated with the first capacitor. From this, one can see that using gating about a response that occurs after a substantial reflection can lead to quite erroneous results. The next section describes in detail the effects of masking.
+
+
+
+Figure 18. Gating out the second discontinuity (circuit shown in Figure 16)
+
+7.0 Masking
+Masking occurs when the response of one discontinuity affects or obscures the response of subsequent discontinuities in the circuit. This is because the energy reflected from the first discontinuity never reaches subsequent discontinuities. For example, if a transmission line has two discontinuities that each reflect 50 percent of the incident voltage, the time domain response shows the correct reflection coefficient for the first discontinuity, 50 percent (?= 0.50). However, the second discontinuity appears smaller because only some of the incident voltage reached the second discontinuity, and some of that reflected energy is reflected off the first discontinuity as it returns. The exact change in the apparent reflection depends in part on the type of discontinuity that precedes it. Discontinuities due to changes in line impedance will appear somewhat differently than discontinuities due to discrete reflections on the line.
+7.1 Changes in line impedance
+For the circuit in Figure 19, the apparent reflection coefficient of the second transition, ?2a, is only about 90 percent of the actual value. This shows the effect that the first discontinuity has on the second discontinuity in that there is some energy reflected from the first discontinuity that never reaches the second discontinuity. In this example, the low-pass step response shows a -0.33 reflection coefficient at the first discontinuity, which is the correct value for an impedance of 25 O. However, at the end of the 25 O impedance section, the response does not return to zero reflection coefficient, which would be expected for a 50 O impedance. The reason is that the step incident on the second response is of less than unity amplitude because of the energy reflected in the first mismatch. The masking error for changes in line impedance are computed differently than for discrete discontinuities, and the response of the second impedance step, from Z1 back to Z0, is approximately modified as 4xZ1xZ0 /(Z1+Z0)2.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Figure 19. Apparent reflection coefficient of the second transition is only about 90 percent of the actual value because some energy reflected from the first discontinuity never reaches the second discontinuity.
+
+7.2 Discrete discontinuities
+The circuit in Figure 20 shows a Z0 followed by a capacitive discontinuity, followed by a Z0 line and then a second identical capacitive discontinuity, and then terminated in a Z0 load. The low-pass step response of this network is shown below. Even though the responses are caused by identical discontinuities, the response of the second discontinuity appears smaller than the first. The second response is somewhat masked by the first, though in a different manner than in the example of Figure 19. The energy reflected from the first capacitor is not available to be incident on the second, further, this energy loss is higher as frequency increases. Methods in [4] have been described, which compensate for this loss. Without compensation, the error vs. frequency in the second response approaches 1/(1-r(w)2), where r(w) is the reflection of the first discontinuity. Thus, as r(w) approaches 1, the error becomes very large.
+For two discrete discontinuities, the apparent reflection of the second discontinuity appears as approximately: ?2a = (1 - ? 2) * ?2 , where ?2a is the apparent reflection of the second discontinuity, ?1 is the reflection of the first discontinuity, and ?2 is the reflection of the second discontinuity. Using values from the above example, 1 = 2 = 0.50 (two discontinuities that each reflect 50 percent of the incident voltage), ?2a = 0.375 (apparent reflection of the second discontinuity).
+
+
+
+
+Figure 20. For two discrete identical discontinuities, response of the second discontinuity is somewhat masked by the first because not all energy reflected from the first discontinuity is available to the incident on the second.
+
+7.3 Multiple discontinuities
+It is seen that two mismatches produce reflections that can be analyzed separately. The mismatch at the junction of the two transmission lines generates a reflected wave. Similarly, the mismatch at the load also creates a reflection due to its reflection coefficient. The part of the wave reflected from the junction is again reflected off the load and heads back to the monitoring point only to be partially reflected at the next junction. This continues indefinitely, but after some time the magnitude of the reflections approaches zero.
+
+7.4 Line loss
+Figure 21b shows the time domain response of a 3 dB attenuator and a short circuit. The impulse response of the short circuit alone in Figure 21a shows the return loss of 0 dB. However, the response of the short circuit placed at the end of the 3 dB attenuator displays a return loss of -6 dB. This value actually represents the forward and return path loss through the attenuator, and it illustrates how a lossy network can affect the responses that follow it.
+
+
+
+Figure 21. Impact of lossy network: (a) impulse response of a short circuit showing return loss of 0 dB, (b) time domain response of a 3 dB attenuator terminated with a short circuit, 6 dB loss represents the forward and return path loss through the attenuator.
+
+Each response is affected by mismatches and losses encountered earlier in the signal path. Loss of stimulus energy by reflection and by absorption must be considered when interpreting the time domain response.
+
+8.0 Measurement Range
+In the time domain, the range is defined as the length of time that a measurement can be made without encountering a repetition of the response. This repetition of the response is called aliasing. Response repetition occurs at regular intervals in time, and the aliased responses in any measurement can be viewed by increasing the time span. Aliasing is caused by the frequency domain data being gathered at discrete frequency points rather than continuously. The effect of the sampling function is that each time domain response is repeated every 1/?f seconds. (Mathematically, the impulse is convolved with the IFT of the sampling function, resulting in a repetition every 1/?f seconds.) This length of time defines the range of the measurement, which is equal to the time separation between repetitions of the response.
+The alias-free range is proportional to the number of points and inversely proportional to the frequency span. To increase the range, you can increase the number of points and/or decrease the frequency span. Both of these changes will reduce the ?f between points and therefore increase the time domain range. Maximum range also depends on loss through the test device. In order for the response to be alias free, re-reflections from the network being measured must decrease to a minimal level in the alias free time interval. If there are large reflection responses outside the alias-free range, they will appear (as an alias) inside the alias-free range. If a response moves in time when the number of points is increased, it is most likely an alias response. If the returning signal is too small to measure, the range is limited regardless of the frequency span.
+8.1 Range calculation example
+Range (m) = (1/?f) x Vf x c Where:
+?f = frequency step size (which is frequency span/number of points)
+
+Vf = the velocity factor in the transmission line
+
+c = speed of light = 3 x 108 m/s (2.997925 x 108 m/s to be precise)
+(Most cables have a relative velocity of 0.66 for polyethylene dielectric or 0.7 for Teflon dielectric)
+For a measurement with 401 points and a span of 2.5 GHz, using a polyethylene cable, the time domain range must be 32 meters or less.
+To determine the available range in seconds, divide the number of points, minus one, by the frequency span in Hz. For example, with 401 points over a 2.5 GHz frequency span, responses will repeat every 160 nanoseconds.
+Range (s) = (401 - 1)/(2.5 x 109 Hz) = 160 ns
+
+To find the distance in free space, multiply this value in time by c, the speed of light in free space. For example, 160 ns is equal to about 48 meters.
+160 ns x (2.997925 x 108 m/s) = 48 m (in free space)
+
+To compute the actual physical length available, multiply this value in free space by the relative velocity of propagation in the transmission medium. (Most cables have a relative velocity of 0.66 for a polyethylene dielectric or 0.7 for a Teflon dielectric.)
+Range (m) = 48 m x 0.66 = 32 m (physical length)
+
+In this example, the range is 32 meters in physical length. To prevent the time domain responses from overlapping or aliasing, the test device must be 32 meters or less in physical length for a transmission measurement or 16 meters or less for a reflection measurement. (For a reflection measurement, if you would like to calculate the one-way distance rather than round-trip distance, simply divide the length by 2.)
+A VNA can be configured to perform the math. By changing the default velocity factor and selecting the measurement type, the displayed marker will show the proper length of the device.
+The alias-free range is important to consider in any time domain measurement and particularly for devices that have a very long electrical length. A good example of this is found in cable fault location. Consider the measurement of a cable which is physically 10 meters long. Because this is a reflection measurement, the available time domain range must be greater than twice the actual electrical length of the cable.
+Using the same setup as above, with 401 points and a frequency span of 2.5 GHz, the available range is about 160 nanoseconds. Now consider measuring the same cable using a frequency span of 5.0 GHz.
+Range (m) = (1/?f) x Vf x c
+
+Range (m) = (80 ns) x 0.66 x (2.997925 x 108 m/s) = 16 m (physical length)
+
+
+8.2 Identify alias responses
+Notice that the available alias-free time domain range is less because ?f is greater. Because this is a reflection measurement, the available time domain range must be greater than twice the actual electrical length of the cable. This is to allow the stimulus to travel to the discontinuity and return to the test port. In this example, the time domain actual and alias responses will probably overlap. When this occurs, it is not generally possible to visually distinguish a real response from an aliased response without a test.
+If there is doubt whether a response is real or aliased, the first test is to increase the time span and see if there are obvious repetitions with observable spaces between them.
+If you are still not sure that the response is real, then center the response on the display and store the trace in memory for comparison. Now reduce the frequency span and measure the device again. If the time domain response is valid, then it will remain in the center of the display. If the response is aliased, then it will move along the time axis when the frequency span is changed.
+
+8.3 Summary on range
+The time domain range needed for an alias-free measurement depends upon the electrical length of the device under test. For reflection measurements, the range requirement is doubled to allow the stimulus to travel to the discontinuity and return to the test port. To change the alias-free range, change ?f (that is, either increase the number of points and/or decrease the frequency span).
+
+9.0 Resolution
+There are two different resolution terms used in the time domain:
+* response resolution
+* range resolution
+
+9.1 Response resolution
+Time domain response resolution is defined as the ability to resolve two closely-spaced responses, or a measure of how close two responses can be to each other and still be distinguished from each other.
+Response resolution depends upon the time domain mode, the frequency range, whether it is a reflection or a transmission measurement, and the relative propagation velocity of the signal path.
+For responses of equal amplitude, the response resolution is equal to the 50% (-6 dB) points of the impulse width, or the step rise time which is defined as the 10 to 90% points as shown in Figure 22. It is inversely proportional to the measurement frequency span, and is also affected by the window function used in the transform.
+
+
+
+Figure 22. Response resolution is equal to the 50% points of the impulse width or the step rise time of 10 to 90% points.
+
+9.2 Determine the response resolution (or 50% impulse width) for responses of equal amplitude
+Table 1-3 shows the (approximated) relationship between the frequency span and the window selection on response resolution for responses of equal amplitude. These characteristics are inversely proportional to the frequency span of the measurement and are also a function of the window that is selected.
+Table 1-3. Approximate relationship between frequency span, window selection, and response resolution
+
+WindowLow-pass step (10% to 90%)Low-pass impulse (50%)Bandpass impulseMinimum0.45/frequency span0.60/frequency span1.20/frequency spanNormal0.99/frequency span0.98/frequency span1.95/frequency spanMaximum1.48/frequency span1.39/frequency span2.77/frequency span
+For example, using a 10 GHz wide frequency span and a normal window in the bandpass mode, we can calculate the response resolution for responses of equal amplitude:
+Response resolution = 50% impulse width (in time) x speed of light (using Table 1-3)	1.95/frequency span = 1.95/10 GHz = 195 ps
+195 ps x c = 195 ps x (2.997925 x 108 m/s) = 58 mm
+
+For reflection measurements, because of the 2-way travel time involved, this means that the minimum resolvable separation between discontinuities is half of this value or 97.5 ps (29 mm).
+It is important to note that the actual physical separation of the responses which can be resolved will depend upon the relative velocity (Vf) of propagation in the actual transmission medium.
+195 ps x c x Vf = 38 mm (physical separation)
+
+So the actual resolvable physical separation is even smaller, being scaled by the relative velocity of the transmission medium. In this case, using a cable with a polyethylene dielectric (0.66), the equal magnitude responses must be separated by more than 38 mm (or 19 mm for a reflection measurement). When using a VNA, entries are allowed for measurement type, reflection or transmission, and the velocity factor which will be used to display the distance values appropriately.
+Factors such as reduced frequency span, greater frequency domain data windowing, and a large discontinuity masking the response of a smaller discontinuity, all act to degrade the effective response resolution.
+
+9.3 Effect of frequency span on response resolution
+Figure 23 shows the effect of both a narrow span and a wide span on the response resolution of a cable with connectors on each end and a termination. The response with the narrow frequency span is shown overlaid upon the response measured with a relatively wide frequency span. The wider frequency span enables the analyzer to resolve the two connectors into separate, distinct responses. The relationship between the frequency span and the pulse width in time is inversely proportional; the wider the frequency span, the narrower the impulse width and the faster the rise time.
+
+
+
+Figure 23. Effect of narrow span and wide span on the response resolution
+
+9.4 Effect of windows on response resolution
+Another factor which determines the resolution of the measured response in the time domain is the window setting. The window function has the effect of changing both the impulse width and sidelobe level of the time domain function.
+Figure 24 illustrates the use of different windows on a measurement using a VNA. With the minimum window, notice the narrow response and the sidelobe levels. With the maximum window and using the same measurement setup, notice the reduction of the sidelobe levels improving the dynamic range. Also notice that the impulse width is much wider. These are the effects on the measurement of lowering the sidelobe level with the window function which widens the impulse width and decreases the rise time of the step signal.
+
+
+Figure 24. Comparing minimum window and maximum window
+
+
+Impulse sidelobes limit the dynamic range of the time domain measurement. The sidelobes can be so high that they obscure the low-level responses of the DUT. The effect of sidelobes can be improved by widowing because it acts like a filter on the frequency domain data prior to converting it to the time domain, producing an impulse stimulus that has lower sidelobes. This makes it much easier to see time domain responses that are very different in magnitude. However, the sidelobe reduction is achieved at the expense of increased impulse width. The effect of windowing on the step stimulus (low-pass mode only) is a reduction of overshooting and ringing at the expense of increased rise time.
+Figures 25a and 25b show how the response changes as the window shape changes. If the magnitudes of the responses are comparable, the resolution needs to be higher to resolve them so you should choose the minimum window to increase the resolution as shown in Figure 25a. If the responses are very different in magnitude, then choosing the maximum window will increase the dynamic range as shown in Figure 25b.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(a)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(b)
+
+
+Figure 25. Response changes as window shape changes: (a) minimum window is best when higher resolution is needed to resolve signals with equivalent magnitudes, (b) maximum window is ideal for best dynamic range if responses are very different in magnitude.
+
+9.5 Transform mode effect on response resolution
+Although both transformation types, bandpass and low-pass impulse, simulate the response of the impulse signal, the impulse width in the bandpass mode is twice the width of that in the low-pass impulse mode. In the bandpass mode, the window is centered between the start and stop frequencies. There are two abrupt cutoff points, at the beginning and at the end of the frequency span. This windows both sides of the data and reduces the effective bandwidth. In contrast, the center of the windowing function in the low-pass mode is the DC term, or the first point of the data set. In the low-pass mode, the DC term is extrapolated from the first few data points in the frequency domain and the remainder of the data is calculated from taking a mirror image of the original measured response. Compared to the bandpass mode, for the same frequency span and number of points, the low-pass mode has twice the resolution. Figure 26 shows the difference in resolution for the low-pass and bandpass modes, using the same frequency span and number of points. You can see that the low-pass mode achieves a higher resolution by reducing the impulse width in half when compared to the bandpass mode.
+
+
+
+
+Figure 26. Given the same settings, frequency span and number of points, resolution is different for the low-pass and the bandpass modes.
+
+9.6 Range resolution
+Time domain range resolution is defined as the ability to locate a single response in time. If only one response is present, range resolution is a measure of how closely you can pinpoint the peak of that response. The range resolution is equal to the digital resolution of the display, which is the time domain span divided by the number of points on the display.
+Range Resolution = Tspan/Points -1
+
+To get the maximum range resolution, center the response on the display and reduce the time domain span. The range resolution is always much finer than the response resolution. Figure 27a shows a span of 10 ns which results in a range resolution of 50 ps. Figure 27b shows the resolution being reduced to
+12.5 ps by reducing the span to 2.5 ns. In both cases, the number of points was fixed at 201. The change in span only increases or decreases the spacing between data points; it does not affect the ability to resolve two closely spaced signals.
+(a) 
+(b) 
+Figure 27. Range resolution: (a) a span of 10 ns results in a range solution of 50 ps, (b) reduce span to 2.5 ns and reduce resolution to 12.5 ps.
+
+In the time domain, the time span is independent of the frequency span chosen. You can center the response on the display and then zoom in on it by simply narrowing the time span. This improves the range resolution by a factor equal to the reduction in the time span.
+Keep in mind that the nonuniformity of the propagation velocity in a typical transmission medium will limit your ability to precisely locate the physical location of the discontinuity. And in dispersive media such as waveguide, the non-linear phase response limits the ability to locate the actual peak of the response.
+
+
+10.0 Conclusion
+In order to use time domain effectively, you must be aware of its limitations and ambiguities. These include measurement range (alias-free), resolution (response resolution and range resolution), as well as the effects of masking when dealing with multiple discontinuities.
+The alias-free range is dependent upon the ?f in the frequency domain.
+
+Range (seconds) = 1/?f = (Points -1)/Frequency Span
+
+The response resolution computation describes how closely spaced, equal magnitude responses can be distinguished.
+Impulse width at 50% Step rise time, 10 to 90%
+The range resolution defines how closely you can locate the peak of a response and thus the actual location of the discontinuity.
+Time Span/(Points -1)
+
+To help you apply the various elements that have been covered in this document, we have included two examples in the appendix to illustrate time domain measurements. Appendix A uses the ENA RF network analyzer and appendix B uses the PNA Series network analyzer.
+
+Appendix A
+Making transmission response measurements using an ENA
+In this example, there are three components of the transmission response:
+* RF leakage at near zero time
+* main travel path through the device
+* triple travel path
+
+This procedure shows you how time domain analysis can provide information about a surface acoustic wave (SAW) filter that is not apparent in the frequency domain. It also allows you to mathematically remove individual parts of the time domain response to see the effect of potential design changes. This is accomplished by gating out the undesirable responses. With the gating capability, the analyzer time domain allows you to perform "what if" analysis by mathematically removing selected responses and seeing the effect in the frequency domain. This procedure assumes some familiarity with the operation of the E5071C.
+Equipment:
+
+E5071C-280, ENA RF network analyzer, 9 kHz to 8.5 GHz DUT: SAW filter, 134 MHz
+Test cables, Type-N
+
+Connect the device as shown in Figure 28.
+
+
+
+
+
+
+Figure 28. Equipment setup
+
+Select the measurement parameters:
+
+Preset
+
+Format > Log Mag Measure > S21 Start > 119 MHz Stop > 149 MHz Scale > Autoscale
+
+Remove the DUT, connect the cables and perform a frequency response error-correction. (Refer to your analyzer's documentation for additional information on calibration procedure.)
+
+Reconnect the DUT, and you should see a response similar to that of Figure 29.
+
+Figure 29. Response of a SAW filter in frequency domain
+
+To transform the data from frequency domain to time domain, and set the start and stop times for -1 µs to 6 µs, select:
+Analysis > Transform Type > Bandpass Start > -1 µs
+Stop > 6 µs
+
+Transform > ON
+
+To better view the measurement trace as shown in Figure 30, select Scale and adjust the reference value to -60 dB.
+
+Figure 30. Time domain display of Figure 29
+
+To measure the peak response from the main path, select a marker, then;
+
+Marker Search > Max
+
+In the time domain, you are able to see the time (or distance) of the individual responses. The three responses shown in Figure 31 are the RF leakage (marker 1), the main travel path through the filter (marker 2), and the triple travel path through the filter (marker 3). Only the combination of these responses was evident in the frequency domain.
+
+
+Figure 31. Markers identifying individual key responses: (marker 1) RF leakage, (marker 2) main travel path through the filter, (marker 3) triple travel path through the filter.
+
+Interpreting the bandpass transmission response horizontal axis
+The response at marker 1 is an RF feedthrough leakage path. Marker 2 indicates the main path response through the test device, which has a propagation delay of 1.59 µs or about 477 meters in electrical length. Marker 3 indicates the triple travel path response at 4.775 µs or about 1.43 km. In addition to the triple travel path response, there are several other multi-path responses through the test device, which are inherent in the design of a SAW filter.
+
+Interpreting the bandpass transmission response vertical axis
+In the log magnitude format, the vertical axis displays the transmission loss or gain in dB. Think of this as an average of the transmission response over the measurement frequency range.
+
+Gating operation
+To access the gate function menu from the Time Domain Toolbar, select:
+
+Analysis > Gating
+
+To set the gate parameters, enter:
+
+Center > 1.6 µs
+
+Span > 3 µs
+
+There are several ways to adjust the gate. You can use the Start/Stop function, the Center/Span function, or the front panel knob. The center gate marker is shaped like a "T", and is shown in Figure 32. The flag markers indicate the start and stop times of the gate.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Figure 32. Markers of the gating operation. The "flag markers" indicate gate start and stop, and the "T" marker indicates gate center.
+
+To activate the gating function that will remove any unwanted responses, toggle Gating to ON. As shown in Figure 33, only the response from the main path is displayed.
+
+Figure 33. With gating on, only the response from the main path is displayed. Other responses, such as RF leakage and triple travel path, have been gated out.
+
+
+To adjust the gate shape for the best possible time domain response, select from the Gate Shape list. The choices are Maximum, Wide, Normal, and Minimum. The passband ripple and sidelobe levels are descriptive of the gate shape. The cutoff time is the time between the stop time (-6 dB on the filter skirt) and the peak of the first side lobe, and is equal on the left and right side skirts of the filter. The minimum gate span is just twice the cutoff time because it has no passband.
+To see the effect of gating in the frequency domain, toggle Transform to OFF.
+
+Figure 34a shows the effect of removing the RF leakage and the triple travel signal path using gating. By transforming back to the frequency domain as shown, we see that this design change would yield better out-of-band rejection. Figure 34b is the response of the SAW filter without the gating applied.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(a)
+
+
+(b) 
+
+Figure 34. Effect of gating on and off: (a) with gating on, the effect of RF leakage and triple travel signal have been removed, and the result is an improvement in out-of-band rejection, (b) no gating applied (same as Figure 29).
+
+Appendix B
+Making reflection response measurements using a PNA
+The time domain response of a reflection measurement is often compared with TDR measurements. Like the TDR, the analyzer measures the size of the reflections versus time (or distance). This mode allows not only fault location but the type of impedances present within the DUT. Unlike the TDR, the time domain capability of the analyzer allows you to choose the frequency range over which you would like to make the measurement. The most difficult part when using this mode is selecting the appropriate frequency settings on the VNA.
+When using the low-pass mode of operation, the measured frequencies must be harmonically related with a DC term extrapolated from the first few data points in the frequency domain. The remainder of the data is calculated from taking a mirror image of the original measure response. Because the transformed data includes a DC term, the time domain stimulus can be either an impulse or a step response. Also, because the data is mirrored about the DC term, we find the resolution achievable in the time domain is doubled due to the larger effective measurement span as compared to the bandpass mode.
+The real power of the low-pass response is that it contains information both from where the discontinuity is located and what type of impedance is present. The low-pass response of a short circuit is a total reflection of the step or impulse, -180 degrees out-of-phase. This represents a reflection coefficient of
+-1.00 as shown in Figure 35a. The response of an open circuit is a total in-phase reflection of the step or impulse or a reflection coefficient of +1.00, Figure 35b.
+
+
+
+
+
+
+
+
+
+
+
+
+(a)
+
+
+
+
+
+
+
+
+
+
+Figure 35. Low-pass responses of a short circuit (a) and an open circuit (b).
+(b)
+
+The recommended procedure for selecting the frequency range for low-pass measurements is to enter only the STOP frequency and NUMBER OF POINTS, then press SET FREQ (LOW PASS) before calibration. This automatically sets all frequencies. If the STOP frequency is changed to a value that differs significantly from what was specified, then the initial value (as specified by the user) was lower than the minimum frequency range for low-pass frequency requirements. When this occurs, reduce the number of points and go through the procedure again.
+
+Measuring a short and an open using low-pass mode
+The equipment used is the PNA, an open standard, a short standard, and a cal kit in the appropriate connector type.
+Preset the PNA.
+To choose the measurement parameters, Click Channel > Start/Stop
+Enter 3 GHz for Stop Frequency, click OK
+
+Click Sweep > Number of Points > 401
+
+Click Trace > Transform > more (on the Transform menu bar) Click Set Freq. Low Pass
+Note: You will see a message stating that the frequency limits have been changed. This is normal because for the low-pass mode, the frequencies must be harmonically related. When this button is clicked, the instrument readjusts the frequency range to make sure that the frequencies are harmonically related.
+Perform an S11 1-port error-correction on Port 1.
+(Refer to the analyzer's documentation for calibration procedures.)
+
+With calibration completed and turned on, connect the open standard to Port 1 of the PNA,
+
+Click More (on the Transform menu bar) > under Transform Mode (in the Transform dialogue box), select Low Pass Impulse, and check the box for Transform (see Figure 36 for details).
+
+
+
+Figure 36. Details of the Transform dialogue box.
+
+
+Enter Transform Start Time: -2.5 ns Enter Transform Stop Time: 2.5 ns Click OK
+
+To have a better view of the measurement trace, Click Trace > Format > Real > OK
+Click Scale > Scale, set scale as appropriate > OK
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Figure 37. Impulse response of an open standard
+
+Replace the open with the short and view the measurement.
+
+
+Figure 38. Impulse response of a short standard
+
+
+The low-pass impulse response is a peak that goes positive for R > Z0 and negative for R < Z0. The amplitude of the response is equal to the reflection coefficient.
+To measure the low-pass step response of a short,
+
+Click More (on the Transform menu bar) > Low Pass Step > OK
+
+
+
+Figure 39. Low-pass step response of a short
+
+
+
+Replace the short with the open to see the step response of the open.
+
+
+
+Figure 40. Low-pass step response of an open
+
+The low-pass step response for a resistive impedance is a positive level step for R > Z0 and negative level shift for R < Z0. The amplitude of the response is equal to the reflection coefficient.
+To see the effect of windows on the step response,
+
+Click More (on the Transform menu bar) > (in the Category field) select Window from the pull-down menu.
+Move the slider from Minimum to Maximum and observe the rise time and ripple changes (see Figure 41 for details).
+
+
+Figure 41. Details of the Transform: Window dialogue box
+
+
+Figure 42. Open standard: the effect of windows (minimum or maximum) on the step response
+
+Figure 43. Short standard: the effect of windows (minimum or maximum) on the step response
+
+To see how to determine distance, add an airline to the open standard. Notice how the location of the peak in Figure 44 has moved (as compared to Figure 37) because of the addition of the airline. Use the markers to read out the distance.
+
+Figure 44. Adding an airline moved the peak to a different location because the discontinuity is now further out in distance
+
+To see the effect of changing windows on this measurement:
+
+Click More (on the Transform menu bar) > (in the Category field) select Window from the pull-down menu.
+Move the slider from Minimum to Maximum and observe the rise time and ripple changes (see Figure 41 for details).
+
+
+Figure 45. Effect of windowing (minimum or maximum) on an open standard connected to an airline
+
+Bibliography
+1. Rytting, D., Let Time Domain Provide Additional Insight in Network Behavior, Hewlett-Packard RF & Microwave Measurement Symposium and Exhibition, April 1984
+2. Bracewell, The Fourier Transform and Its Applications, 2nd Edition, Revised, Mcgraw-Hill, New York, 1886
+3. Oppenheim & Schafer, Discrete-Time Signal Processing, Prentice Hall, Englewood Cliffs, New Jersey, 1989
+4. Dunsmore, Joel Phillip., The time-domain response of coupled-resonator filters with applications to tuning, PhD Thesis, University of Leeds, 2004
+5. Keysight Technologies, AN 1287-8 Simplified Filter Tuning Using Time Domain, Application Note, Literature Number 5968-5328E
+6. Keysight Technologies, AN 1304-2 Time Domain Reflectometry Theory, Application Note, Literature Number 5966-4855E
+7. Keysight Technologies, Limitations and Accuracies of Time and Frequency Domain Analysis of Physical Layer Devices, Application Note, Literature Number 5989-2421EN
+8. Keysight Technologies, Signal Integrity Applications using Physical Layer Test System with Time Domain Reflectometry and Vector Network Analysis, Application Note, Literature Number 5989- 5108EN
+9. Keysight Technologies, Stripline TRL Calibration Fixtures for 10-Gigabit Interconnect Analysis, Application Note, Literature Number 5989-4897EN
+10. Keysight Technologies, Investigating Microvia Technology for 10 Gbps and Higher Telecommunications Systems, Application Note, Literature Number 5989-2422EN
+11. Keysight Technologies, Physical Layer Test System (PLTS Version 3.0), Technical Overview, Literature Number 5989-0271EN
+12. Keysight Technologies, Designing High Speed Backplanes Utilizing Physical Layer Test System and Advanced Design System Tools, Application Note, Literature Number 5989-4077EN
+13. Keysight Technologies, Network Analysis Solutions Advanced Filter Tuning Using Time Domain Transforms, Literature Number 5980-2785EN
+
+ATCA(r), AdvancedTCA(r), and the ATCA logo are registered US trademarks of the PCI Industrial Computer Manufacturers Group. This document was formerly known as application note number 1287-12.
+
+
+
+Keysight enables innovators to push the boundaries of engineering by quickly solving
+design, emulation, and test challenges to create the best product experiences. Start your innovation journey at www.keysight.com.
+
+This information is subject to change without notice. (c) Keysight Technologies, 2017 - 2024, Published in USA, January 24, 2024, 5989- 5723EN
+
+
+
+
