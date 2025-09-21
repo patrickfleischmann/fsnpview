@@ -102,11 +102,23 @@ std::complex<double> NetworkFile::interpolate_s_param(double freq, int s_param_i
         return {0, 0};
     }
 
+    if (s_param_idx < 0 || s_param_idx >= m_data->sparams.cols()) {
+        return {0, 0};
+    }
+
     const auto& freqs = m_data->freq;
+    if (freqs.size() == 0) {
+        return {0, 0};
+    }
+
     const auto& sparams = m_data->sparams.col(s_param_idx);
 
-    if (freq < freqs.minCoeff() || freq > freqs.maxCoeff()) {
-        return {0, 0}; // or some other handling for out of range
+    const auto last_idx = freqs.size() - 1;
+    if (freq <= freqs[0]) {
+        return sparams[0];
+    }
+    if (freq >= freqs[last_idx]) {
+        return sparams[last_idx];
     }
 
     auto it = std::lower_bound(freqs.data(), freqs.data() + freqs.size(), freq);
@@ -118,6 +130,10 @@ std::complex<double> NetworkFile::interpolate_s_param(double freq, int s_param_i
 
     double f1 = freqs[lower_idx];
     double f2 = freqs[upper_idx];
+
+    if (f2 == f1) {
+        return sparams[lower_idx];
+    }
 
     std::complex<double> s1 = sparams[lower_idx];
     std::complex<double> s2 = sparams[upper_idx];
