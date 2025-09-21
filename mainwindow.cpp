@@ -723,6 +723,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         };
 
         if (graphContext) {
+            m_plot_manager->removeSelectedMathPlots();
             const auto plottables = ui->widgetGraph->selectedPlottables();
             QSet<Network*> networksToHide;
             bool cascadeGraphSelected = false;

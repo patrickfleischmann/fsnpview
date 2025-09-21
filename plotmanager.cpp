@@ -1118,12 +1118,41 @@ void PlotManager::createMathPlot()
 
         if (!x.isEmpty())
         {
-            plot(x, y, Qt::red,
-                 QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
-                 nullptr, PlotType::Magnitude);
+            if (QCPAbstractPlottable *pl = plot(x, y, Qt::red,
+                                               QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
+                                               nullptr, PlotType::Magnitude))
+            {
+                if (QCPGraph *mathGraph = qobject_cast<QCPGraph*>(pl))
+                    mathGraph->setProperty("math_plot", true);
+            }
             m_plot->replot();
         }
     }
+}
+
+bool PlotManager::removeSelectedMathPlots()
+{
+    if (!m_plot)
+        return false;
+
+    const auto selected = m_plot->selectedPlottables();
+    bool removed = false;
+
+    for (QCPAbstractPlottable *pl : selected)
+    {
+        if (!pl)
+            continue;
+        if (pl->property("math_plot").toBool())
+        {
+            m_plot->removePlottable(pl);
+            removed = true;
+        }
+    }
+
+    if (removed)
+        m_plot->replot();
+
+    return removed;
 }
 
 void PlotManager::selectionChanged()
