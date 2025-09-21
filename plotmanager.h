@@ -43,6 +43,7 @@ public slots:
     void setCursorAVisible(bool visible);
     void setCursorBVisible(bool visible);
     void createMathPlot();
+    bool removeSelectedMathPlots();
     void selectionChanged();
     void keepAspectRatio();
 
