@@ -47,6 +47,15 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         return {};
     }
 
+    const int ports = m_data->ports;
+    if (ports <= 0) {
+        return {};
+    }
+
+    const int outputPortIndex = s_param_idx % ports;
+    const int inputPortIndex = s_param_idx / ports;
+    const bool isReflection = (outputPortIndex == inputPortIndex);
+
     Eigen::ArrayXd xValues;
     Eigen::ArrayXd yValues;
 
@@ -81,7 +90,7 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         yValues = s_param_col.imag();
         break;
     case PlotType::TDR:
-        if (s_param_idx == 1 || s_param_idx == 2)
+        if (!isReflection)
             return {};
         {
             TDRCalculator calculator;
@@ -162,6 +171,13 @@ QVector<double> NetworkFile::frequencies() const
     if (!m_data)
         return {};
     return QVector<double>(m_data->freq.data(), m_data->freq.data() + m_data->freq.size());
+}
+
+int NetworkFile::portCount() const
+{
+    if (!m_data)
+        return 0;
+    return m_data->ports;
 }
 
 Eigen::MatrixXcd NetworkFile::abcd(const Eigen::VectorXd& freq) const

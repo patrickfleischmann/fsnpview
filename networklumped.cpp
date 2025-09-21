@@ -218,6 +218,11 @@ QVector<double> NetworkLumped::frequencies() const
     return QVector<double>(freq.data(), freq.data() + freq.size());
 }
 
+int NetworkLumped::portCount() const
+{
+    return 2;
+}
+
 double NetworkLumped::value() const
 {
     if (m_parameters.isEmpty())

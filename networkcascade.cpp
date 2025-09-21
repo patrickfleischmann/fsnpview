@@ -86,6 +86,11 @@ QString NetworkCascade::name() const
     return "Cascade";
 }
 
+int NetworkCascade::portCount() const
+{
+    return 2;
+}
+
 Eigen::MatrixXcd NetworkCascade::abcd(const Eigen::VectorXd& freq) const
 {
     Eigen::MatrixXcd total_abcd(freq.size(), 4);
