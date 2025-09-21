@@ -51,8 +51,10 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     // Basic validation
     const Eigen::Index m = std::min(frequencyHz.size(), reflection.size());
     if (m < 4) {
+        qDebug("Basic validation failed");
         return result;
     }
+    qDebug("Basic validation ok");
 
     // Copy + sort by frequency
     Eigen::ArrayXd f = frequencyHz.head(m);
@@ -72,7 +74,11 @@ TDRCalculator::Result TDRCalculator::compute(const Eigen::ArrayXd& frequencyHz,
     // Estimate df
     Eigen::ArrayXd df = f_sorted.tail(m - 1) - f_sorted.head(m - 1);
     const double df_est = df.mean();
-    if (!(df_est > 0.0)) return result;
+    if (!(df_est > 0.0)) {
+        qDebug("error: df_est <= 0");
+        return result;
+    }
+    qDebug("ok df_est > 0");
 
     // Nfft size
     const std::size_t minimalNfft = static_cast<std::size_t>(2 * (m - 1));
