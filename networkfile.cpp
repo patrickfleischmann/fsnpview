@@ -3,6 +3,8 @@
 #include <QFileInfo>
 #include <iostream>
 #include <numeric>
+#include <algorithm>
+#include <optional>
 
 NetworkFile::NetworkFile(const QString &filePath, QObject *parent)
     : Network(parent), m_file_path(filePath)
@@ -68,6 +70,25 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         s_param_col = (z - 50.0) / (z + 50.0);
     }
 
+    Network::TimeGateSettings gateSettings = Network::timeGateSettings();
+    const bool isReflectionParam = isReflection;
+    TDRCalculator calculator;
+    TDRCalculator::Parameters tdrParams;
+    tdrParams.effectivePermittivity = std::max(gateSettings.epsilonR, 1.0);
+
+    std::optional<TDRCalculator::GateResult> gateResult;
+    if (gateSettings.enabled && isReflectionParam) {
+        auto gated = calculator.applyGate(m_data->freq, s_param_col,
+                                         gateSettings.startDistance,
+                                         gateSettings.stopDistance,
+                                         gateSettings.epsilonR,
+                                         tdrParams);
+        if (gated) {
+            s_param_col = gated->gatedReflection;
+            gateResult = std::move(*gated);
+        }
+    }
+
     switch (type) {
     case PlotType::Magnitude:
         xValues = m_data->freq;
@@ -90,11 +111,12 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         yValues = s_param_col.imag();
         break;
     case PlotType::TDR:
-        if (!isReflection)
+        if (!isReflectionParam)
             return {};
+        if (gateResult)
+            return qMakePair(gateResult->distance, gateResult->impedance);
         {
-            TDRCalculator calculator;
-            auto result = calculator.compute(m_data->freq, s_param_col);
+            auto result = calculator.compute(m_data->freq, s_param_col, tdrParams);
             return qMakePair(result.distance, result.impedance);
         }
     }

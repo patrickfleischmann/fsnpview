@@ -4,6 +4,7 @@
 #include <QVector>
 #include <Eigen/Dense>
 #include <complex>
+#include <optional>
 
 class TDRCalculator
 {
@@ -42,9 +43,23 @@ public:
         QVector<double> impedance;
     };
 
+    struct GateResult
+    {
+        Eigen::ArrayXcd gatedReflection;
+        QVector<double> distance;
+        QVector<double> impedance;
+    };
+
     Result compute(const Eigen::ArrayXd& frequencyHz,
                    const Eigen::ArrayXcd& reflection,
                    const Parameters& params = Parameters()) const;
+
+    std::optional<GateResult> applyGate(const Eigen::ArrayXd& frequencyHz,
+                                        const Eigen::ArrayXcd& reflection,
+                                        double gateStartDistance,
+                                        double gateStopDistance,
+                                        double epsilonR,
+                                        const Parameters& params = Parameters()) const;
 };
 
 #endif // TDRCALCULATOR_H
