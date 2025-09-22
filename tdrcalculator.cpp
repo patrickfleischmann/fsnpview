@@ -1,6 +1,7 @@
 #include "tdrcalculator.h"
 
 #include <unsupported/Eigen/FFT>
+#include <QDebug>
 #include <algorithm>
 #include <climits>
 #include <cmath>
@@ -395,8 +396,12 @@ std::optional<TDRCalculator::GateResult> TDRCalculator::applyGate(const Eigen::A
     Eigen::ArrayXd impedance = StepToImpedance(rho, gateParams.referenceImpedance);
 
     Eigen::FFT<double> fft;
+    std::vector<double> impulseVec(ctx.Nfft);
+    for (std::size_t i = 0; i < ctx.Nfft; ++i)
+        impulseVec[i] = gatedImpulse(static_cast<Eigen::Index>(i));
+
     std::vector<std::complex<double>> specFull(ctx.Nfft);
-    fft.fwd(specFull, gatedImpulse);
+    fft.fwd(specFull, impulseVec);
 
     Eigen::ArrayXcd positive(ctx.freqBins.size());
     for (Eigen::Index i = 0; i < positive.size(); ++i)
