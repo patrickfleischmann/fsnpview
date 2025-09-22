@@ -30,6 +30,17 @@ public:
     virtual QVector<double> frequencies() const = 0;
     virtual int portCount() const = 0;
 
+    struct TimeGateSettings
+    {
+        bool enabled = false;
+        double startDistance = 0.0;
+        double stopDistance = 0.0;
+        double epsilonR = 1.0;
+    };
+
+    static void setTimeGateSettings(const TimeGateSettings& settings);
+    static TimeGateSettings timeGateSettings();
+
     double fmin() const;
     void setFmin(double fmin);
 

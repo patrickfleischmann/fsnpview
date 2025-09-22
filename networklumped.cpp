@@ -3,6 +3,8 @@
 #include <complex>
 #include <cmath>
 #include <QStringList>
+#include <algorithm>
+#include <optional>
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
@@ -154,62 +156,78 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
     if (s_param_idx < 0 || s_param_idx > 3) {
         return {};
     }
+
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
     Eigen::MatrixXcd abcd_matrix = abcd(freq);
-    if (type == PlotType::TDR) {
-        if (s_param_idx != 0 && s_param_idx != 3)
-            return {};
-        Eigen::ArrayXcd sparam(freq.size());
-        for (int i = 0; i < freq.size(); ++i) {
-            Eigen::Matrix2cd abcd_point;
-            abcd_point << abcd_matrix(i, 0), abcd_matrix(i, 1), abcd_matrix(i, 2), abcd_matrix(i, 3);
-            Eigen::Vector4cd s = abcd2s(abcd_point);
-            sparam(i) = s(s_param_idx);
-        }
-        TDRCalculator calculator;
-        auto result = calculator.compute(freq.array(), sparam);
-        return qMakePair(result.distance, result.impedance);
-    }
 
-    QVector<double> xValues, yValues;
-
+    Eigen::ArrayXcd sparam(freq.size());
     for (int i = 0; i < freq.size(); ++i) {
         Eigen::Matrix2cd abcd_point;
         abcd_point << abcd_matrix(i, 0), abcd_matrix(i, 1), abcd_matrix(i, 2), abcd_matrix(i, 3);
         Eigen::Vector4cd s = abcd2s(abcd_point);
-        std::complex<double> s_param = s(s_param_idx);
+        sparam(i) = s(s_param_idx);
+    }
 
-        switch (type) {
-        case PlotType::Magnitude:
-            xValues.append(freq(i));
-            yValues.append(20 * std::log10(std::abs(s_param)));
-            break;
-        case PlotType::Phase:
-            xValues.append(freq(i));
-            yValues.append(std::arg(s_param) * 180.0 / pi);
-            break;
-        case PlotType::VSWR:
-            xValues.append(freq(i));
-            yValues.append((1 + std::abs(s_param)) / (1 - std::abs(s_param)));
-            break;
-        case PlotType::Smith:
-            xValues.append(std::real(s_param));
-            yValues.append(std::imag(s_param));
-            break;
-        case PlotType::TDR:
-            break;
+    const int ports = portCount();
+    const int outputPort = s_param_idx % ports;
+    const int inputPort = s_param_idx / ports;
+    const bool isReflectionParam = (outputPort == inputPort);
+
+    Network::TimeGateSettings gateSettings = Network::timeGateSettings();
+    TDRCalculator calculator;
+    TDRCalculator::Parameters tdrParams;
+    tdrParams.effectivePermittivity = std::max(gateSettings.epsilonR, 1.0);
+
+    std::optional<TDRCalculator::GateResult> gateResult;
+    if (gateSettings.enabled && isReflectionParam) {
+        auto gated = calculator.applyGate(freq.array(), sparam,
+                                         gateSettings.startDistance,
+                                         gateSettings.stopDistance,
+                                         gateSettings.epsilonR,
+                                         tdrParams);
+        if (gated) {
+            sparam = gated->gatedReflection;
+            gateResult = std::move(*gated);
         }
     }
 
-    if (type == PlotType::Phase && m_unwrap_phase) {
-        Eigen::Map<Eigen::ArrayXd> yValuesEigen(yValues.data(), yValues.size());
-        Eigen::ArrayXd unwrapped_y = unwrap(yValuesEigen);
-        for(int i = 0; i < unwrapped_y.size(); ++i) {
-            yValues[i] = unwrapped_y[i];
+    QVector<double> freqVector(freq.data(), freq.data() + freq.size());
+
+    switch (type) {
+    case PlotType::Magnitude: {
+        Eigen::ArrayXd magnitude = 20 * sparam.abs().log10();
+        QVector<double> values(magnitude.data(), magnitude.data() + magnitude.size());
+        return qMakePair(freqVector, values);
+    }
+    case PlotType::Phase: {
+        Eigen::ArrayXd phase = sparam.arg() * 180.0 / pi;
+        if (m_unwrap_phase)
+            phase = unwrap(phase);
+        QVector<double> values(phase.data(), phase.data() + phase.size());
+        return qMakePair(freqVector, values);
+    }
+    case PlotType::VSWR: {
+        Eigen::ArrayXd vswr = (1 + sparam.abs()) / (1 - sparam.abs());
+        QVector<double> values(vswr.data(), vswr.data() + vswr.size());
+        return qMakePair(freqVector, values);
+    }
+    case PlotType::Smith: {
+        QVector<double> xValues(sparam.real().data(), sparam.real().data() + sparam.real().size());
+        QVector<double> yValues(sparam.imag().data(), sparam.imag().data() + sparam.imag().size());
+        return qMakePair(xValues, yValues);
+    }
+    case PlotType::TDR:
+        if (!isReflectionParam)
+            return {};
+        if (gateResult)
+            return qMakePair(gateResult->distance, gateResult->impedance);
+        {
+            auto result = calculator.compute(freq.array(), sparam, tdrParams);
+            return qMakePair(result.distance, result.impedance);
         }
     }
 
-    return qMakePair(xValues, yValues);
+    return {};
 }
 
 QVector<double> NetworkLumped::frequencies() const

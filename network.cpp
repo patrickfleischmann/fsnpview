@@ -2,6 +2,10 @@
 #include <complex>
 #include <cmath>
 
+namespace {
+Network::TimeGateSettings g_timeGateSettings;
+}
+
 Eigen::Matrix2cd Network::s2abcd(const std::complex<double>& s11, const std::complex<double>& s12, const std::complex<double>& s21, const std::complex<double>& s22, double z0)
 {
     std::complex<double> A = ((1.0 + s11) * (1.0 - s22) + s12 * s21) / (2.0 * s21);
@@ -91,6 +95,16 @@ QString Network::formatEngineering(double value, bool padMantissa)
 QString Network::displayName() const
 {
     return name();
+}
+
+void Network::setTimeGateSettings(const TimeGateSettings& settings)
+{
+    g_timeGateSettings = settings;
+}
+
+Network::TimeGateSettings Network::timeGateSettings()
+{
+    return g_timeGateSettings;
 }
 
 Network::Network(QObject *parent)

@@ -59,6 +59,11 @@ private slots:
     void on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_checkBoxGate_stateChanged(int state);
+    void on_lineEditGateStart_editingFinished();
+    void on_lineEditGateStop_editingFinished();
+    void on_lineEditEpsilonR_editingFinished();
+
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
     void onNetworkCascadeModelChanged(QStandardItem *item);
@@ -86,6 +91,9 @@ private:
     bool isParameterValueColumn(int column) const;
     int parameterIndexFromColumn(int column) const;
     void updateGraphSelectionFromTables();
+    bool applyGateSettingsFromUi();
+    void refreshGateControls();
+    static bool nearlyEqual(double lhs, double rhs);
 
 
     Ui::MainWindow *ui;

@@ -24,8 +24,10 @@
 #include <QStyle>
 #include <QApplication>
 #include <QStringList>
+#include <QLineEdit>
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -60,6 +62,18 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
+
+    ui->lineEditGateStart->installEventFilter(this);
+    ui->lineEditGateStop->installEventFilter(this);
+
+    Network::TimeGateSettings gateSettings;
+    gateSettings.enabled = false;
+    gateSettings.startDistance = 0.0;
+    gateSettings.stopDistance = 1.0;
+    gateSettings.epsilonR = 2.9;
+    Network::setTimeGateSettings(gateSettings);
+    refreshGateControls();
+    ui->checkBoxGate->setChecked(gateSettings.enabled);
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     QAction *openAct = new QAction(tr("&Open..."), this);
@@ -645,6 +659,71 @@ void MainWindow::updateGraphSelectionFromTables()
     m_plot_manager->selectionChanged();
 }
 
+bool MainWindow::nearlyEqual(double lhs, double rhs)
+{
+    double scale = std::max({1.0, std::abs(lhs), std::abs(rhs)});
+    return std::abs(lhs - rhs) <= scale * 1e-12;
+}
+
+bool MainWindow::applyGateSettingsFromUi()
+{
+    Network::TimeGateSettings previous = Network::timeGateSettings();
+    Network::TimeGateSettings settings = previous;
+    settings.enabled = ui->checkBoxGate->isChecked();
+
+    auto parseValue = [](QLineEdit *edit, double fallback) {
+        bool ok = false;
+        double value = edit->text().trimmed().toDouble(&ok);
+        return ok ? value : fallback;
+    };
+
+    double start = parseValue(ui->lineEditGateStart, previous.startDistance);
+    double stop = parseValue(ui->lineEditGateStop, previous.stopDistance);
+    double epsilon = parseValue(ui->lineEditEpsilonR, previous.epsilonR);
+
+    if (!(start >= 0.0))
+        start = 0.0;
+    if (!(stop >= 0.0))
+        stop = 0.0;
+    if (stop < start)
+        stop = start;
+    if (!(epsilon > 0.0))
+        epsilon = previous.epsilonR;
+    epsilon = std::max(1.0, epsilon);
+
+    settings.startDistance = start;
+    settings.stopDistance = stop;
+    settings.epsilonR = epsilon;
+
+    bool changed = settings.enabled != previous.enabled
+            || !nearlyEqual(settings.startDistance, previous.startDistance)
+            || !nearlyEqual(settings.stopDistance, previous.stopDistance)
+            || !nearlyEqual(settings.epsilonR, previous.epsilonR);
+
+    if (changed)
+        Network::setTimeGateSettings(settings);
+
+    return changed;
+}
+
+void MainWindow::refreshGateControls()
+{
+    Network::TimeGateSettings settings = Network::timeGateSettings();
+
+    {
+        QSignalBlocker blocker(ui->lineEditGateStart);
+        ui->lineEditGateStart->setText(Network::formatEngineering(settings.startDistance, false));
+    }
+    {
+        QSignalBlocker blocker(ui->lineEditGateStop);
+        ui->lineEditGateStop->setText(Network::formatEngineering(settings.stopDistance, false));
+    }
+    {
+        QSignalBlocker blocker(ui->lineEditEpsilonR);
+        ui->lineEditEpsilonR->setText(QString::number(settings.epsilonR, 'g', 6));
+    }
+}
+
 
 void MainWindow::on_actionOpen_triggered()
 {
@@ -950,9 +1029,83 @@ void MainWindow::on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1)
     updatePlots();
 }
 
+void MainWindow::on_checkBoxGate_stateChanged(int state)
+{
+    Q_UNUSED(state);
+    bool changed = applyGateSettingsFromUi();
+    refreshGateControls();
+    if (changed)
+        updatePlots();
+}
+
+void MainWindow::on_lineEditGateStart_editingFinished()
+{
+    bool changed = applyGateSettingsFromUi();
+    refreshGateControls();
+    if (changed)
+        updatePlots();
+}
+
+void MainWindow::on_lineEditGateStop_editingFinished()
+{
+    bool changed = applyGateSettingsFromUi();
+    refreshGateControls();
+    if (changed)
+        updatePlots();
+}
+
+void MainWindow::on_lineEditEpsilonR_editingFinished()
+{
+    bool changed = applyGateSettingsFromUi();
+    refreshGateControls();
+    if (changed)
+        updatePlots();
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::Wheel) {
+        if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop) {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+            if (wheelEvent->angleDelta().y() == 0)
+                return true;
+
+            QLineEdit *edit = qobject_cast<QLineEdit*>(obj);
+            if (!edit)
+                return QMainWindow::eventFilter(obj, event);
+
+            Network::TimeGateSettings settings = Network::timeGateSettings();
+            const double fallback = (obj == ui->lineEditGateStop)
+                    ? settings.stopDistance
+                    : settings.startDistance;
+
+            bool ok = false;
+            double value = edit->text().trimmed().toDouble(&ok);
+            if (!ok)
+                value = fallback;
+
+            const double magnitude = std::max(std::abs(value), 1e-3);
+            const double step = magnitude * 0.1;
+            if (wheelEvent->angleDelta().y() > 0)
+                value += step;
+            else if (wheelEvent->angleDelta().y() < 0) {
+                value -= step;
+                if (value < 0.0)
+                    value = 0.0;
+            }
+
+            {
+                QSignalBlocker blocker(edit);
+                edit->setText(Network::formatEngineering(value, false));
+            }
+
+            bool changed = applyGateSettingsFromUi();
+            refreshGateControls();
+            if (changed)
+                updatePlots();
+            return true;
+        }
+
         auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model) -> bool {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             QModelIndex index = view->indexAt(wheelEvent->position().toPoint());
