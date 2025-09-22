@@ -16,7 +16,7 @@ public:
         constexpr Parameters(double referenceImpedance = 50.0,
                              double effectivePermittivity = 2.9,
                              double speedOfLight = 299792458.0,
-                             double risetime = 20e-12,
+                             double risetime = 5e-12,
                              enum FilterType filter = Parameters::FilterType::Gaussian,
                              double rolloff = 0.5)
             : referenceImpedance(referenceImpedance),
