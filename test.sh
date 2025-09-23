@@ -10,3 +10,5 @@ set -e
 QT_QPA_PLATFORM=offscreen ./gui_plot_tests
 ./networkcascade_tests
 
+python3 tests/test_lumped_networks_cli_vs_skrf.py
+
