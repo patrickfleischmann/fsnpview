@@ -27,11 +27,15 @@ public:
     QVector<double> frequencies() const override;
     int portCount() const override;
 
+    void setPointCount(int pointCount);
+    int pointCount() const;
+
 
 private:
     void updateFrequencyRange();
 
     QList<Network*> m_networks;
+    int m_pointCount;
 };
 
 #endif // NETWORKCASCADE_H

@@ -308,6 +308,71 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
     if(autoscale) m_plot_manager->autoscale();
 }
 
+void MainWindow::clearCascade()
+{
+    m_cascade->clearNetworks();
+    m_network_cascade_model->removeRows(0, m_network_cascade_model->rowCount());
+    updatePlots();
+}
+
+void MainWindow::addNetworkToCascade(Network* network)
+{
+    if (!network)
+        return;
+
+    if (network->parent() != m_cascade) {
+        network->setParent(m_cascade);
+    }
+
+    if (network->color() == QColor(Qt::black)) {
+        network->setColor(m_plot_manager->nextColor());
+    }
+
+    QList<QStandardItem*> items;
+    QStandardItem* checkItem = new QStandardItem();
+    checkItem->setCheckable(true);
+    checkItem->setCheckState(Qt::Checked);
+    checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
+    items.append(checkItem);
+
+    QStandardItem* colorItem = new QStandardItem();
+    colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    colorItem->setBackground(network->color());
+    items.append(colorItem);
+
+    QStandardItem* nameItem = new QStandardItem(network->displayName());
+    nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    items.append(nameItem);
+
+    appendParameterItems(items, network);
+    m_network_cascade_model->appendRow(items);
+
+    m_cascade->addNetwork(network);
+    updatePlots();
+}
+
+void MainWindow::setCascadeFrequencyRange(double fmin, double fmax)
+{
+    if (fmax <= fmin)
+        return;
+    m_cascade->setFmin(fmin);
+    m_cascade->setFmax(fmax);
+    updatePlots();
+}
+
+void MainWindow::setCascadePointCount(int pointCount)
+{
+    if (pointCount < 2)
+        pointCount = 2;
+    m_cascade->setPointCount(pointCount);
+    updatePlots();
+}
+
+NetworkCascade* MainWindow::cascade() const
+{
+    return m_cascade;
+}
+
 void MainWindow::onFilesReceived(const QStringList &files)
 {
     processFiles(files);

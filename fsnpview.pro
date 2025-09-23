@@ -35,7 +35,8 @@ SOURCES += \
     networkcascade.cpp \
     networkitemmodel.cpp \
     plotmanager.cpp \
-    tdrcalculator.cpp
+    tdrcalculator.cpp \
+    commandlineparser.cpp
 
 HEADERS += \
     SmithChartGrid.h \
@@ -49,7 +50,8 @@ HEADERS += \
     networkcascade.h \
     networkitemmodel.h \
     plotmanager.h \
-    tdrcalculator.h
+    tdrcalculator.h \
+    commandlineparser.h
 
 FORMS += \
     mainwindow.ui

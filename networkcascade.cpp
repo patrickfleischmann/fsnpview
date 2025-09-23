@@ -8,7 +8,7 @@ namespace {
 constexpr double pi = 3.14159265358979323846;
 }
 
-NetworkCascade::NetworkCascade(QObject *parent) : Network(parent)
+NetworkCascade::NetworkCascade(QObject *parent) : Network(parent), m_pointCount(2001)
 {
     m_fmin = 1e6;
     m_fmax = 10e9;
@@ -133,7 +133,8 @@ Eigen::MatrixXcd NetworkCascade::abcd(const Eigen::VectorXd& freq) const
 QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_idx, PlotType type)
 {
     updateFrequencyRange();
-    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(2001, m_fmin, m_fmax);
+    const int points = std::max(m_pointCount, 2);
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
     Eigen::MatrixXcd abcd_matrix = abcd(freq);
 
     Eigen::ArrayXcd sparam(freq.size());
@@ -224,7 +225,20 @@ Network* NetworkCascade::clone(QObject* parent) const
 QVector<double> NetworkCascade::frequencies() const
 {
     const_cast<NetworkCascade*>(this)->updateFrequencyRange();
-    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
+    const int points = std::max(m_pointCount, 2);
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
     return QVector<double>(freq.data(), freq.data() + freq.size());
+}
+
+void NetworkCascade::setPointCount(int pointCount)
+{
+    if (pointCount < 2)
+        pointCount = 2;
+    m_pointCount = pointCount;
+}
+
+int NetworkCascade::pointCount() const
+{
+    return m_pointCount;
 }
 
