@@ -230,12 +230,6 @@ CommandLineParser::ParseResult CommandLineParser::parse(int argc, char *argv[]) 
     Options& options = result.options;
     options.argumentsProvided = argc > 1;
 
-    if (argc <= 1) {
-        result.ok = true;
-        options.helpRequested = true;
-        return result;
-    }
-
     QStringList args;
     args.reserve(argc - 1);
     for (int i = 1; i < argc; ++i) {
