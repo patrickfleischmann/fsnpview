@@ -58,6 +58,112 @@ def build_shunt_rl(media: DefinedGammaZ0, inductance_h: float, resistance_ohm: f
     return shunted
 
 
+def cascade_networks(networks: Sequence[rf.Network], base_name: str) -> rf.Network:
+    if not networks:
+        raise ValueError("At least one network is required to form a cascade.")
+    result = networks[0]
+    for network in networks[1:]:
+        result = result ** network
+    return rename_network(result, base_name)
+
+
+def create_r_series(media: DefinedGammaZ0, resistance_ohm: float, base_name: str) -> rf.Network:
+    return rename_network(media.resistor(resistance_ohm), base_name)
+
+
+def create_r_shunt(media: DefinedGammaZ0, resistance_ohm: float, base_name: str) -> rf.Network:
+    return rename_network(media.shunt_resistor(resistance_ohm), base_name)
+
+
+def create_c_series(media: DefinedGammaZ0, capacitance_pf: float, base_name: str) -> rf.Network:
+    return rename_network(media.capacitor(capacitance_pf * 1e-12), base_name)
+
+
+def create_c_shunt(media: DefinedGammaZ0, capacitance_pf: float, base_name: str) -> rf.Network:
+    return rename_network(media.shunt_capacitor(capacitance_pf * 1e-12), base_name)
+
+
+def create_l_series(media: DefinedGammaZ0, inductance_nh: float, resistance_ohm: float, base_name: str) -> rf.Network:
+    return rename_network(build_series_rl(media, inductance_nh * 1e-9, resistance_ohm, base_name), base_name)
+
+
+def create_l_shunt(media: DefinedGammaZ0, inductance_nh: float, resistance_ohm: float, base_name: str) -> rf.Network:
+    return rename_network(build_shunt_rl(media, inductance_nh * 1e-9, resistance_ohm, base_name), base_name)
+
+
+def create_transmission_line(
+    factory: Callable[[float], DefinedGammaZ0], length_m: float, z0_ohm: float, base_name: str
+) -> rf.Network:
+    media = factory(z0_ohm)
+    return rename_network(media.line(d=length_m, unit="m", z0=z0_ohm), base_name)
+
+
+def expected_r_series(factory: Callable[[float], DefinedGammaZ0], resistance_ohm: float, base_name: str) -> rf.Network:
+    return create_r_series(factory(), resistance_ohm, base_name)
+
+
+def expected_r_shunt(factory: Callable[[float], DefinedGammaZ0], resistance_ohm: float, base_name: str) -> rf.Network:
+    return create_r_shunt(factory(), resistance_ohm, base_name)
+
+
+def expected_c_series(factory: Callable[[float], DefinedGammaZ0], capacitance_pf: float, base_name: str) -> rf.Network:
+    return create_c_series(factory(), capacitance_pf, base_name)
+
+
+def expected_c_shunt(factory: Callable[[float], DefinedGammaZ0], capacitance_pf: float, base_name: str) -> rf.Network:
+    return create_c_shunt(factory(), capacitance_pf, base_name)
+
+
+def expected_l_series(
+    factory: Callable[[float], DefinedGammaZ0], inductance_nh: float, resistance_ohm: float, base_name: str
+) -> rf.Network:
+    return create_l_series(factory(), inductance_nh, resistance_ohm, base_name)
+
+
+def expected_l_shunt(
+    factory: Callable[[float], DefinedGammaZ0], inductance_nh: float, resistance_ohm: float, base_name: str
+) -> rf.Network:
+    return create_l_shunt(factory(), inductance_nh, resistance_ohm, base_name)
+
+
+def expected_transmission_line(
+    factory: Callable[[float], DefinedGammaZ0], length_m: float, z0_ohm: float, base_name: str
+) -> rf.Network:
+    return create_transmission_line(factory, length_m, z0_ohm, base_name)
+
+
+def format_value(value: float) -> str:
+    return f"{value:.12g}"
+
+
+def tokens_r_series(resistance_ohm: float) -> list[str]:
+    return ["R_series", "R", format_value(resistance_ohm)]
+
+
+def tokens_r_shunt(resistance_ohm: float) -> list[str]:
+    return ["R_shunt", "R", format_value(resistance_ohm)]
+
+
+def tokens_c_series(capacitance_pf: float) -> list[str]:
+    return ["C_series", "C", format_value(capacitance_pf)]
+
+
+def tokens_c_shunt(capacitance_pf: float) -> list[str]:
+    return ["C_shunt", "C", format_value(capacitance_pf)]
+
+
+def tokens_l_series(inductance_nh: float, resistance_ohm: float) -> list[str]:
+    return ["L_series", "L", format_value(inductance_nh), "R_ser", format_value(resistance_ohm)]
+
+
+def tokens_l_shunt(inductance_nh: float, resistance_ohm: float) -> list[str]:
+    return ["L_shunt", "L", format_value(inductance_nh), "R_ser", format_value(resistance_ohm)]
+
+
+def tokens_transmission_line(length_m: float, z0_ohm: float) -> list[str]:
+    return ["TransmissionLine", "len", format_value(length_m), "z0", format_value(z0_ohm)]
+
+
 def wrap_phase_deg(values: np.ndarray) -> np.ndarray:
     """Wrap phase values to [-180, 180) degrees."""
     return (values + 180.0) % 360.0 - 180.0
@@ -243,49 +349,235 @@ def main() -> int:
     specs: list[LumpedNetworkSpec] = [
         LumpedNetworkSpec(
             name="R_series",
-            cli_tokens=["R_series", "R", "75.0"],
-            build_expected=lambda factory: rename_network(factory().resistor(75.0), "R_series_expected"),
+            cli_tokens=tokens_r_series(75.0),
+            build_expected=lambda factory: expected_r_series(factory, 75.0, "R_series_expected"),
         ),
         LumpedNetworkSpec(
             name="R_shunt",
-            cli_tokens=["R_shunt", "R", "30.0"],
-            build_expected=lambda factory: rename_network(factory().shunt_resistor(30.0), "R_shunt_expected"),
+            cli_tokens=tokens_r_shunt(30.0),
+            build_expected=lambda factory: expected_r_shunt(factory, 30.0, "R_shunt_expected"),
         ),
         LumpedNetworkSpec(
             name="C_series",
-            cli_tokens=["C_series", "C", "2.2"],
-            build_expected=lambda factory: rename_network(factory().capacitor(2.2e-12), "C_series_expected"),
+            cli_tokens=tokens_c_series(2.2),
+            build_expected=lambda factory: expected_c_series(factory, 2.2, "C_series_expected"),
         ),
         LumpedNetworkSpec(
             name="C_shunt",
-            cli_tokens=["C_shunt", "C", "4.7"],
-            build_expected=lambda factory: rename_network(factory().shunt_capacitor(4.7e-12), "C_shunt_expected"),
+            cli_tokens=tokens_c_shunt(4.7),
+            build_expected=lambda factory: expected_c_shunt(factory, 4.7, "C_shunt_expected"),
         ),
         LumpedNetworkSpec(
             name="L_series",
-            cli_tokens=["L_series", "L", "8.2", "R_ser", "0.75"],
-            build_expected=lambda factory: rename_network(
-                build_series_rl(factory(), 8.2e-9, 0.75, "L_series_expected"),
-                "L_series_expected",
-            ),
+            cli_tokens=tokens_l_series(8.2, 0.75),
+            build_expected=lambda factory: expected_l_series(factory, 8.2, 0.75, "L_series_expected"),
         ),
         LumpedNetworkSpec(
             name="L_shunt",
-            cli_tokens=["L_shunt", "L", "12.0", "R_ser", "0.25"],
-            build_expected=lambda factory: rename_network(
-                build_shunt_rl(factory(), 12e-9, 0.25, "L_shunt_expected"),
-                "L_shunt_expected",
-            ),
+            cli_tokens=tokens_l_shunt(12.0, 0.25),
+            build_expected=lambda factory: expected_l_shunt(factory, 12.0, 0.25, "L_shunt_expected"),
         ),
         LumpedNetworkSpec(
             name="TransmissionLine",
-            cli_tokens=["TransmissionLine", "len", "0.015", "z0", "60.0"],
-            build_expected=lambda factory: rename_network(
-                factory(60.0).line(d=0.015, unit="m", z0=60.0),
-                "TransmissionLine_expected",
+            cli_tokens=tokens_transmission_line(0.015, 60.0),
+            build_expected=lambda factory: expected_transmission_line(
+                factory, 0.015, 60.0, "TransmissionLine_expected"
             ),
         ),
     ]
+
+    def build_r_series_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_r_series(media, 25.0, "R_series_double_stage1")
+        second = create_r_series(media, 80.0, "R_series_double_stage2")
+        return cascade_networks([first, second], "R_series_double_expected")
+
+    def build_r_shunt_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_r_shunt(media, 40.0, "R_shunt_double_stage1")
+        second = create_r_shunt(media, 65.0, "R_shunt_double_stage2")
+        return cascade_networks([first, second], "R_shunt_double_expected")
+
+    def build_c_series_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_c_series(media, 1.5, "C_series_double_stage1")
+        second = create_c_series(media, 5.5, "C_series_double_stage2")
+        return cascade_networks([first, second], "C_series_double_expected")
+
+    def build_c_shunt_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_c_shunt(media, 2.5, "C_shunt_double_stage1")
+        second = create_c_shunt(media, 6.5, "C_shunt_double_stage2")
+        return cascade_networks([first, second], "C_shunt_double_expected")
+
+    def build_l_series_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_l_series(media, 5.6, 0.2, "L_series_double_stage1")
+        second = create_l_series(media, 15.0, 0.7, "L_series_double_stage2")
+        return cascade_networks([first, second], "L_series_double_expected")
+
+    def build_l_shunt_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        first = create_l_shunt(media, 7.5, 0.15, "L_shunt_double_stage1")
+        second = create_l_shunt(media, 20.0, 0.45, "L_shunt_double_stage2")
+        return cascade_networks([first, second], "L_shunt_double_expected")
+
+    def build_transmission_line_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        first = create_transmission_line(factory, 0.004, 45.0, "TransmissionLine_double_section1")
+        second = create_transmission_line(factory, 0.007, 65.0, "TransmissionLine_double_section2")
+        return cascade_networks([first, second], "TransmissionLine_double_expected")
+
+    specs.extend(
+        [
+            LumpedNetworkSpec(
+                name="R_series_double",
+                cli_tokens=tokens_r_series(25.0) + tokens_r_series(80.0),
+                build_expected=build_r_series_double,
+            ),
+            LumpedNetworkSpec(
+                name="R_shunt_double",
+                cli_tokens=tokens_r_shunt(40.0) + tokens_r_shunt(65.0),
+                build_expected=build_r_shunt_double,
+            ),
+            LumpedNetworkSpec(
+                name="C_series_double",
+                cli_tokens=tokens_c_series(1.5) + tokens_c_series(5.5),
+                build_expected=build_c_series_double,
+            ),
+            LumpedNetworkSpec(
+                name="C_shunt_double",
+                cli_tokens=tokens_c_shunt(2.5) + tokens_c_shunt(6.5),
+                build_expected=build_c_shunt_double,
+            ),
+            LumpedNetworkSpec(
+                name="L_series_double",
+                cli_tokens=tokens_l_series(5.6, 0.2) + tokens_l_series(15.0, 0.7),
+                build_expected=build_l_series_double,
+            ),
+            LumpedNetworkSpec(
+                name="L_shunt_double",
+                cli_tokens=tokens_l_shunt(7.5, 0.15) + tokens_l_shunt(20.0, 0.45),
+                build_expected=build_l_shunt_double,
+            ),
+            LumpedNetworkSpec(
+                name="TransmissionLine_double",
+                cli_tokens=tokens_transmission_line(0.004, 45.0)
+                + tokens_transmission_line(0.007, 65.0),
+                build_expected=build_transmission_line_double,
+            ),
+        ]
+    )
+
+    def build_r_series_then_c_series(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        resistor = create_r_series(media, 33.0, "R_series_then_C_series_res")
+        capacitor = create_c_series(media, 3.3, "R_series_then_C_series_cap")
+        return cascade_networks([resistor, capacitor], "R_series_then_C_series_expected")
+
+    def build_r_shunt_then_l_series(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        shunt = create_r_shunt(media, 85.0, "R_shunt_then_L_series_shunt")
+        inductive = create_l_series(media, 9.1, 0.5, "R_shunt_then_L_series_ind")
+        return cascade_networks([shunt, inductive], "R_shunt_then_L_series_expected")
+
+    def build_c_series_then_transmission(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        capacitor = create_c_series(media, 4.4, "C_series_then_TransmissionLine_cap")
+        line = create_transmission_line(factory, 0.006, 55.0, "C_series_then_TransmissionLine_line")
+        return cascade_networks([capacitor, line], "C_series_then_TransmissionLine_expected")
+
+    def build_c_shunt_then_r_shunt(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        cap = create_c_shunt(media, 5.2, "C_shunt_then_R_shunt_cap")
+        resistor = create_r_shunt(media, 120.0, "C_shunt_then_R_shunt_res")
+        return cascade_networks([cap, resistor], "C_shunt_then_R_shunt_expected")
+
+    def build_l_series_then_c_shunt(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        inductive = create_l_series(media, 11.0, 0.35, "L_series_then_C_shunt_ind")
+        capacitor = create_c_shunt(media, 3.8, "L_series_then_C_shunt_cap")
+        return cascade_networks([inductive, capacitor], "L_series_then_C_shunt_expected")
+
+    def build_l_shunt_then_transmission(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        inductive = create_l_shunt(media, 13.0, 0.28, "L_shunt_then_TransmissionLine_ind")
+        line = create_transmission_line(factory, 0.009, 52.0, "L_shunt_then_TransmissionLine_line")
+        return cascade_networks([inductive, line], "L_shunt_then_TransmissionLine_expected")
+
+    def build_transmission_then_r_series(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        line = create_transmission_line(factory, 0.008, 48.0, "TransmissionLine_then_R_series_line")
+        media = factory()
+        resistor = create_r_series(media, 68.0, "TransmissionLine_then_R_series_res")
+        return cascade_networks([line, resistor], "TransmissionLine_then_R_series_expected")
+
+    specs.extend(
+        [
+            LumpedNetworkSpec(
+                name="R_series_then_C_series",
+                cli_tokens=tokens_r_series(33.0) + tokens_c_series(3.3),
+                build_expected=build_r_series_then_c_series,
+            ),
+            LumpedNetworkSpec(
+                name="R_shunt_then_L_series",
+                cli_tokens=tokens_r_shunt(85.0) + tokens_l_series(9.1, 0.5),
+                build_expected=build_r_shunt_then_l_series,
+            ),
+            LumpedNetworkSpec(
+                name="C_series_then_TransmissionLine",
+                cli_tokens=tokens_c_series(4.4) + tokens_transmission_line(0.006, 55.0),
+                build_expected=build_c_series_then_transmission,
+            ),
+            LumpedNetworkSpec(
+                name="C_shunt_then_R_shunt",
+                cli_tokens=tokens_c_shunt(5.2) + tokens_r_shunt(120.0),
+                build_expected=build_c_shunt_then_r_shunt,
+            ),
+            LumpedNetworkSpec(
+                name="L_series_then_C_shunt",
+                cli_tokens=tokens_l_series(11.0, 0.35) + tokens_c_shunt(3.8),
+                build_expected=build_l_series_then_c_shunt,
+            ),
+            LumpedNetworkSpec(
+                name="L_shunt_then_TransmissionLine",
+                cli_tokens=tokens_l_shunt(13.0, 0.28) + tokens_transmission_line(0.009, 52.0),
+                build_expected=build_l_shunt_then_transmission,
+            ),
+            LumpedNetworkSpec(
+                name="TransmissionLine_then_R_series",
+                cli_tokens=tokens_transmission_line(0.008, 48.0) + tokens_r_series(68.0),
+                build_expected=build_transmission_then_r_series,
+            ),
+        ]
+    )
+
+    def build_all_types_cascade(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
+        media = factory()
+        components = [
+            create_r_series(media, 47.0, "All_types_R_series"),
+            create_r_shunt(media, 90.0, "All_types_R_shunt"),
+            create_c_series(media, 3.9, "All_types_C_series"),
+            create_c_shunt(media, 6.8, "All_types_C_shunt"),
+            create_l_series(media, 10.5, 0.42, "All_types_L_series"),
+            create_l_shunt(media, 18.0, 0.33, "All_types_L_shunt"),
+            create_transmission_line(factory, 0.012, 58.0, "All_types_TransmissionLine"),
+        ]
+        return cascade_networks(components, "All_types_cascade_expected")
+
+    specs.append(
+        LumpedNetworkSpec(
+            name="All_types_cascade",
+            cli_tokens=(
+                tokens_r_series(47.0)
+                + tokens_r_shunt(90.0)
+                + tokens_c_series(3.9)
+                + tokens_c_shunt(6.8)
+                + tokens_l_series(10.5, 0.42)
+                + tokens_l_shunt(18.0, 0.33)
+                + tokens_transmission_line(0.012, 58.0)
+            ),
+            build_expected=build_all_types_cascade,
+        )
+    )
 
     env = os.environ.copy()
     env.setdefault("QT_QPA_PLATFORM", "offscreen")
