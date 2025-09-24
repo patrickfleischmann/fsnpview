@@ -16,7 +16,10 @@ public:
         C_shunt,
         L_series,
         L_shunt,
-        TransmissionLine
+        TransmissionLine,
+        TransmissionLineLossy,
+        LRC_series_shunt,
+        LRC_parallel_series
     };
 
     explicit NetworkLumped(NetworkType type, QObject *parent = nullptr);
