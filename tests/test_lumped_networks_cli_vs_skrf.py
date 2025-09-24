@@ -178,8 +178,18 @@ def plot_comparison(
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
-    binary = repo_root / "fsnpview"
-    if not binary.exists():
+    binary_candidates: list[Path] = []
+    if sys.platform.startswith("win"):
+        binary_candidates.append(repo_root / "fsnpview.exe")
+    binary_candidates.append(repo_root / "fsnpview")
+    if not sys.platform.startswith("win"):
+        binary_candidates.append(repo_root / "fsnpview.exe")
+
+    for candidate in binary_candidates:
+        if candidate.exists():
+            binary = candidate
+            break
+    else:
         print("fsnpview binary not found. Build the project before running this test.", file=sys.stderr)
         return 1
 
