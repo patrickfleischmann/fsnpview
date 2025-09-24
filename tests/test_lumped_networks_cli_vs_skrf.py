@@ -176,11 +176,56 @@ def plot_comparison(
     plt.close(phase_fig)
 
 
+def resolve_fsnpview_binary(repo_root: Path) -> Path | None:
+    """Return the fsnpview executable for the current platform."""
+
+    env_override = os.environ.get("FSNPVIEW_BINARY")
+    candidates: list[Path] = []
+
+    if env_override:
+        override_path = Path(env_override)
+        if not override_path.is_absolute():
+            override_path = repo_root / override_path
+        candidates.append(override_path)
+
+    if sys.platform.startswith("win"):
+        candidates.extend(
+            (
+                repo_root / "fsnpview.exe",
+                repo_root / "build" / "fsnpview.exe",
+                repo_root / "Release" / "fsnpview.exe",
+            )
+        )
+    else:
+        candidates.extend(
+            (
+                repo_root / "fsnpview",
+                repo_root / "fsnpview.exe",
+            )
+        )
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if not candidate.is_file():
+            continue
+        if sys.platform.startswith("win") and candidate.suffix.lower() not in {".exe", ".bat", ".cmd", ".com"}:
+            # Avoid trying to execute non-Windows binaries such as the Linux build artifact.
+            continue
+        return candidate
+    return None
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
-    binary = repo_root / "fsnpview"
-    if not binary.exists():
-        print("fsnpview binary not found. Build the project before running this test.", file=sys.stderr)
+    binary = resolve_fsnpview_binary(repo_root)
+    if binary is None:
+        print(
+            "fsnpview binary not found. Build the project and/or set FSNPVIEW_BINARY before running this test.",
+            file=sys.stderr,
+        )
         return 1
 
     artifact_dir = create_artifact_dir(repo_root)
