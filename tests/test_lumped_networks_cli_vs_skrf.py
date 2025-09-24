@@ -220,12 +220,14 @@ def resolve_fsnpview_binary(repo_root: Path) -> Path | None:
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
+
     binary = resolve_fsnpview_binary(repo_root)
     if binary is None:
         print(
             "fsnpview binary not found. Build the project and/or set FSNPVIEW_BINARY before running this test.",
             file=sys.stderr,
         )
+
         return 1
 
     artifact_dir = create_artifact_dir(repo_root)
