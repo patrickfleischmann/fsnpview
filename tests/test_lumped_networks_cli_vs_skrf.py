@@ -194,6 +194,7 @@ def resolve_fsnpview_binary(repo_root: Path) -> Path | None:
                 repo_root / "fsnpview.exe",
                 repo_root / "build" / "fsnpview.exe",
                 repo_root / "Release" / "fsnpview.exe",
+                repo_root / "bin" / "fsnpview.exe"
             )
         )
     else:
