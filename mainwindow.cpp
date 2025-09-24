@@ -246,7 +246,10 @@ void MainWindow::populateLumpedNetworkTable()
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::C_shunt, {1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_series, {1.0, 1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, {1.0, 1.0}));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1e-3, 50.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1.0, 50.0, 1.0}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLineLossy, {1.0, 50.0, 1.0, 10.0, 1.0, 1e9}));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::LRC_series_shunt));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::LRC_parallel_series));
 
     m_lumpedParameterCount = 0;
     for (auto network_ptr : qAsConst(m_networks)) {

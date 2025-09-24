@@ -5,10 +5,12 @@
 #include <QStringList>
 #include <algorithm>
 #include <optional>
+#include <limits>
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
 constexpr double defaultTransmissionLineImpedance = 50.0;
+constexpr double dbToNepers = std::log(10.0) / 20.0;
 
 QVector<double> toVector(std::initializer_list<double> list)
 {
@@ -68,6 +70,9 @@ QString NetworkLumped::typeName() const
     case NetworkType::L_series: return QStringLiteral("L_series");
     case NetworkType::L_shunt:  return QStringLiteral("L_shunt");
     case NetworkType::TransmissionLine: return QStringLiteral("TL");
+    case NetworkType::TransmissionLineLossy: return QStringLiteral("TL_lossy");
+    case NetworkType::LRC_series_shunt: return QStringLiteral("LRC_ser_shunt");
+    case NetworkType::LRC_parallel_series: return QStringLiteral("LRC_par_ser");
     }
     return QString();
 }
@@ -129,19 +134,102 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
             abcd_point(1, 0) = 1.0 / impedance;
             break;
         }
-        case NetworkType::TransmissionLine: {
+        case NetworkType::TransmissionLine:
+        case NetworkType::TransmissionLineLossy: {
             const double length = parameterValueSI(0);
-            double z0 = parameterValueSI(1);
-            if (z0 == 0.0)
-                z0 = defaultTransmissionLineImpedance;
-            double beta = w / c0;
-            double theta = beta * length;
-            double cos_theta = std::cos(theta);
-            double sin_theta = std::sin(theta);
-            abcd_point(0, 0) = cos_theta;
-            abcd_point(0, 1) = j * z0 * sin_theta;
-            abcd_point(1, 0) = j * (sin_theta / z0);
-            abcd_point(1, 1) = cos_theta;
+            double z0_value = parameterValueSI(1);
+            if (z0_value == 0.0)
+                z0_value = defaultTransmissionLineImpedance;
+            const double er_eff = std::max(parameterValueSI(2), 0.0);
+            const double sqrt_er_eff = er_eff > 0.0 ? std::sqrt(er_eff) : 0.0;
+            const double beta = (sqrt_er_eff * w) / c0;
+            std::complex<double> gamma_line(0.0, beta);
+
+            if (m_type == NetworkType::TransmissionLineLossy) {
+                const double a = parameterValueSI(3);
+                const double a_d = parameterValueSI(4);
+                const double fa = parameterValueSI(5);
+                const double freq_hz = freq(i);
+                double conductorLoss = a;
+                double dielectricLoss = a_d;
+                if (fa > 0.0) {
+                    const double ratio = std::max(freq_hz / fa, 0.0);
+                    conductorLoss = a * std::sqrt(ratio);
+                    dielectricLoss = a_d * ratio;
+                }
+                const double alpha_db_per_m = conductorLoss + dielectricLoss;
+                const double alpha_nepers_per_m = alpha_db_per_m * dbToNepers;
+                gamma_line = {alpha_nepers_per_m, beta};
+            }
+
+            const std::complex<double> zc(z0_value, 0.0);
+            const std::complex<double> cosh_term = std::cosh(gamma_line * length);
+            const std::complex<double> sinh_term = std::sinh(gamma_line * length);
+            abcd_point(0, 0) = cosh_term;
+            abcd_point(0, 1) = zc * sinh_term;
+            abcd_point(1, 0) = sinh_term / zc;
+            abcd_point(1, 1) = cosh_term;
+            break;
+        }
+        case NetworkType::LRC_series_shunt: {
+            const double inductance = parameterValueSI(0);
+            const double resistance = parameterValueSI(1);
+            const double capacitance = parameterValueSI(2);
+            std::complex<double> impedance = resistance;
+            impedance += j * w * inductance;
+            bool infiniteImpedance = false;
+            if (capacitance > 0.0) {
+                if (w == 0.0) {
+                    infiniteImpedance = true;
+                } else {
+                    impedance += 1.0 / (j * w * capacitance);
+                }
+            }
+            if (infiniteImpedance) {
+                abcd_point(1, 0) = 0.0;
+            } else if (std::abs(impedance) > 0.0) {
+                abcd_point(1, 0) = 1.0 / impedance;
+            } else {
+                abcd_point(1, 0) = std::numeric_limits<double>::infinity();
+            }
+            break;
+        }
+        case NetworkType::LRC_parallel_series: {
+            const double inductance = parameterValueSI(0);
+            const double resistance = parameterValueSI(1);
+            const double capacitance = parameterValueSI(2);
+            std::complex<double> admittance = 0.0;
+            bool infiniteAdmittance = false;
+
+            if (resistance == 0.0) {
+                infiniteAdmittance = true;
+            } else if (resistance != 0.0) {
+                admittance += 1.0 / resistance;
+            }
+
+            if (!infiniteAdmittance) {
+                if (inductance == 0.0) {
+                    infiniteAdmittance = true;
+                } else {
+                    if (w == 0.0) {
+                        infiniteAdmittance = true;
+                    } else {
+                        admittance += 1.0 / (j * w * inductance);
+                    }
+                }
+            }
+
+            if (!infiniteAdmittance && capacitance > 0.0) {
+                admittance += j * w * capacitance;
+            }
+
+            if (infiniteAdmittance) {
+                abcd_point(0, 1) = 0.0;
+            } else if (std::abs(admittance) > 0.0) {
+                abcd_point(0, 1) = 1.0 / admittance;
+            } else {
+                abcd_point(0, 1) = std::numeric_limits<double>::infinity();
+            }
             break;
         }
         }
@@ -308,8 +396,27 @@ void NetworkLumped::initializeParameters(const QVector<double>& values)
         m_parameters.append({seriesResistanceLabel, 1.0, 1.0});
         break;
     case NetworkType::TransmissionLine:
-        m_parameters.append({QStringLiteral("Len_m"), 1e-3, 1.0});
+        m_parameters.append({QStringLiteral("Len_mm"), 1.0, 1e-3});
         m_parameters.append({QStringLiteral("Z0_Ω"), defaultTransmissionLineImpedance, 1.0});
+        m_parameters.append({QStringLiteral("er_eff"), 1.0, 1.0});
+        break;
+    case NetworkType::TransmissionLineLossy:
+        m_parameters.append({QStringLiteral("Len_mm"), 1.0, 1e-3});
+        m_parameters.append({QStringLiteral("Z0_Ω"), defaultTransmissionLineImpedance, 1.0});
+        m_parameters.append({QStringLiteral("er_eff"), 1.0, 1.0});
+        m_parameters.append({QStringLiteral("a_dBpm"), 10.0, 1.0});
+        m_parameters.append({QStringLiteral("a_d_dBpm"), 1.0, 1.0});
+        m_parameters.append({QStringLiteral("fa_Hz"), 1e9, 1.0});
+        break;
+    case NetworkType::LRC_series_shunt:
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+        m_parameters.append({resistanceLabel, 1e-3, 1.0});
+        m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
+        break;
+    case NetworkType::LRC_parallel_series:
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+        m_parameters.append({resistanceLabel, 1e6, 1.0});
+        m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
         break;
     }
 

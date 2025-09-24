@@ -27,6 +27,33 @@ MIN_MAGNITUDE = 1e-30
 PLOT_S_PARAMETERS: Sequence[tuple[int, int]] = ((0, 0), (1, 0), (0, 1), (1, 1))
 
 
+def abcd_to_s(abcd: np.ndarray, z0: float) -> np.ndarray:
+    """Convert ABCD matrices to S-parameters for the provided reference impedance."""
+
+    if abcd.ndim != 3 or abcd.shape[1:] != (2, 2):
+        raise ValueError("ABCD array must have shape (N, 2, 2)")
+
+    a = abcd[:, 0, 0]
+    b = abcd[:, 0, 1]
+    c = abcd[:, 1, 0]
+    d = abcd[:, 1, 1]
+
+    denominator = a + b / z0 + c * z0 + d
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        s11 = (a + b / z0 - c * z0 - d) / denominator
+        s21 = 2.0 / denominator
+        s12 = 2.0 * (a * d - b * c) / denominator
+        s22 = (-a + b / z0 - c * z0 + d) / denominator
+
+    s = np.empty_like(abcd, dtype=np.complex128)
+    s[:, 0, 0] = s11
+    s[:, 0, 1] = s12
+    s[:, 1, 0] = s21
+    s[:, 1, 1] = s22
+    return s
+
+
 @dataclass(frozen=True)
 class LumpedNetworkSpec:
     name: str
@@ -95,10 +122,39 @@ def create_l_shunt(media: DefinedGammaZ0, inductance_nh: float, resistance_ohm: 
 
 
 def create_transmission_line(
-    factory: Callable[[float], DefinedGammaZ0], length_m: float, z0_ohm: float, base_name: str
+    factory: Callable[[float], DefinedGammaZ0],
+    length_m: float,
+    z0_ohm: float,
+    base_name: str,
+    *,
+    er_eff: float = 1.0,
+    a_db_per_m: float = 0.0,
+    a_d_db_per_m: float = 0.0,
+    fa_hz: float = 1e9,
 ) -> rf.Network:
-    media = factory(z0_ohm)
-    return rename_network(media.line(d=length_m, unit="m", z0=z0_ohm), base_name)
+    base_media = factory(z0_ohm)
+    frequency = base_media.frequency
+    freq_hz = frequency.f
+    sqrt_er_eff = math.sqrt(max(er_eff, 0.0))
+    beta = 2.0 * math.pi * freq_hz * sqrt_er_eff / C0
+
+    alpha_db = np.zeros_like(freq_hz)
+    if a_db_per_m != 0.0 or a_d_db_per_m != 0.0:
+        if fa_hz > 0.0:
+            ratio = np.maximum(freq_hz / fa_hz, 0.0)
+            alpha_db = a_db_per_m * np.sqrt(ratio) + a_d_db_per_m * ratio
+        else:
+            alpha_db = (a_db_per_m + a_d_db_per_m) * np.ones_like(freq_hz)
+    alpha_neper = alpha_db * (math.log(10.0) / 20.0)
+    gamma = alpha_neper + 1j * beta
+
+    custom_media = DefinedGammaZ0(
+        frequency=frequency,
+        z0=z0_ohm,
+        z0_port=Z0_REFERENCE,
+        gamma=gamma,
+    )
+    return rename_network(custom_media.line(d=length_m, unit="m", z0=z0_ohm), base_name)
 
 
 def expected_r_series(factory: Callable[[float], DefinedGammaZ0], resistance_ohm: float, base_name: str) -> rf.Network:
@@ -130,9 +186,37 @@ def expected_l_shunt(
 
 
 def expected_transmission_line(
-    factory: Callable[[float], DefinedGammaZ0], length_m: float, z0_ohm: float, base_name: str
+    factory: Callable[[float], DefinedGammaZ0],
+    length_m: float,
+    z0_ohm: float,
+    base_name: str,
+    *,
+    er_eff: float = 1.0,
 ) -> rf.Network:
-    return create_transmission_line(factory, length_m, z0_ohm, base_name)
+    return create_transmission_line(factory, length_m, z0_ohm, base_name, er_eff=er_eff)
+
+
+def expected_tl_lossy(
+    factory: Callable[[float], DefinedGammaZ0],
+    length_m: float,
+    z0_ohm: float,
+    base_name: str,
+    *,
+    er_eff: float,
+    a_db_per_m: float,
+    a_d_db_per_m: float,
+    fa_hz: float,
+) -> rf.Network:
+    return create_transmission_line(
+        factory,
+        length_m,
+        z0_ohm,
+        base_name,
+        er_eff=er_eff,
+        a_db_per_m=a_db_per_m,
+        a_d_db_per_m=a_d_db_per_m,
+        fa_hz=fa_hz,
+    )
 
 
 def format_value(value: float) -> str:
@@ -164,7 +248,169 @@ def tokens_l_shunt(inductance_nh: float, resistance_ohm: float) -> list[str]:
 
 
 def tokens_transmission_line(length_m: float, z0_ohm: float) -> list[str]:
-    return ["TransmissionLine", "len", format_value(length_m), "z0", format_value(z0_ohm)]
+    length_mm = length_m * 1e3
+    return [
+        "TransmissionLine",
+        "len",
+        format_value(length_mm),
+        "z0",
+        format_value(z0_ohm),
+    ]
+
+
+def tokens_transmission_line_er(length_m: float, z0_ohm: float, er_eff: float) -> list[str]:
+    tokens = tokens_transmission_line(length_m, z0_ohm)
+    tokens += ["er_eff", format_value(er_eff)]
+    return tokens
+
+
+def tokens_tl_lossy(
+    length_m: float,
+    z0_ohm: float,
+    er_eff: float,
+    a_db_per_m: float,
+    a_d_db_per_m: float,
+    fa_hz: float,
+) -> list[str]:
+    length_mm = length_m * 1e3
+    return [
+        "TL_lossy",
+        "len",
+        format_value(length_mm),
+        "z0",
+        format_value(z0_ohm),
+        "er_eff",
+        format_value(er_eff),
+        "a",
+        format_value(a_db_per_m),
+        "a_d",
+        format_value(a_d_db_per_m),
+        "fa",
+        format_value(fa_hz),
+    ]
+
+
+def tokens_lrc_series_shunt(inductance_nh: float, resistance_ohm: float, capacitance_pf: float) -> list[str]:
+    return [
+        "LRC_ser_shunt",
+        "l",
+        format_value(inductance_nh),
+        "r",
+        format_value(resistance_ohm),
+        "c",
+        format_value(capacitance_pf),
+    ]
+
+
+def tokens_lrc_parallel_series(inductance_nh: float, resistance_ohm: float, capacitance_pf: float) -> list[str]:
+    return [
+        "LRC_par_ser",
+        "l",
+        format_value(inductance_nh),
+        "r",
+        format_value(resistance_ohm),
+        "c",
+        format_value(capacitance_pf),
+    ]
+
+
+def network_from_abcd(frequency: rf.Frequency, abcd: np.ndarray, base_name: str) -> rf.Network:
+    s_params = abcd_to_s(abcd, Z0_REFERENCE)
+    network = rf.Network(frequency=frequency, s=s_params, z0=Z0_REFERENCE)
+    return rename_network(network, base_name)
+
+
+def create_lrc_series_shunt(
+    factory: Callable[[float], DefinedGammaZ0],
+    inductance_nh: float,
+    resistance_ohm: float,
+    capacitance_pf: float,
+    base_name: str,
+) -> rf.Network:
+    base_media = factory()
+    frequency = base_media.frequency
+    freq_hz = frequency.f
+    omega = 2.0 * math.pi * freq_hz
+    inductance_h = inductance_nh * 1e-9
+    capacitance_f = capacitance_pf * 1e-12
+
+    impedance = np.full(freq_hz.shape, resistance_ohm, dtype=np.complex128)
+    impedance += 1j * omega * inductance_h
+    if capacitance_f > 0.0:
+        cap_impedance = np.full(freq_hz.shape, np.inf, dtype=np.complex128)
+        nonzero = omega != 0.0
+        cap_impedance[nonzero] = 1.0 / (1j * omega[nonzero] * capacitance_f)
+        impedance = impedance + cap_impedance
+
+    admittance = np.zeros(freq_hz.shape, dtype=np.complex128)
+    finite_impedance = np.isfinite(impedance) & (np.abs(impedance) > 0.0)
+    admittance[finite_impedance] = 1.0 / impedance[finite_impedance]
+
+    abcd = np.zeros((freq_hz.size, 2, 2), dtype=np.complex128)
+    abcd[:, 0, 0] = 1.0
+    abcd[:, 1, 1] = 1.0
+    abcd[:, 1, 0] = admittance
+    return network_from_abcd(frequency, abcd, base_name)
+
+
+def create_lrc_parallel_series(
+    factory: Callable[[float], DefinedGammaZ0],
+    inductance_nh: float,
+    resistance_ohm: float,
+    capacitance_pf: float,
+    base_name: str,
+) -> rf.Network:
+    base_media = factory()
+    frequency = base_media.frequency
+    freq_hz = frequency.f
+    omega = 2.0 * math.pi * freq_hz
+    inductance_h = inductance_nh * 1e-9
+    capacitance_f = capacitance_pf * 1e-12
+
+    if resistance_ohm != 0.0:
+        y_r = np.full(freq_hz.shape, 1.0 / resistance_ohm, dtype=np.complex128)
+    else:
+        y_r = np.full(freq_hz.shape, np.inf, dtype=np.complex128)
+
+    y_l = np.full(freq_hz.shape, np.inf, dtype=np.complex128)
+    if inductance_h != 0.0:
+        nonzero = omega != 0.0
+        y_l[nonzero] = 1.0 / (1j * omega[nonzero] * inductance_h)
+    y_c = 1j * omega * capacitance_f
+
+    admittance = y_r + y_l + y_c
+    impedance = np.full(freq_hz.shape, 0.0, dtype=np.complex128)
+    finite_mask = np.isfinite(admittance)
+    zero_mask = finite_mask & np.isclose(admittance, 0.0)
+    nonzero_mask = finite_mask & (~zero_mask)
+    impedance[nonzero_mask] = 1.0 / admittance[nonzero_mask]
+    impedance[zero_mask] = np.inf
+
+    abcd = np.zeros((freq_hz.size, 2, 2), dtype=np.complex128)
+    abcd[:, 0, 0] = 1.0
+    abcd[:, 1, 1] = 1.0
+    abcd[:, 0, 1] = impedance
+    return network_from_abcd(frequency, abcd, base_name)
+
+
+def expected_lrc_series_shunt(
+    factory: Callable[[float], DefinedGammaZ0],
+    inductance_nh: float,
+    resistance_ohm: float,
+    capacitance_pf: float,
+    base_name: str,
+) -> rf.Network:
+    return create_lrc_series_shunt(factory, inductance_nh, resistance_ohm, capacitance_pf, base_name)
+
+
+def expected_lrc_parallel_series(
+    factory: Callable[[float], DefinedGammaZ0],
+    inductance_nh: float,
+    resistance_ohm: float,
+    capacitance_pf: float,
+    base_name: str,
+) -> rf.Network:
+    return create_lrc_parallel_series(factory, inductance_nh, resistance_ohm, capacitance_pf, base_name)
 
 
 def wrap_phase_deg(values: np.ndarray) -> np.ndarray:
@@ -404,6 +650,53 @@ def main() -> int:
             fmax_hz=2e9,
             npoints=151,
         ),
+        LumpedNetworkSpec(
+            name="TransmissionLine_er_eff",
+            cli_tokens=tokens_transmission_line_er(0.011, 55.0, 2.4),
+            build_expected=lambda factory: expected_transmission_line(
+                factory, 0.011, 55.0, "TransmissionLine_er_eff_expected", er_eff=2.4
+            ),
+            fmin_hz=2e6,
+            fmax_hz=3e9,
+            npoints=121,
+        ),
+        LumpedNetworkSpec(
+            name="TL_lossy",
+            cli_tokens=tokens_tl_lossy(0.008, 42.0, 3.1, 8.0, 1.2, 5e9),
+            build_expected=lambda factory: expected_tl_lossy(
+                factory,
+                0.008,
+                42.0,
+                "TL_lossy_expected",
+                er_eff=3.1,
+                a_db_per_m=8.0,
+                a_d_db_per_m=1.2,
+                fa_hz=5e9,
+            ),
+            fmin_hz=5e6,
+            fmax_hz=8e9,
+            npoints=161,
+        ),
+        LumpedNetworkSpec(
+            name="LRC_ser_shunt",
+            cli_tokens=tokens_lrc_series_shunt(2.5, 0.002, 1.8),
+            build_expected=lambda factory: expected_lrc_series_shunt(
+                factory, 2.5, 0.002, 1.8, "LRC_ser_shunt_expected"
+            ),
+            fmin_hz=1e4,
+            fmax_hz=1e8,
+            npoints=91,
+        ),
+        LumpedNetworkSpec(
+            name="LRC_par_ser",
+            cli_tokens=tokens_lrc_parallel_series(3.7, 750000.0, 2.6),
+            build_expected=lambda factory: expected_lrc_parallel_series(
+                factory, 3.7, 750000.0, 2.6, "LRC_par_ser_expected"
+            ),
+            fmin_hz=2e3,
+            fmax_hz=2e7,
+            npoints=83,
+        ),
     ]
 
     def build_r_series_double(factory: Callable[[float], DefinedGammaZ0]) -> rf.Network:
@@ -621,7 +914,25 @@ def main() -> int:
             create_c_shunt(media, 6.8, "All_types_C_shunt"),
             create_l_series(media, 10.5, 0.42, "All_types_L_series"),
             create_l_shunt(media, 18.0, 0.33, "All_types_L_shunt"),
-            create_transmission_line(factory, 0.012, 58.0, "All_types_TransmissionLine"),
+            create_transmission_line(
+                factory,
+                0.012,
+                58.0,
+                "All_types_TransmissionLine",
+                er_eff=1.7,
+            ),
+            create_transmission_line(
+                factory,
+                0.007,
+                53.0,
+                "All_types_TL_lossy",
+                er_eff=2.5,
+                a_db_per_m=6.5,
+                a_d_db_per_m=0.9,
+                fa_hz=4.5e9,
+            ),
+            create_lrc_series_shunt(factory, 2.1, 0.0015, 2.2, "All_types_LRC_ser_shunt"),
+            create_lrc_parallel_series(factory, 2.8, 680000.0, 1.7, "All_types_LRC_par_ser"),
         ]
         return cascade_networks(components, "All_types_cascade_expected")
 
@@ -635,7 +946,10 @@ def main() -> int:
                 + tokens_c_shunt(6.8)
                 + tokens_l_series(10.5, 0.42)
                 + tokens_l_shunt(18.0, 0.33)
-                + tokens_transmission_line(0.012, 58.0)
+                + tokens_transmission_line_er(0.012, 58.0, 1.7)
+                + tokens_tl_lossy(0.007, 53.0, 2.5, 6.5, 0.9, 4.5e9)
+                + tokens_lrc_series_shunt(2.1, 0.0015, 2.2)
+                + tokens_lrc_parallel_series(2.8, 680000.0, 1.7)
             ),
             build_expected=build_all_types_cascade,
             fmin_hz=1e7,

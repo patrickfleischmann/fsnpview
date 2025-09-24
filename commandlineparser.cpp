@@ -54,7 +54,24 @@ const QVector<LumpedDefinition>& lumpedDefinitions()
           {QStringLiteral("rser"), {QStringLiteral("R_ser"), QStringLiteral("Rser")}, 1, true}}},
         {QStringLiteral("TransmissionLine"), {QStringLiteral("TL"), QStringLiteral("TransLine")}, NetworkLumped::NetworkType::TransmissionLine,
          {{QStringLiteral("len"), {QStringLiteral("Len"), QStringLiteral("Length")}, 0, true},
-          {QStringLiteral("z0"), {QStringLiteral("Z0")}, 1, true}}}
+          {QStringLiteral("z0"), {QStringLiteral("Z0")}, 1, true},
+          {QStringLiteral("er_eff"), {QStringLiteral("Ereff"), QStringLiteral("EpsEff")}, 2, true}}},
+        {QStringLiteral("TL_lossy"), {QStringLiteral("TransmissionLineLossy"), QStringLiteral("TLLossy")},
+         NetworkLumped::NetworkType::TransmissionLineLossy,
+         {{QStringLiteral("len"), {QStringLiteral("Len"), QStringLiteral("Length")}, 0, true},
+          {QStringLiteral("z0"), {QStringLiteral("Z0")}, 1, true},
+          {QStringLiteral("er_eff"), {QStringLiteral("Ereff"), QStringLiteral("EpsEff")}, 2, true},
+          {QStringLiteral("a"), {QStringLiteral("Alpha"), QStringLiteral("Loss"), QStringLiteral("a_dBpm")}, 3, true},
+          {QStringLiteral("a_d"), {QStringLiteral("AlphaD"), QStringLiteral("Ad"), QStringLiteral("a_d_dBpm")}, 4, true},
+          {QStringLiteral("fa"), {QStringLiteral("Fa"), QStringLiteral("FreqRef")}, 5, true}}},
+        {QStringLiteral("LRC_ser_shunt"), {QStringLiteral("LRCSerShunt")}, NetworkLumped::NetworkType::LRC_series_shunt,
+         {{QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 0, true},
+          {QStringLiteral("r"), {QStringLiteral("R")}, 1, true},
+          {QStringLiteral("c"), {QStringLiteral("C")}, 2, true}}},
+        {QStringLiteral("LRC_par_ser"), {QStringLiteral("LRCParSer")}, NetworkLumped::NetworkType::LRC_parallel_series,
+         {{QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 0, true},
+          {QStringLiteral("r"), {QStringLiteral("R")}, 1, true},
+          {QStringLiteral("c"), {QStringLiteral("C")}, 2, true}}}
     };
     return defs;
 }
@@ -342,10 +359,14 @@ QString CommandLineParser::helpText() const
         "  C_shunt           C (pF)         default 1\n"
         "  L_series          L (nH), R_ser (Ohm)    defaults 1, 1\n"
         "  L_shunt           L (nH), R_ser (Ohm)    defaults 1, 1\n"
-        "  TransmissionLine  len (m), Z0 (Ohm)      defaults 1e-3, 50\n"
+        "  TransmissionLine  len (mm), Z0 (Ohm), er_eff   defaults 1, 50, 1\n"
+        "  TL_lossy          len (mm), Z0 (Ohm), er_eff, a (dB/m), a_d (dB/m), fa (Hz)\n"
+        "                    defaults 1, 50, 1, 10, 1, 1e9\n"
+        "  LRC_ser_shunt     L (nH), R (Ohm), C (pF) defaults 1, 1e-3, 1\n"
+        "  LRC_par_ser       L (nH), R (Ohm), C (pF) defaults 1, 1e6, 1\n"
         "\n"
         "Examples:\n"
         "  fsnpview example.s2p -c example.s2p R_series R 75\n"
-        "  fsnpview -n -c input.s2p TL len 2e-3 Z0 75 -f 1e6 1e9 1001 -s result.s2p\n");
+        "  fsnpview -n -c input.s2p TL len 2 Z0 75 er_eff 2.9 -f 1e6 1e9 1001 -s result.s2p\n");
 }
 
