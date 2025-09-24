@@ -181,15 +181,17 @@ int runNoGui(const CommandLineParser::Options& options)
 
     Eigen::VectorXd freq = buildFrequencyVector(options, cascade);
 
+    int exitCode = 0;
     if (options.saveRequested) {
         if (!saveCascadeToFile(cascade, freq, options.savePath))
-            return 1;
+            exitCode = 1;
     } else {
         std::cout << "Cascade configured with " << cascade.getNetworks().size()
                   << " network(s)." << std::endl;
     }
 
-    return 0;
+    cascade.clearNetworks();
+    return exitCode;
 }
 
 QStringList collectFilesToOpen(const CommandLineParser::Options& options)
