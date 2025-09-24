@@ -4,6 +4,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 #add console for debug outputs with release
 CONFIG += c++17
+
+unix {
+    CONFIG += no_include_pwd
+}
 #CONFIG += console
 
 # remove possible other optimization flags

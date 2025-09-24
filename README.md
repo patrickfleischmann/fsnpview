@@ -75,7 +75,8 @@ QT_QPA_PLATFORM=offscreen ./fsnpview /path/to/your/file.s2p
 
 ## Testing
 
-Run `./build.sh` followed by `./test.sh` to execute unit tests, including an offscreen GUI plot comparison against the baseline `tests/gui_plot_baseline.csv`.
+Run `./setup.sh` first to install the required system and Python dependencies (the script uses `sudo`).
+After the dependencies are available, `./test.sh` builds the application and executes the full test suite, including the offscreen GUI plot comparison against the baseline `tests/gui_plot_baseline.csv` and the regression test that checks the lumped-network models against scikit-rf.
 To update the baseline after intentional changes, rebuild and run:
 
 ```bash
