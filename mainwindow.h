@@ -34,6 +34,11 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void processFiles(const QStringList &files, bool autoscale = false);
+    void clearCascade();
+    void addNetworkToCascade(Network* network);
+    void setCascadeFrequencyRange(double fmin, double fmax);
+    void setCascadePointCount(int pointCount);
+    NetworkCascade* cascade() const;
 
 private slots:
     void on_actionOpen_triggered();

@@ -4,6 +4,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 #add console for debug outputs with release
 CONFIG += c++17
+
+unix {
+    CONFIG += no_include_pwd
+}
 #CONFIG += console
 
 # remove possible other optimization flags
@@ -35,7 +39,8 @@ SOURCES += \
     networkcascade.cpp \
     networkitemmodel.cpp \
     plotmanager.cpp \
-    tdrcalculator.cpp
+    tdrcalculator.cpp \
+    commandlineparser.cpp
 
 HEADERS += \
     SmithChartGrid.h \
@@ -49,7 +54,8 @@ HEADERS += \
     networkcascade.h \
     networkitemmodel.h \
     plotmanager.h \
-    tdrcalculator.h
+    tdrcalculator.h \
+    commandlineparser.h
 
 FORMS += \
     mainwindow.ui
