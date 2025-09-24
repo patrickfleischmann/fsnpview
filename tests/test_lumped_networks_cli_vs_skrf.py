@@ -20,9 +20,9 @@ from skrf.media import DefinedGammaZ0
 
 C0 = 299_792_458.0
 Z0_REFERENCE = 50.0
-FMIN_HZ = 1e6
-FMAX_HZ = 10e9
-FREQ_POINTS = 501
+DEFAULT_FMIN_HZ = 1e6
+DEFAULT_FMAX_HZ = 10e9
+DEFAULT_FREQ_POINTS = 501
 MIN_MAGNITUDE = 1e-30
 PLOT_S_PARAMETERS: Sequence[tuple[int, int]] = ((0, 0), (1, 0), (0, 1), (1, 1))
 
@@ -32,6 +32,9 @@ class LumpedNetworkSpec:
     name: str
     cli_tokens: list[str]
     build_expected: Callable[[Callable[[float], DefinedGammaZ0]], rf.Network]
+    fmin_hz: float = DEFAULT_FMIN_HZ
+    fmax_hz: float = DEFAULT_FMAX_HZ
+    npoints: int = DEFAULT_FREQ_POINTS
 
 
 def rename_network(network: rf.Network, name: str) -> rf.Network:
@@ -193,14 +196,17 @@ def run_fsnpview(
     *,
     env: dict[str, str],
     cwd: Path,
+    fmin_hz: float,
+    fmax_hz: float,
+    npoints: int,
 ) -> None:
     command = [
         str(binary),
         "--nogui",
         "--freq",
-        f"{FMIN_HZ}",
-        f"{FMAX_HZ}",
-        str(FREQ_POINTS),
+        f"{fmin_hz}",
+        f"{fmax_hz}",
+        str(npoints),
         "--cascade",
         *cascade_tokens,
         "--save",
@@ -339,43 +345,54 @@ def main() -> int:
 
     artifact_dir = create_artifact_dir(repo_root)
 
-    freq_values = np.linspace(FMIN_HZ, FMAX_HZ, FREQ_POINTS)
-    frequency = rf.Frequency.from_f(freq_values, unit="hz")
-    gamma = 1j * 2.0 * math.pi * freq_values / C0
-
-    def make_media(z0: float = Z0_REFERENCE) -> DefinedGammaZ0:
-        return DefinedGammaZ0(frequency=frequency, z0=z0, z0_port=Z0_REFERENCE, gamma=gamma)
-
     specs: list[LumpedNetworkSpec] = [
         LumpedNetworkSpec(
             name="R_series",
             cli_tokens=tokens_r_series(75.0),
             build_expected=lambda factory: expected_r_series(factory, 75.0, "R_series_expected"),
+            fmin_hz=1e2,
+            fmax_hz=1e5,
+            npoints=33,
         ),
         LumpedNetworkSpec(
             name="R_shunt",
             cli_tokens=tokens_r_shunt(30.0),
             build_expected=lambda factory: expected_r_shunt(factory, 30.0, "R_shunt_expected"),
+            fmin_hz=1e-1,
+            fmax_hz=1e1,
+            npoints=21,
         ),
         LumpedNetworkSpec(
             name="C_series",
             cli_tokens=tokens_c_series(2.2),
             build_expected=lambda factory: expected_c_series(factory, 2.2, "C_series_expected"),
+            fmin_hz=5e3,
+            fmax_hz=5e6,
+            npoints=51,
         ),
         LumpedNetworkSpec(
             name="C_shunt",
             cli_tokens=tokens_c_shunt(4.7),
             build_expected=lambda factory: expected_c_shunt(factory, 4.7, "C_shunt_expected"),
+            fmin_hz=1e4,
+            fmax_hz=1e7,
+            npoints=75,
         ),
         LumpedNetworkSpec(
             name="L_series",
             cli_tokens=tokens_l_series(8.2, 0.75),
             build_expected=lambda factory: expected_l_series(factory, 8.2, 0.75, "L_series_expected"),
+            fmin_hz=2e5,
+            fmax_hz=2e8,
+            npoints=101,
         ),
         LumpedNetworkSpec(
             name="L_shunt",
             cli_tokens=tokens_l_shunt(12.0, 0.25),
             build_expected=lambda factory: expected_l_shunt(factory, 12.0, 0.25, "L_shunt_expected"),
+            fmin_hz=5e5,
+            fmax_hz=5e8,
+            npoints=111,
         ),
         LumpedNetworkSpec(
             name="TransmissionLine",
@@ -383,6 +400,9 @@ def main() -> int:
             build_expected=lambda factory: expected_transmission_line(
                 factory, 0.015, 60.0, "TransmissionLine_expected"
             ),
+            fmin_hz=1e6,
+            fmax_hz=2e9,
+            npoints=151,
         ),
     ]
 
@@ -433,37 +453,58 @@ def main() -> int:
                 name="R_series_double",
                 cli_tokens=tokens_r_series(25.0) + tokens_r_series(80.0),
                 build_expected=build_r_series_double,
+                fmin_hz=1e3,
+                fmax_hz=1e6,
+                npoints=41,
             ),
             LumpedNetworkSpec(
                 name="R_shunt_double",
                 cli_tokens=tokens_r_shunt(40.0) + tokens_r_shunt(65.0),
                 build_expected=build_r_shunt_double,
+                fmin_hz=0.5,
+                fmax_hz=5e1,
+                npoints=27,
             ),
             LumpedNetworkSpec(
                 name="C_series_double",
                 cli_tokens=tokens_c_series(1.5) + tokens_c_series(5.5),
                 build_expected=build_c_series_double,
+                fmin_hz=3e4,
+                fmax_hz=3e7,
+                npoints=81,
             ),
             LumpedNetworkSpec(
                 name="C_shunt_double",
                 cli_tokens=tokens_c_shunt(2.5) + tokens_c_shunt(6.5),
                 build_expected=build_c_shunt_double,
+                fmin_hz=4e5,
+                fmax_hz=4e8,
+                npoints=123,
             ),
             LumpedNetworkSpec(
                 name="L_series_double",
                 cli_tokens=tokens_l_series(5.6, 0.2) + tokens_l_series(15.0, 0.7),
                 build_expected=build_l_series_double,
+                fmin_hz=6e5,
+                fmax_hz=6e8,
+                npoints=135,
             ),
             LumpedNetworkSpec(
                 name="L_shunt_double",
                 cli_tokens=tokens_l_shunt(7.5, 0.15) + tokens_l_shunt(20.0, 0.45),
                 build_expected=build_l_shunt_double,
+                fmin_hz=9e5,
+                fmax_hz=9e8,
+                npoints=147,
             ),
             LumpedNetworkSpec(
                 name="TransmissionLine_double",
                 cli_tokens=tokens_transmission_line(0.004, 45.0)
                 + tokens_transmission_line(0.007, 65.0),
                 build_expected=build_transmission_line_double,
+                fmin_hz=1.5e6,
+                fmax_hz=4e9,
+                npoints=165,
             ),
         ]
     )
@@ -516,36 +557,57 @@ def main() -> int:
                 name="R_series_then_C_series",
                 cli_tokens=tokens_r_series(33.0) + tokens_c_series(3.3),
                 build_expected=build_r_series_then_c_series,
+                fmin_hz=2e2,
+                fmax_hz=2e5,
+                npoints=55,
             ),
             LumpedNetworkSpec(
                 name="R_shunt_then_L_series",
                 cli_tokens=tokens_r_shunt(85.0) + tokens_l_series(9.1, 0.5),
                 build_expected=build_r_shunt_then_l_series,
+                fmin_hz=1e1,
+                fmax_hz=1e4,
+                npoints=45,
             ),
             LumpedNetworkSpec(
                 name="C_series_then_TransmissionLine",
                 cli_tokens=tokens_c_series(4.4) + tokens_transmission_line(0.006, 55.0),
                 build_expected=build_c_series_then_transmission,
+                fmin_hz=8e4,
+                fmax_hz=8e7,
+                npoints=95,
             ),
             LumpedNetworkSpec(
                 name="C_shunt_then_R_shunt",
                 cli_tokens=tokens_c_shunt(5.2) + tokens_r_shunt(120.0),
                 build_expected=build_c_shunt_then_r_shunt,
+                fmin_hz=4e2,
+                fmax_hz=4e5,
+                npoints=63,
             ),
             LumpedNetworkSpec(
                 name="L_series_then_C_shunt",
                 cli_tokens=tokens_l_series(11.0, 0.35) + tokens_c_shunt(3.8),
                 build_expected=build_l_series_then_c_shunt,
+                fmin_hz=7e5,
+                fmax_hz=7e8,
+                npoints=141,
             ),
             LumpedNetworkSpec(
                 name="L_shunt_then_TransmissionLine",
                 cli_tokens=tokens_l_shunt(13.0, 0.28) + tokens_transmission_line(0.009, 52.0),
                 build_expected=build_l_shunt_then_transmission,
+                fmin_hz=2e6,
+                fmax_hz=6e9,
+                npoints=175,
             ),
             LumpedNetworkSpec(
                 name="TransmissionLine_then_R_series",
                 cli_tokens=tokens_transmission_line(0.008, 48.0) + tokens_r_series(68.0),
                 build_expected=build_transmission_then_r_series,
+                fmin_hz=5e6,
+                fmax_hz=9e9,
+                npoints=201,
             ),
         ]
     )
@@ -576,6 +638,9 @@ def main() -> int:
                 + tokens_transmission_line(0.012, 58.0)
             ),
             build_expected=build_all_types_cascade,
+            fmin_hz=1e7,
+            fmax_hz=1e11,
+            npoints=401,
         )
     )
 
@@ -586,7 +651,23 @@ def main() -> int:
 
     for spec in specs:
         s2p_path = artifact_dir / f"{spec.name}.s2p"
-        run_fsnpview(binary, spec.cli_tokens, s2p_path, env=env, cwd=repo_root)
+        freq_values = np.linspace(spec.fmin_hz, spec.fmax_hz, spec.npoints)
+        frequency = rf.Frequency.from_f(freq_values, unit="hz")
+        gamma = 1j * 2.0 * math.pi * freq_values / C0
+
+        def make_media(z0: float = Z0_REFERENCE) -> DefinedGammaZ0:
+            return DefinedGammaZ0(frequency=frequency, z0=z0, z0_port=Z0_REFERENCE, gamma=gamma)
+
+        run_fsnpview(
+            binary,
+            spec.cli_tokens,
+            s2p_path,
+            env=env,
+            cwd=repo_root,
+            fmin_hz=spec.fmin_hz,
+            fmax_hz=spec.fmax_hz,
+            npoints=spec.npoints,
+        )
         cli_network = rf.Network(str(s2p_path))
         expected_network = spec.build_expected(make_media)
 
