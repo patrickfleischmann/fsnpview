@@ -607,7 +607,7 @@ def main() -> int:
                 build_expected=build_transmission_then_r_series,
                 fmin_hz=5e6,
                 fmax_hz=9e9,
-                npoints=201,
+                npoints=2010,
             ),
         ]
     )
@@ -640,7 +640,7 @@ def main() -> int:
             build_expected=build_all_types_cascade,
             fmin_hz=1e7,
             fmax_hz=1e11,
-            npoints=401,
+            npoints=100000,
         )
     )
 
