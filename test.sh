@@ -25,6 +25,10 @@ ensure_fsnpview_binary() {
 }
 
 run_regression_test() {
+
+pip install matplotlib", "numpy", "skrf
+
+
     local missing_modules
     missing_modules=$(python3 - <<'PY'
 import importlib.util
