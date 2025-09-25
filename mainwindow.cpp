@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
@@ -62,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_networkFrequencyMin(0.0)
     , m_networkFrequencyMax(0.0)
     , m_networkFrequencyPoints(0)
+    , m_initialFrequencyConfigured(false)
 {
     ui->setupUi(this);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
@@ -90,7 +92,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupViews();
     populateLumpedNetworkTable();
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
-    updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount());
+    updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), false);
     refreshNetworkFrequencyControls();
     ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
     ui->tableViewCascade->viewport()->installEventFilter(this);
@@ -409,6 +411,55 @@ void MainWindow::setCascadePointCount(int pointCount)
     updateNetworkFrequencySettings(fmin, fmax, pointCount);
     refreshNetworkFrequencyControls();
     updatePlots();
+}
+
+void MainWindow::initializeFrequencyControls(bool freqSpecified, double fmin, double fmax, int pointCount, bool hasInitialFiles)
+{
+    if (m_initialFrequencyConfigured)
+        return;
+
+    if (freqSpecified && fmax > fmin) {
+        if (pointCount < 2)
+            pointCount = 2;
+        updateNetworkFrequencySettings(fmin, fmax, pointCount, true);
+    } else if (freqSpecified) {
+        updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+    } else if (hasInitialFiles) {
+        double detectedMin = std::numeric_limits<double>::max();
+        double detectedMax = std::numeric_limits<double>::lowest();
+        int detectedPoints = 0;
+        bool anyFrequencies = false;
+
+        for (Network* network : qAsConst(m_networks)) {
+            if (!network)
+                continue;
+
+            if (!dynamic_cast<NetworkFile*>(network))
+                continue;
+
+            const QVector<double> freqs = network->frequencies();
+            if (freqs.isEmpty())
+                continue;
+
+            anyFrequencies = true;
+            detectedMin = std::min(detectedMin, network->fmin());
+            detectedMax = std::max(detectedMax, network->fmax());
+            detectedPoints = std::max(detectedPoints, static_cast<int>(freqs.size()));
+        }
+
+        if (anyFrequencies && detectedMax > detectedMin) {
+            if (detectedPoints < 2)
+                detectedPoints = 2;
+            updateNetworkFrequencySettings(detectedMin, detectedMax, detectedPoints, true);
+        } else {
+            updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+        }
+    } else {
+        updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+    }
+
+    refreshNetworkFrequencyControls();
+    m_initialFrequencyConfigured = true;
 }
 
 NetworkCascade* MainWindow::cascade() const
@@ -868,7 +919,7 @@ void MainWindow::refreshNetworkFrequencyControls()
     }
 }
 
-void MainWindow::updateNetworkFrequencySettings(double fmin, double fmax, int pointCount)
+void MainWindow::updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride)
 {
     if (pointCount < 2)
         pointCount = 2;
@@ -878,8 +929,7 @@ void MainWindow::updateNetworkFrequencySettings(double fmin, double fmax, int po
     m_networkFrequencyPoints = pointCount;
 
     if (m_cascade) {
-        m_cascade->setFmin(fmin);
-        m_cascade->setFmax(fmax);
+        m_cascade->setFrequencyRange(fmin, fmax, manualOverride);
         m_cascade->setPointCount(pointCount);
 
         const QList<Network*>& cascadeNetworks = m_cascade->getNetworks();

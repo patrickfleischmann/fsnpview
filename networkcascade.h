@@ -27,6 +27,9 @@ public:
     QVector<double> frequencies() const override;
     int portCount() const override;
 
+    void setFrequencyRange(double fmin, double fmax, bool manualOverride = true);
+    void clearManualFrequencyRange();
+    bool hasManualFrequencyRange() const;
     void setPointCount(int pointCount);
     int pointCount() const;
 
@@ -36,6 +39,7 @@ private:
 
     QList<Network*> m_networks;
     int m_pointCount;
+    bool m_manualFrequencyRange;
 };
 
 #endif // NETWORKCASCADE_H

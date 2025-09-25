@@ -86,9 +86,26 @@ void test_lumped_frequency_point_count()
 void test_cascade_frequency_settings()
 {
     NetworkCascade cascade;
-    cascade.setFmin(1e6);
-    cascade.setFmax(5e6);
+    cascade.setFrequencyRange(1e6, 5e6);
     cascade.setPointCount(9);
+
+    const auto freqs = cascade.frequencies();
+    assert(freqs.size() == 9);
+    assert(std::abs(freqs.first() - 1e6) < 1e-6);
+    assert(std::abs(freqs.last() - 5e6) < 1e-6);
+}
+
+void test_cascade_manual_range_persistence()
+{
+    NetworkFile net(QStringLiteral("test/a (1).s2p"));
+    NetworkFile net2(QStringLiteral("test/a (2).s2p"));
+
+    NetworkCascade cascade;
+    cascade.setFrequencyRange(1e6, 5e6);
+    cascade.setPointCount(9);
+
+    cascade.addNetwork(&net);
+    cascade.addNetwork(&net2);
 
     const auto freqs = cascade.frequencies();
     assert(freqs.size() == 9);
@@ -102,6 +119,7 @@ int main()
     test_phase_unwrap_toggle();
     test_lumped_frequency_point_count();
     test_cascade_frequency_settings();
+    test_cascade_manual_range_persistence();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
 }

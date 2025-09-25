@@ -38,6 +38,7 @@ public:
     void addNetworkToCascade(Network* network);
     void setCascadeFrequencyRange(double fmin, double fmax);
     void setCascadePointCount(int pointCount);
+    void initializeFrequencyControls(bool freqSpecified, double fmin, double fmax, int pointCount, bool hasInitialFiles);
     NetworkCascade* cascade() const;
 
 private slots:
@@ -104,7 +105,7 @@ private:
     void refreshGateControls();
     bool applyNetworkFrequencySettingsFromUi();
     void refreshNetworkFrequencyControls();
-    void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount);
+    void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride = true);
     static bool nearlyEqual(double lhs, double rhs);
     void applyPhaseUnwrapSetting(bool unwrap);
 
@@ -134,5 +135,6 @@ private:
     double m_networkFrequencyMin;
     double m_networkFrequencyMax;
     int m_networkFrequencyPoints;
+    bool m_initialFrequencyConfigured;
 };
 #endif // MAINWINDOW_H

@@ -8,7 +8,10 @@ namespace {
 constexpr double pi = 3.14159265358979323846;
 }
 
-NetworkCascade::NetworkCascade(QObject *parent) : Network(parent), m_pointCount(2001)
+NetworkCascade::NetworkCascade(QObject *parent)
+    : Network(parent)
+    , m_pointCount(2001)
+    , m_manualFrequencyRange(false)
 {
     m_fmin = 1e6;
     m_fmax = 10e9;
@@ -68,6 +71,9 @@ const QList<Network*>& NetworkCascade::getNetworks() const
 
 void NetworkCascade::updateFrequencyRange()
 {
+    if (m_manualFrequencyRange)
+        return;
+
     if (m_networks.isEmpty()) {
         m_fmin = 1e6;
         m_fmax = 10e9;
@@ -214,8 +220,7 @@ Network* NetworkCascade::clone(QObject* parent) const
     copy->setVisible(m_is_visible);
     copy->setUnwrapPhase(m_unwrap_phase);
     copy->setActive(m_is_active);
-    copy->setFmin(m_fmin);
-    copy->setFmax(m_fmax);
+    copy->setFrequencyRange(m_fmin, m_fmax, m_manualFrequencyRange);
     copy->setPointCount(m_pointCount);
     for (const auto& net : m_networks) {
         copy->addNetwork(net->clone(copy));
@@ -229,6 +234,33 @@ QVector<double> NetworkCascade::frequencies() const
     const int points = std::max(m_pointCount, 2);
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
     return QVector<double>(freq.data(), freq.data() + freq.size());
+}
+
+void NetworkCascade::setFrequencyRange(double fmin, double fmax, bool manualOverride)
+{
+    if (fmax <= fmin)
+        return;
+
+    m_manualFrequencyRange = manualOverride;
+    m_fmin = fmin;
+    m_fmax = fmax;
+
+    if (!m_manualFrequencyRange)
+        updateFrequencyRange();
+}
+
+void NetworkCascade::clearManualFrequencyRange()
+{
+    if (!m_manualFrequencyRange)
+        return;
+
+    m_manualFrequencyRange = false;
+    updateFrequencyRange();
+}
+
+bool NetworkCascade::hasManualFrequencyRange() const
+{
+    return m_manualFrequencyRange;
 }
 
 void NetworkCascade::setPointCount(int pointCount)
