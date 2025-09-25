@@ -60,6 +60,7 @@ private slots:
     void on_checkBoxS33_checkStateChanged(const Qt::CheckState &arg1);
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
+    void on_checkBoxPhaseUnwrap_stateChanged(int state);
     void on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1);
@@ -99,6 +100,7 @@ private:
     bool applyGateSettingsFromUi();
     void refreshGateControls();
     static bool nearlyEqual(double lhs, double rhs);
+    void applyPhaseUnwrapSetting(bool unwrap);
 
 
     Ui::MainWindow *ui;
