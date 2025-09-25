@@ -57,11 +57,64 @@ network files and the available lumped elements.  Check the box next to
 an entry to add or remove its trace from the plot.  You can drag networks
 onto the cascade table to evaluate a chain of networks.
 
-The plot area supports typical interactions from `QCustomPlot`: use the
-mouse wheel to zoom, drag to pan, and enable measurement cursors or
-phase/legend display using the checkboxes above the plot.  Individual
-S‑parameters (S11, S21, S12, S22) can also be toggled with their
-respective checkboxes.
+### GUI tips
+
+*   The plot area supports typical `QCustomPlot` interactions: use the
+    mouse wheel to zoom, drag to pan, and enable measurement cursors or
+    phase/legend display using the checkboxes above the plot.
+*   Double-click an axis to auto-scale it back to the full data range.
+*   Toggle individual S-parameters with their checkboxes and press the
+    `-` key to switch between the raw traces and the difference view of
+    the two active curves.
+*   Use the **Log Freq** checkbox to flip the frequency axis between
+    linear and logarithmic scales.
+*   The **Phase**, **VSWR**, **Smith**, and **TDR** views are mutually
+    exclusive; choose the one that best matches the measurement you need,
+    and enable **Phase Unwrap** or the TDR gating controls to refine the
+    display.
+*   Press the **Delete** key while the plot or a table is focused to hide
+    the selected traces or remove entries from the cascade without
+    clearing the entire session.
+
+To add more Touchstone files after launch, select **File → Open…** to use
+the file explorer; each chosen file is appended to the current session
+so you can compare multiple networks side by side.
+
+### Command-line interface
+
+`fsnpview` also exposes a non-interactive CLI for batch processing:
+
+```bash
+fsnpview [files...] [options]
+```
+
+Common options include:
+
+*   `-c, --cascade <items>` — Build a cascade before showing the GUI (or
+    when running headless).  Provide a sequence of Touchstone files or
+    lumped element names with optional parameter/value overrides.
+*   `-f, --freq <fmin> <fmax> <points>` — Resample the cascade onto a new
+    frequency grid.
+*   `-s, --save <file>` — Write the resulting cascaded network to a
+    Touchstone file.
+*   `-n, --nogui` — Run without starting the GUI (useful together with
+    `-s` in scripts).
+*   `-h, --help` — Show the full help text, including the list of
+    available lumped elements and their default units.
+
+For example, the following command cascades a measured network with a
+75 Ω series resistor, resamples the result, and saves it to disk without
+opening the GUI:
+
+```bash
+fsnpview example.s2p -c example.s2p R_series R 75 -f 1e6 1e9 1001 -s result.s2p -n
+```
+
+The CLI understands the same lumped elements that are available in the
+GUI (**R/C/L**, lossy and lossless transmission lines, and the LRC
+combinations) and accepts both positional arguments and explicit
+`name=value` overrides.  Combine `-n`, `-c`, and `-s` to automate
+repeatable cascades as part of a data-processing pipeline.
 
 ### Headless environments
 
