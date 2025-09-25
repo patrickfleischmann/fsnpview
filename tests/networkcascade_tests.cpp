@@ -136,6 +136,7 @@ void test_cascade_manual_range_persistence()
     assert(freqs.size() == 9);
     assert(std::abs(freqs.first() - 1e6) < 1e-6);
     assert(std::abs(freqs.last() - 5e6) < 1e-6);
+}
 
 void test_lumped_phase_unwrap_matches_manual()
 {
