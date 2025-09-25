@@ -49,6 +49,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_color_index(0)
     , m_keepAspectConnected(false)
     , m_currentPlotType(PlotType::Magnitude)
+    , m_crosshairEnabled(true)
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
@@ -174,8 +175,7 @@ QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<
 
 void PlotManager::configureCursorStyles(PlotType type)
 {
-    if (type == PlotType::Smith)
-    {
+    auto configureSmithMarkers = [this]() {
         mTracerA->setStyle(QCPItemTracer::tsTriangle);
         mTracerA->setPen(QPen(Qt::red, 0));
         mTracerA->setBrush(Qt::red);
@@ -185,8 +185,13 @@ void PlotManager::configureCursorStyles(PlotType type)
         mTracerB->setPen(QPen(Qt::blue, 0));
         mTracerB->setBrush(Qt::blue);
         mTracerTextB->setColor(Qt::blue);
+    };
+
+    if (type == PlotType::Smith)
+    {
+        configureSmithMarkers();
     }
-    else
+    else if (m_crosshairEnabled)
     {
         mTracerA->setStyle(QCPItemTracer::tsCrosshair);
         mTracerA->setPen(QPen(Qt::black, 0));
@@ -198,6 +203,20 @@ void PlotManager::configureCursorStyles(PlotType type)
         mTracerB->setBrush(Qt::NoBrush);
         mTracerTextB->setColor(Qt::blue);
     }
+    else
+    {
+        configureSmithMarkers();
+    }
+}
+
+void PlotManager::setCrosshairEnabled(bool enabled)
+{
+    if (m_crosshairEnabled == enabled)
+        return;
+
+    m_crosshairEnabled = enabled;
+    configureCursorStyles(m_currentPlotType);
+    m_plot->replot();
 }
 
 QCPGraph *PlotManager::firstGraph() const

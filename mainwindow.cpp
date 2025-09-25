@@ -66,6 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_initialFrequencyConfigured(false)
 {
     ui->setupUi(this);
+    ui->checkBoxCrossHair->setChecked(true);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
 
     ui->lineEditGateStart->installEventFilter(this);
@@ -122,6 +123,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->checkBoxCursorB, &QCheckBox::stateChanged, this, [this](int state){
         m_plot_manager->setCursorBVisible(state == Qt::Checked);
+    });
+
+    connect(ui->checkBoxCrossHair, &QCheckBox::stateChanged, this, [this](int state){
+        m_plot_manager->setCrosshairEnabled(state == Qt::Checked);
     });
 
     ui->checkBoxS21->setChecked(true);
