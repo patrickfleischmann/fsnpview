@@ -32,5 +32,6 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/networkcascade_tests.cpp parser_touchstone.cpp network.cpp networkfile.cpp \
-    networkcascade.cpp tdrcalculator.cpp moc_network.cpp moc_networkfile.cpp moc_networkcascade.cpp \
+    networklumped.cpp networkcascade.cpp tdrcalculator.cpp \
+    moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp moc_networkcascade.cpp \
     -o networkcascade_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)
