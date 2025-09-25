@@ -4,6 +4,7 @@
 #include <cassert>
 #include <complex>
 #include <iostream>
+#include <cmath>
 
 void test_cascade_two_files()
 {
@@ -40,9 +41,34 @@ void test_cascade_two_files()
     assert(close(s[3], s22_expected));
 }
 
+void test_phase_unwrap_toggle()
+{
+    NetworkFile net(QStringLiteral("test/a (1).s2p"));
+
+    net.setUnwrapPhase(true);
+    const auto unwrapped = net.getPlotData(0, PlotType::Phase);
+
+    net.setUnwrapPhase(false);
+    const auto wrapped = net.getPlotData(0, PlotType::Phase);
+
+    assert(!wrapped.second.isEmpty());
+    assert(unwrapped.second.size() == wrapped.second.size());
+
+    bool differenceFound = false;
+    for (int i = 0; i < wrapped.second.size(); ++i) {
+        if (std::abs(unwrapped.second[i] - wrapped.second[i]) > 1e-3) {
+            differenceFound = true;
+            break;
+        }
+    }
+
+    assert(differenceFound);
+}
+
 int main()
 {
     test_cascade_two_files();
+    test_phase_unwrap_toggle();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
 }

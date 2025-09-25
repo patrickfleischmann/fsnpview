@@ -83,6 +83,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupModels();
     setupViews();
     populateLumpedNetworkTable();
+    applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
     ui->tableViewCascade->viewport()->installEventFilter(this);
 
@@ -285,6 +286,7 @@ void MainWindow::populateLumpedNetworkTable()
 
     setupTableColumns(ui->tableViewNetworkLumped);
     setupTableColumns(ui->tableViewCascade);
+    applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
 }
 
 void MainWindow::processFiles(const QStringList &files, bool autoscale)
@@ -306,6 +308,7 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
         m_network_files_model->appendRow(row);
         m_networks.append(network);
     }
+    applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     m_plot_manager->setNetworks(m_networks);
     updatePlots();
     if(autoscale) m_plot_manager->autoscale();
@@ -351,6 +354,7 @@ void MainWindow::addNetworkToCascade(Network* network)
     m_network_cascade_model->appendRow(items);
 
     m_cascade->addNetwork(network);
+    applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updatePlots();
 }
 
@@ -485,6 +489,23 @@ void MainWindow::updatePlots()
         type = PlotType::Smith;
 
     m_plot_manager->updatePlots(checked_sparams, type);
+}
+
+void MainWindow::applyPhaseUnwrapSetting(bool unwrap)
+{
+    for (Network* network : qAsConst(m_networks)) {
+        if (network)
+            network->setUnwrapPhase(unwrap);
+    }
+
+    if (m_cascade) {
+        m_cascade->setUnwrapPhase(unwrap);
+        const QList<Network*>& cascadeNetworks = m_cascade->getNetworks();
+        for (Network* network : cascadeNetworks) {
+            if (network)
+                network->setUnwrapPhase(unwrap);
+        }
+    }
 }
 
 
@@ -1059,6 +1080,13 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxTDR->setChecked(false);
     }
     updatePlots();
+}
+
+void MainWindow::on_checkBoxPhaseUnwrap_stateChanged(int state)
+{
+    applyPhaseUnwrapSetting(state == Qt::Checked);
+    if (ui->checkBoxPhase->isChecked())
+        updatePlots();
 }
 
 void MainWindow::on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1)

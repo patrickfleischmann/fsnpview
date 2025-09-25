@@ -459,6 +459,16 @@
              </widget>
             </item>
             <item>
+             <widget class="QCheckBox" name="checkBoxPhaseUnwrap">
+              <property name="text">
+               <string>Unwrap</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QCheckBox" name="checkBoxVSWR">
               <property name="text">
                <string>VSWR</string>
