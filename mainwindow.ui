@@ -421,7 +421,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkBox_2">
+             <widget class="QCheckBox" name="checkBoxCrossHair">
               <property name="text">
                <string>X-hair</string>
               </property>
