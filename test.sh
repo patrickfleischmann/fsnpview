@@ -26,7 +26,7 @@ ensure_fsnpview_binary() {
 
 run_regression_test() {
 
-pip install matplotlib", "numpy", "skrf
+pip install matplotlib numpy scikit-rf
 
 
     local missing_modules
