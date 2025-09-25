@@ -288,10 +288,11 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         return qMakePair(freqVector, values);
     }
     case PlotType::Phase: {
-        Eigen::ArrayXd phase = sparam.arg() * 180.0 / pi;
+        Eigen::ArrayXd phase_rad = sparam.arg();
         if (m_unwrap_phase)
-            phase = unwrap(phase);
-        QVector<double> values(phase.data(), phase.data() + phase.size());
+            phase_rad = unwrap(phase_rad);
+        Eigen::ArrayXd phase_deg = phase_rad * (180.0 / pi);
+        QVector<double> values(phase_deg.data(), phase_deg.data() + phase_deg.size());
         return qMakePair(freqVector, values);
     }
     case PlotType::VSWR: {
