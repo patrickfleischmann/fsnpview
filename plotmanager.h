@@ -34,6 +34,7 @@ public:
     void autoscale();
     QColor nextColor();
     void setXAxisScaleType(QCPAxis::ScaleType type);
+    void setCrosshairEnabled(bool enabled);
 
 public slots:
     void mouseDoubleClick(QMouseEvent *event);
@@ -86,6 +87,7 @@ private:
     QMap<QCPItemTracer*, int> m_tracerIndices;
     bool m_keepAspectConnected;
     PlotType m_currentPlotType;
+    bool m_crosshairEnabled;
 };
 
 #endif // PLOTMANAGER_H
