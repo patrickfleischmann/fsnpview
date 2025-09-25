@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
@@ -59,12 +60,19 @@ MainWindow::MainWindow(QWidget *parent)
     , m_network_cascade_model(new NetworkItemModel(this))
     , m_lumpedParameterCount(0)
     , m_lastSelectionOrigin(SelectionOrigin::None)
+    , m_networkFrequencyMin(0.0)
+    , m_networkFrequencyMax(0.0)
+    , m_networkFrequencyPoints(0)
+    , m_initialFrequencyConfigured(false)
 {
     ui->setupUi(this);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
 
     ui->lineEditGateStart->installEventFilter(this);
     ui->lineEditGateStop->installEventFilter(this);
+    ui->lineEditFminNetworks->installEventFilter(this);
+    ui->lineEditFmaxNetworks->installEventFilter(this);
+    ui->lineEditNpointsNetworks->installEventFilter(this);
 
     Network::TimeGateSettings gateSettings;
     gateSettings.enabled = false;
@@ -84,6 +92,8 @@ MainWindow::MainWindow(QWidget *parent)
     setupViews();
     populateLumpedNetworkTable();
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
+    updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), false);
+    refreshNetworkFrequencyControls();
     ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
     ui->tableViewCascade->viewport()->installEventFilter(this);
 
@@ -127,8 +137,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupModels()
 {
-    m_network_files_model->setColumnCount(3);
-    m_network_files_model->setHorizontalHeaderLabels({"  ", "  ", "File"}); //Plot, Color, File
+    m_network_files_model->setColumnCount(6);
+    m_network_files_model->setHorizontalHeaderLabels({"  ", "  ", "File", "fmin", "fmax", "pts"}); //Plot, Color, File, Range
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
     m_network_lumped_model->setColumnCount(3);
@@ -300,11 +310,29 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
         checkItem->setCheckState(Qt::Checked);
         checkItem->setData(QVariant::fromValue(reinterpret_cast<quintptr>(network)), Qt::UserRole);
         row.append(checkItem);
+
         QStandardItem* colorItem = new QStandardItem();
         colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         colorItem->setBackground(network->color());
         row.append(colorItem);
-        row.append(new QStandardItem(network->name()));
+
+        QStandardItem* nameItem = new QStandardItem(network->name());
+        nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        row.append(nameItem);
+
+        auto makeInfoItem = [](const QString& text) {
+            QStandardItem* item = new QStandardItem(text);
+            item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+            return item;
+        };
+
+        row.append(makeInfoItem(Network::formatEngineering(network->fmin())));
+        row.append(makeInfoItem(Network::formatEngineering(network->fmax())));
+
+        const QVector<double> freqs = network->frequencies();
+        const int freqCount = freqs.size();
+        row.append(makeInfoItem(QString::number(freqCount)));
+
         m_network_files_model->appendRow(row);
         m_networks.append(network);
     }
@@ -362,8 +390,11 @@ void MainWindow::setCascadeFrequencyRange(double fmin, double fmax)
 {
     if (fmax <= fmin)
         return;
-    m_cascade->setFmin(fmin);
-    m_cascade->setFmax(fmax);
+    int points = m_networkFrequencyPoints > 1 ? m_networkFrequencyPoints : m_cascade->pointCount();
+    if (points < 2)
+        points = 2;
+    updateNetworkFrequencySettings(fmin, fmax, points);
+    refreshNetworkFrequencyControls();
     updatePlots();
 }
 
@@ -371,8 +402,64 @@ void MainWindow::setCascadePointCount(int pointCount)
 {
     if (pointCount < 2)
         pointCount = 2;
-    m_cascade->setPointCount(pointCount);
+    double fmin = (m_networkFrequencyMin > 0.0) ? m_networkFrequencyMin : m_cascade->fmin();
+    double fmax = (m_networkFrequencyMax > 0.0) ? m_networkFrequencyMax : m_cascade->fmax();
+    if (fmax <= fmin) {
+        fmin = m_cascade->fmin();
+        fmax = m_cascade->fmax();
+    }
+    updateNetworkFrequencySettings(fmin, fmax, pointCount);
+    refreshNetworkFrequencyControls();
     updatePlots();
+}
+
+void MainWindow::initializeFrequencyControls(bool freqSpecified, double fmin, double fmax, int pointCount, bool hasInitialFiles)
+{
+    if (m_initialFrequencyConfigured)
+        return;
+
+    if (freqSpecified && fmax > fmin) {
+        if (pointCount < 2)
+            pointCount = 2;
+        updateNetworkFrequencySettings(fmin, fmax, pointCount, true);
+    } else if (freqSpecified) {
+        updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+    } else if (hasInitialFiles) {
+        double detectedMin = std::numeric_limits<double>::max();
+        double detectedMax = std::numeric_limits<double>::lowest();
+        int detectedPoints = 0;
+        bool anyFrequencies = false;
+
+        for (Network* network : qAsConst(m_networks)) {
+            if (!network)
+                continue;
+
+            if (!dynamic_cast<NetworkFile*>(network))
+                continue;
+
+            const QVector<double> freqs = network->frequencies();
+            if (freqs.isEmpty())
+                continue;
+
+            anyFrequencies = true;
+            detectedMin = std::min(detectedMin, network->fmin());
+            detectedMax = std::max(detectedMax, network->fmax());
+            detectedPoints = std::max(detectedPoints, static_cast<int>(freqs.size()));
+        }
+
+        if (anyFrequencies && detectedMax > detectedMin) {
+            if (detectedPoints < 2)
+                detectedPoints = 2;
+            updateNetworkFrequencySettings(detectedMin, detectedMax, detectedPoints, true);
+        } else {
+            updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+        }
+    } else {
+        updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), true);
+    }
+
+    refreshNetworkFrequencyControls();
+    m_initialFrequencyConfigured = true;
 }
 
 NetworkCascade* MainWindow::cascade() const
@@ -813,6 +900,112 @@ void MainWindow::refreshGateControls()
     }
 }
 
+void MainWindow::refreshNetworkFrequencyControls()
+{
+    if (!ui)
+        return;
+
+    {
+        QSignalBlocker blocker(ui->lineEditFminNetworks);
+        ui->lineEditFminNetworks->setText(Network::formatEngineering(m_networkFrequencyMin));
+    }
+    {
+        QSignalBlocker blocker(ui->lineEditFmaxNetworks);
+        ui->lineEditFmaxNetworks->setText(Network::formatEngineering(m_networkFrequencyMax));
+    }
+    {
+        QSignalBlocker blocker(ui->lineEditNpointsNetworks);
+        ui->lineEditNpointsNetworks->setText(QString::number(std::max(m_networkFrequencyPoints, 2)));
+    }
+}
+
+void MainWindow::updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride)
+{
+    if (pointCount < 2)
+        pointCount = 2;
+
+    m_networkFrequencyMin = fmin;
+    m_networkFrequencyMax = fmax;
+    m_networkFrequencyPoints = pointCount;
+
+    if (m_cascade) {
+        m_cascade->setFrequencyRange(fmin, fmax, manualOverride);
+        m_cascade->setPointCount(pointCount);
+
+        const QList<Network*>& cascadeNetworks = m_cascade->getNetworks();
+        for (Network* network : cascadeNetworks) {
+            if (auto lumped = dynamic_cast<NetworkLumped*>(network)) {
+                lumped->setFmin(fmin);
+                lumped->setFmax(fmax);
+                lumped->setPointCount(pointCount);
+            }
+        }
+    }
+
+    for (Network* network : qAsConst(m_networks)) {
+        if (auto lumped = dynamic_cast<NetworkLumped*>(network)) {
+            lumped->setFmin(fmin);
+            lumped->setFmax(fmax);
+            lumped->setPointCount(pointCount);
+        }
+    }
+}
+
+bool MainWindow::applyNetworkFrequencySettingsFromUi()
+{
+    const double previousFmin = m_networkFrequencyMin;
+    const double previousFmax = m_networkFrequencyMax;
+    const int previousPoints = m_networkFrequencyPoints;
+
+    auto parseValue = [](QLineEdit *edit, double fallback) {
+        bool ok = false;
+        double value = edit->text().trimmed().toDouble(&ok);
+        return ok ? value : fallback;
+    };
+
+    double fmin = parseValue(ui->lineEditFminNetworks, previousFmin);
+    double fmax = parseValue(ui->lineEditFmaxNetworks, previousFmax);
+
+    bool pointsOk = false;
+    int points = ui->lineEditNpointsNetworks->text().trimmed().toInt(&pointsOk);
+    if (!pointsOk)
+        points = previousPoints;
+
+    if (!(fmin > 0.0))
+        fmin = previousFmin;
+    if (!(fmax > 0.0))
+        fmax = previousFmax;
+    if (points < 2)
+        points = previousPoints > 1 ? previousPoints : 2;
+
+    bool fminChanged = !nearlyEqual(fmin, previousFmin);
+    bool fmaxChanged = !nearlyEqual(fmax, previousFmax);
+
+    if (fmax <= fmin) {
+        if (fminChanged && !fmaxChanged) {
+            double step = std::max(std::abs(fmin) * 0.1, 1.0);
+            fmax = fmin + step;
+        } else if (fmaxChanged && !fminChanged) {
+            double step = std::max(std::abs(fmax) * 0.1, 1.0);
+            fmin = std::max(fmax - step, 0.0);
+            if (fmin <= 0.0)
+                fmin = previousFmin;
+        } else {
+            fmin = previousFmin;
+            fmax = previousFmax;
+        }
+    }
+
+    bool changed = !nearlyEqual(fmin, previousFmin)
+            || !nearlyEqual(fmax, previousFmax)
+            || points != previousPoints;
+
+    if (changed)
+        updateNetworkFrequencySettings(fmin, fmax, points);
+
+    return changed;
+}
+
 
 void MainWindow::on_actionOpen_triggered()
 {
@@ -1158,9 +1351,102 @@ void MainWindow::on_lineEditEpsilonR_editingFinished()
         updatePlots();
 }
 
+void MainWindow::on_lineEditFminNetworks_editingFinished()
+{
+    bool changed = applyNetworkFrequencySettingsFromUi();
+    refreshNetworkFrequencyControls();
+    if (changed)
+        updatePlots();
+}
+
+void MainWindow::on_lineEditFmaxNetworks_editingFinished()
+{
+    bool changed = applyNetworkFrequencySettingsFromUi();
+    refreshNetworkFrequencyControls();
+    if (changed)
+        updatePlots();
+}
+
+void MainWindow::on_lineEditNpointsNetworks_editingFinished()
+{
+    bool changed = applyNetworkFrequencySettingsFromUi();
+    refreshNetworkFrequencyControls();
+    if (changed)
+        updatePlots();
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::Wheel) {
+        if (obj == ui->lineEditFminNetworks || obj == ui->lineEditFmaxNetworks) {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+            if (wheelEvent->angleDelta().y() == 0)
+                return true;
+
+            QLineEdit *edit = qobject_cast<QLineEdit*>(obj);
+            if (!edit)
+                return QMainWindow::eventFilter(obj, event);
+
+            const double fallback = (obj == ui->lineEditFminNetworks)
+                    ? m_networkFrequencyMin
+                    : m_networkFrequencyMax;
+
+            bool ok = false;
+            double value = edit->text().trimmed().toDouble(&ok);
+            if (!ok)
+                value = fallback;
+
+            const double magnitude = std::max(std::abs(value), 1.0);
+            const double step = magnitude * 0.1;
+            if (wheelEvent->angleDelta().y() > 0)
+                value += step;
+            else if (wheelEvent->angleDelta().y() < 0) {
+                value -= step;
+                if (value < 0.0)
+                    value = 0.0;
+            }
+
+            {
+                QSignalBlocker blocker(edit);
+                edit->setText(Network::formatEngineering(value));
+            }
+
+            bool changed = applyNetworkFrequencySettingsFromUi();
+            refreshNetworkFrequencyControls();
+            if (changed)
+                updatePlots();
+            return true;
+        }
+
+        if (obj == ui->lineEditNpointsNetworks) {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+            if (wheelEvent->angleDelta().y() == 0)
+                return true;
+
+            int fallback = m_networkFrequencyPoints > 1 ? m_networkFrequencyPoints : 2;
+            bool ok = false;
+            int value = ui->lineEditNpointsNetworks->text().trimmed().toInt(&ok);
+            if (!ok)
+                value = fallback;
+
+            int step = std::max(value / 10, 1);
+            if (wheelEvent->angleDelta().y() > 0)
+                value += step;
+            else if (wheelEvent->angleDelta().y() < 0)
+                value = std::max(2, value - step);
+
+            {
+                QSignalBlocker blocker(ui->lineEditNpointsNetworks);
+                ui->lineEditNpointsNetworks->setText(QString::number(value));
+            }
+
+            bool changed = applyNetworkFrequencySettingsFromUi();
+            refreshNetworkFrequencyControls();
+            if (changed)
+                updatePlots();
+            return true;
+        }
+
         if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop) {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             if (wheelEvent->angleDelta().y() == 0)

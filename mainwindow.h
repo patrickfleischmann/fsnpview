@@ -38,6 +38,7 @@ public:
     void addNetworkToCascade(Network* network);
     void setCascadeFrequencyRange(double fmin, double fmax);
     void setCascadePointCount(int pointCount);
+    void initializeFrequencyControls(bool freqSpecified, double fmin, double fmax, int pointCount, bool hasInitialFiles);
     NetworkCascade* cascade() const;
 
 private slots:
@@ -69,6 +70,9 @@ private slots:
     void on_lineEditGateStart_editingFinished();
     void on_lineEditGateStop_editingFinished();
     void on_lineEditEpsilonR_editingFinished();
+    void on_lineEditFminNetworks_editingFinished();
+    void on_lineEditFmaxNetworks_editingFinished();
+    void on_lineEditNpointsNetworks_editingFinished();
 
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
@@ -99,6 +103,9 @@ private:
     void updateGraphSelectionFromTables();
     bool applyGateSettingsFromUi();
     void refreshGateControls();
+    bool applyNetworkFrequencySettingsFromUi();
+    void refreshNetworkFrequencyControls();
+    void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride = true);
     static bool nearlyEqual(double lhs, double rhs);
     void applyPhaseUnwrapSetting(bool unwrap);
 
@@ -125,5 +132,9 @@ private:
     };
 
     SelectionOrigin m_lastSelectionOrigin;
+    double m_networkFrequencyMin;
+    double m_networkFrequencyMax;
+    int m_networkFrequencyPoints;
+    bool m_initialFrequencyConfigured;
 };
 #endif // MAINWINDOW_H

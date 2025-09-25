@@ -154,8 +154,7 @@ int runNoGui(const CommandLineParser::Options& options)
 
     NetworkCascade cascade;
     if (options.freqSpecified) {
-        cascade.setFmin(options.fmin);
-        cascade.setFmax(options.fmax);
+        cascade.setFrequencyRange(options.fmin, options.fmax);
         cascade.setPointCount(options.freqPoints);
     }
 
@@ -312,6 +311,12 @@ int main(int argc, char *argv[])
     if (!filesToOpen.isEmpty()) {
         window.processFiles(filesToOpen, true);
     }
+
+    window.initializeFrequencyControls(options.freqSpecified,
+                                       options.fmin,
+                                       options.fmax,
+                                       options.freqPoints,
+                                       !filesToOpen.isEmpty());
 
     if (!configureCascadeForWindow(window, options)) {
 #ifdef Q_OS_WIN
