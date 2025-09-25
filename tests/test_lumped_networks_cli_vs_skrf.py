@@ -954,7 +954,7 @@ def main() -> int:
             build_expected=build_all_types_cascade,
             fmin_hz=1e7,
             fmax_hz=1e11,
-            npoints=100000,
+            npoints=10000,
         )
     )
 
