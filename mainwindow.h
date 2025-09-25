@@ -69,6 +69,9 @@ private slots:
     void on_lineEditGateStart_editingFinished();
     void on_lineEditGateStop_editingFinished();
     void on_lineEditEpsilonR_editingFinished();
+    void on_lineEditFminNetworks_editingFinished();
+    void on_lineEditFmaxNetworks_editingFinished();
+    void on_lineEditNpointsNetworks_editingFinished();
 
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
@@ -99,6 +102,9 @@ private:
     void updateGraphSelectionFromTables();
     bool applyGateSettingsFromUi();
     void refreshGateControls();
+    bool applyNetworkFrequencySettingsFromUi();
+    void refreshNetworkFrequencyControls();
+    void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount);
     static bool nearlyEqual(double lhs, double rhs);
     void applyPhaseUnwrapSetting(bool unwrap);
 
@@ -125,5 +131,8 @@ private:
     };
 
     SelectionOrigin m_lastSelectionOrigin;
+    double m_networkFrequencyMin;
+    double m_networkFrequencyMax;
+    int m_networkFrequencyPoints;
 };
 #endif // MAINWINDOW_H

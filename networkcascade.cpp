@@ -216,6 +216,7 @@ Network* NetworkCascade::clone(QObject* parent) const
     copy->setActive(m_is_active);
     copy->setFmin(m_fmin);
     copy->setFmax(m_fmax);
+    copy->setPointCount(m_pointCount);
     for (const auto& net : m_networks) {
         copy->addNetwork(net->clone(copy));
     }

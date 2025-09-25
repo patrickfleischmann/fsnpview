@@ -1,5 +1,6 @@
 #include "networkcascade.h"
 #include "networkfile.h"
+#include "networklumped.h"
 #include <Eigen/Dense>
 #include <cassert>
 #include <complex>
@@ -65,10 +66,42 @@ void test_phase_unwrap_toggle()
     assert(differenceFound);
 }
 
+void test_lumped_frequency_point_count()
+{
+    NetworkLumped lumped(NetworkLumped::NetworkType::R_series, {50.0});
+    lumped.setFmin(2e6);
+    lumped.setFmax(12e6);
+    lumped.setPointCount(11);
+
+    const auto freqs = lumped.frequencies();
+    assert(freqs.size() == 11);
+    assert(std::abs(freqs.first() - 2e6) < 1e-6);
+    assert(std::abs(freqs.last() - 12e6) < 1e-6);
+
+    const auto plotData = lumped.getPlotData(0, PlotType::Magnitude);
+    assert(plotData.first.size() == 11);
+    assert(plotData.second.size() == 11);
+}
+
+void test_cascade_frequency_settings()
+{
+    NetworkCascade cascade;
+    cascade.setFmin(1e6);
+    cascade.setFmax(5e6);
+    cascade.setPointCount(9);
+
+    const auto freqs = cascade.frequencies();
+    assert(freqs.size() == 9);
+    assert(std::abs(freqs.first() - 1e6) < 1e-6);
+    assert(std::abs(freqs.last() - 5e6) < 1e-6);
+}
+
 int main()
 {
     test_cascade_two_files();
     test_phase_unwrap_toggle();
+    test_lumped_frequency_point_count();
+    test_cascade_frequency_settings();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
 }

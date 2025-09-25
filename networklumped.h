@@ -34,6 +34,9 @@ public:
     QVector<double> frequencies() const override;
     int portCount() const override;
 
+    void setPointCount(int pointCount);
+    int pointCount() const;
+
     int parameterCount() const;
     QString parameterDescription(int index) const;
     double parameterValue(int index) const;
@@ -51,6 +54,8 @@ private:
         double scale;
     };
     QVector<Parameter> m_parameters;
+
+    int m_pointCount;
 
     void initializeParameters(const QVector<double>& values);
     double parameterValueSI(int index) const;

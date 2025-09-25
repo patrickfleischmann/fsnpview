@@ -29,7 +29,7 @@ NetworkLumped::NetworkLumped(NetworkType type, QObject *parent)
 }
 
 NetworkLumped::NetworkLumped(NetworkType type, const QVector<double>& values, QObject *parent)
-    : Network(parent), m_type(type)
+    : Network(parent), m_type(type), m_pointCount(1001)
 {
     initializeParameters(values);
     m_fmin = 1e6;
@@ -57,6 +57,7 @@ Network* NetworkLumped::clone(QObject* parent) const
     copy->setActive(m_is_active);
     copy->setFmin(m_fmin);
     copy->setFmax(m_fmax);
+    copy->setPointCount(m_pointCount);
     return copy;
 }
 
@@ -245,7 +246,8 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         return {};
     }
 
-    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
+    const int points = std::max(m_pointCount, 2);
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
     Eigen::MatrixXcd abcd_matrix = abcd(freq);
 
     Eigen::ArrayXcd sparam(freq.size());
@@ -320,8 +322,21 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
 
 QVector<double> NetworkLumped::frequencies() const
 {
-    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(1001, m_fmin, m_fmax);
+    const int points = std::max(m_pointCount, 2);
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
     return QVector<double>(freq.data(), freq.data() + freq.size());
+}
+
+void NetworkLumped::setPointCount(int pointCount)
+{
+    if (pointCount < 2)
+        pointCount = 2;
+    m_pointCount = pointCount;
+}
+
+int NetworkLumped::pointCount() const
+{
+    return m_pointCount;
 }
 
 int NetworkLumped::portCount() const
