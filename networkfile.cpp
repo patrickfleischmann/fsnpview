@@ -202,21 +202,25 @@ int NetworkFile::portCount() const
     return m_data->ports;
 }
 
-Eigen::MatrixXcd NetworkFile::abcd(const Eigen::VectorXd& freq) const
+Eigen::MatrixXcd NetworkFile::sparameters(const Eigen::VectorXd& freq) const
 {
-    if (!m_data) {
+    if (!m_data || freq.size() == 0) {
         return {};
     }
 
-    Eigen::MatrixXcd abcd_matrix(freq.size(), 4);
+    const int ports = m_data->ports;
+    if (ports != 2) {
+        return {};
+    }
+
+    Eigen::MatrixXcd s_matrix(freq.size(), 4);
     for (int i = 0; i < freq.size(); ++i) {
         std::complex<double> s11 = interpolate_s_param(freq(i), 0);
         std::complex<double> s12 = interpolate_s_param(freq(i), 1);
         std::complex<double> s21 = interpolate_s_param(freq(i), 2);
         std::complex<double> s22 = interpolate_s_param(freq(i), 3);
-        Eigen::Matrix2cd abcd_point = s2abcd(s11, s12, s21, s22);
-        abcd_matrix.row(i) << abcd_point(0, 0), abcd_point(0, 1), abcd_point(1, 0), abcd_point(1, 1);
+        s_matrix.row(i) << s11, s12, s21, s22;
     }
 
-    return abcd_matrix;
+    return s_matrix;
 }

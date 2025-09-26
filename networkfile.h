@@ -12,7 +12,7 @@ public:
     explicit NetworkFile(const QString &filePath, QObject *parent = nullptr);
 
     QString name() const override;
-    Eigen::MatrixXcd abcd(const Eigen::VectorXd& freq) const override;
+    Eigen::MatrixXcd sparameters(const Eigen::VectorXd& freq) const override;
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override;
     Network* clone(QObject* parent = nullptr) const override;
 

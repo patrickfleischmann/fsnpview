@@ -21,6 +21,15 @@ QVector<double> toVector(std::initializer_list<double> list)
     }
     return values;
 }
+
+Eigen::Matrix2cd abcdToSParameterMatrix(const Eigen::Matrix2cd& abcd)
+{
+    Eigen::Vector4cd s = Network::abcd2s(abcd);
+    Eigen::Matrix2cd scattering;
+    scattering << s(0), s(1),
+                  s(2), s(3);
+    return scattering;
+}
 }
 
 NetworkLumped::NetworkLumped(NetworkType type, QObject *parent)
@@ -99,9 +108,9 @@ QString NetworkLumped::name() const
     return name;
 }
 
-Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
+Eigen::MatrixXcd NetworkLumped::sparameters(const Eigen::VectorXd& freq) const
 {
-    Eigen::MatrixXcd abcd_matrix(freq.size(), 4);
+    Eigen::MatrixXcd scattering_matrix(freq.size(), 4);
     std::complex<double> j(0, 1);
     constexpr double c0 = 299792458.0; // Speed of light in vacuum (m/s)
 
@@ -234,10 +243,13 @@ Eigen::MatrixXcd NetworkLumped::abcd(const Eigen::VectorXd& freq) const
             break;
         }
         }
-        abcd_matrix.row(i) << abcd_point(0, 0), abcd_point(0, 1), abcd_point(1, 0), abcd_point(1, 1);
+
+        Eigen::Matrix2cd scattering = abcdToSParameterMatrix(abcd_point);
+        scattering_matrix.row(i) << scattering(0, 0), scattering(0, 1),
+                                    scattering(1, 0), scattering(1, 1);
     }
 
-    return abcd_matrix;
+    return scattering_matrix;
 }
 
 QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_idx, PlotType type)
@@ -248,14 +260,11 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
 
     const int points = std::max(m_pointCount, 2);
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
-    Eigen::MatrixXcd abcd_matrix = abcd(freq);
+    Eigen::MatrixXcd s_matrix = sparameters(freq);
 
     Eigen::ArrayXcd sparam(freq.size());
     for (int i = 0; i < freq.size(); ++i) {
-        Eigen::Matrix2cd abcd_point;
-        abcd_point << abcd_matrix(i, 0), abcd_matrix(i, 1), abcd_matrix(i, 2), abcd_matrix(i, 3);
-        Eigen::Vector4cd s = abcd2s(abcd_point);
-        sparam(i) = s(s_param_idx);
+        sparam(i) = s_matrix(i, s_param_idx);
     }
 
     const int ports = portCount();

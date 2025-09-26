@@ -3,9 +3,38 @@
 #include <limits>
 #include <algorithm>
 #include <optional>
+#include <vector>
 
 namespace {
 constexpr double pi = 3.14159265358979323846;
+
+Eigen::Matrix2cd redhefferStar(const Eigen::Matrix2cd& left, const Eigen::Matrix2cd& right)
+{
+    const std::complex<double> s11_left = left(0, 0);
+    const std::complex<double> s12_left = left(0, 1);
+    const std::complex<double> s21_left = left(1, 0);
+    const std::complex<double> s22_left = left(1, 1);
+
+    const std::complex<double> s11_right = right(0, 0);
+    const std::complex<double> s12_right = right(0, 1);
+    const std::complex<double> s21_right = right(1, 0);
+    const std::complex<double> s22_right = right(1, 1);
+
+    std::complex<double> denominator = 1.0 - s22_left * s11_right;
+    if (std::abs(denominator) < 1e-18)
+    {
+        // Regularize near-singular connections to avoid numerical blow-up
+        denominator = std::complex<double>(std::numeric_limits<double>::epsilon(), 0.0);
+    }
+    const std::complex<double> inv = 1.0 / denominator;
+
+    Eigen::Matrix2cd result;
+    result(0, 0) = s11_left + s12_left * s11_right * s21_left * inv;
+    result(0, 1) = s12_left * s12_right * inv;
+    result(1, 0) = s21_left * s21_right * inv;
+    result(1, 1) = s22_right + s21_right * s22_left * s12_right * inv;
+    return result;
+}
 }
 
 NetworkCascade::NetworkCascade(QObject *parent)
@@ -103,37 +132,45 @@ int NetworkCascade::portCount() const
     return 2;
 }
 
-Eigen::MatrixXcd NetworkCascade::abcd(const Eigen::VectorXd& freq) const
+Eigen::MatrixXcd NetworkCascade::sparameters(const Eigen::VectorXd& freq) const
 {
-    Eigen::MatrixXcd total_abcd(freq.size(), 4);
-    for (int i = 0; i < freq.size(); ++i) {
-        total_abcd.row(i) << 1, 0, 0, 1;
-    }
+    if (freq.size() == 0)
+        return {};
 
-    QList<Network*> active_networks;
+    QList<Network*> activeNetworks;
     for (const auto& network : m_networks) {
-        if (network->isActive()) {
-            active_networks.append(network);
-        }
+        if (network->isActive())
+            activeNetworks.append(network);
     }
 
-    for (const auto& network : active_networks) {
-        Eigen::MatrixXcd network_abcd = network->abcd(freq);
-        for (int i = 0; i < freq.size(); ++i) {
-            Eigen::Matrix2cd abcd_point_mat;
-            abcd_point_mat << network_abcd(i, 0), network_abcd(i, 1),
-                              network_abcd(i, 2), network_abcd(i, 3);
-
-            Eigen::Matrix2cd total_abcd_mat;
-            total_abcd_mat << total_abcd(i, 0), total_abcd(i, 1),
-                              total_abcd(i, 2), total_abcd(i, 3);
-
-            Eigen::Matrix2cd result = total_abcd_mat * abcd_point_mat;
-            total_abcd.row(i) << result(0, 0), result(0, 1), result(1, 0), result(1, 1);
-        }
+    std::vector<Eigen::MatrixXcd> networkResponses;
+    networkResponses.reserve(activeNetworks.size());
+    for (const auto& network : activeNetworks) {
+        networkResponses.push_back(network->sparameters(freq));
     }
 
-    return total_abcd;
+    Eigen::MatrixXcd total(freq.size(), 4);
+    for (int row = 0; row < freq.size(); ++row) {
+        Eigen::Matrix2cd accumulated;
+        accumulated << 0.0, 1.0,
+                        1.0, 0.0;
+
+        for (const auto& response : networkResponses) {
+            if (response.rows() != freq.size() || response.cols() < 4)
+                continue;
+
+            Eigen::Matrix2cd s_matrix;
+            s_matrix << response(row, 0), response(row, 1),
+                         response(row, 2), response(row, 3);
+
+            accumulated = redhefferStar(accumulated, s_matrix);
+        }
+
+        total.row(row) << accumulated(0, 0), accumulated(0, 1),
+                           accumulated(1, 0), accumulated(1, 1);
+    }
+
+    return total;
 }
 
 QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_idx, PlotType type)
@@ -141,14 +178,11 @@ QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_
     updateFrequencyRange();
     const int points = std::max(m_pointCount, 2);
     Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(points, m_fmin, m_fmax);
-    Eigen::MatrixXcd abcd_matrix = abcd(freq);
+    Eigen::MatrixXcd s_matrix = sparameters(freq);
 
     Eigen::ArrayXcd sparam(freq.size());
     for (int i = 0; i < freq.size(); ++i) {
-        Eigen::Matrix2cd abcd_point;
-        abcd_point << abcd_matrix(i, 0), abcd_matrix(i, 1), abcd_matrix(i, 2), abcd_matrix(i, 3);
-        Eigen::Vector4cd s = abcd2s(abcd_point);
-        sparam(i) = s(s_param_idx);
+        sparam(i) = s_matrix(i, s_param_idx);
     }
 
     const int ports = portCount();

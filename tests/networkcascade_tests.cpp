@@ -19,12 +19,7 @@ void test_cascade_two_files()
     Eigen::VectorXd freq(1);
     freq << 40e6; // 40 MHz
 
-    Eigen::MatrixXcd abcd_matrix = cascade.abcd(freq);
-    Eigen::Matrix2cd abcd;
-    abcd << abcd_matrix(0, 0), abcd_matrix(0, 1),
-             abcd_matrix(0, 2), abcd_matrix(0, 3);
-
-    Eigen::Vector4cd s = Network::abcd2s(abcd);
+    Eigen::MatrixXcd s_matrix = cascade.sparameters(freq);
 
     std::complex<double> s11_expected(0.014920405958677847, 0.01630490315700499);
     std::complex<double> s12_expected(0.9574040676271609, -0.20781677254865813);
@@ -36,10 +31,10 @@ void test_cascade_two_files()
                std::abs(a.imag() - b.imag()) < 1e-6;
     };
 
-    assert(close(s[0], s11_expected));
-    assert(close(s[1], s12_expected));
-    assert(close(s[2], s21_expected));
-    assert(close(s[3], s22_expected));
+    assert(close(s_matrix(0, 0), s11_expected));
+    assert(close(s_matrix(0, 1), s12_expected));
+    assert(close(s_matrix(0, 2), s21_expected));
+    assert(close(s_matrix(0, 3), s22_expected));
 }
 
 namespace {

@@ -101,15 +101,12 @@ bool saveCascadeToFile(const NetworkCascade& cascade, const Eigen::VectorXd& fre
     const Eigen::Index rows = freq.size();
     const Eigen::Index cols = static_cast<Eigen::Index>(data.ports * data.ports);
     data.sparams.resize(rows, cols);
+    data.sparams.setZero();
 
-    Eigen::MatrixXcd abcd = cascade.abcd(freq);
+    Eigen::MatrixXcd s_matrix = cascade.sparameters(freq);
     for (Eigen::Index row = 0; row < rows; ++row) {
-        Eigen::Matrix2cd abcdPoint;
-        abcdPoint << abcd(row, 0), abcd(row, 1),
-                     abcd(row, 2), abcd(row, 3);
-        Eigen::Vector4cd s = Network::abcd2s(abcdPoint);
-        for (Eigen::Index col = 0; col < cols; ++col) {
-            data.sparams(row, col) = s(col);
+        for (Eigen::Index col = 0; col < cols && col < s_matrix.cols(); ++col) {
+            data.sparams(row, col) = s_matrix(row, col);
         }
     }
 
