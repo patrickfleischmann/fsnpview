@@ -23,7 +23,7 @@ QT_END_NAMESPACE
 class Server;
 class NetworkFile;
 class PlotManager;
-class QTableView;
+class QTableWidget;
 class QCPAbstractPlottable;
 
 class MainWindow : public QMainWindow
@@ -94,7 +94,7 @@ private:
     void updatePlots();
     void setupModels();
     void setupViews();
-    void setupTableColumns(QTableView* view);
+    void setupTableColumns(QTableWidget* view);
     void populateLumpedNetworkTable();
     void configureLumpedAndCascadeColumns(int parameterCount);
     void appendParameterItems(QList<QStandardItem*>& row, Network* network);

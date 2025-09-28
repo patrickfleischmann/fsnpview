@@ -11,7 +11,8 @@
 #include <QMenuBar>
 #include <QCheckBox>
 #include <QSet>
-#include <QTableView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 
 #include <QItemSelectionModel>
 #include <QSignalBlocker>
@@ -47,6 +48,20 @@ protected:
         }
     }
 };
+
+QStringList headerLabelsFromWidget(const QTableWidget *widget)
+{
+    QStringList headers;
+    if (!widget)
+        return headers;
+
+    for (int column = 0; column < widget->columnCount(); ++column) {
+        const QTableWidgetItem *item = widget->horizontalHeaderItem(column);
+        headers.append(item ? item->text() : QString());
+    }
+
+    return headers;
+}
 
 } // namespace
 
@@ -95,23 +110,23 @@ MainWindow::MainWindow(QWidget *parent)
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), false);
     refreshNetworkFrequencyControls();
-    ui->tableViewNetworkLumped->viewport()->installEventFilter(this);
-    ui->tableViewCascade->viewport()->installEventFilter(this);
+    ui->tableWidgetNetworkLumped->viewport()->installEventFilter(this);
+    ui->tableWidgetCascade->viewport()->installEventFilter(this);
 
     m_plot_manager->setNetworks(m_networks);
     m_plot_manager->setCascade(m_cascade);
 
     connect(ui->widgetGraph, &QCustomPlot::selectionChangedByUser,
             this, &MainWindow::onGraphSelectionChangedByUser);
-    connect(ui->tableViewNetworkFiles->selectionModel(), &QItemSelectionModel::selectionChanged,
+    connect(ui->tableWidgetNetworkFiles->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onNetworkFilesSelectionChanged);
-    connect(ui->tableViewNetworkLumped->selectionModel(), &QItemSelectionModel::selectionChanged,
+    connect(ui->tableWidgetNetworkLumped->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onNetworkLumpedSelectionChanged);
-    connect(ui->tableViewCascade->selectionModel(), &QItemSelectionModel::selectionChanged,
+    connect(ui->tableWidgetCascade->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onNetworkCascadeSelectionChanged);
-    connect(ui->tableViewNetworkFiles, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
-    connect(ui->tableViewNetworkLumped, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
-    connect(ui->tableViewCascade, &QTableView::clicked, this, &MainWindow::onColorColumnClicked);
+    connect(ui->tableWidgetNetworkFiles, &QTableWidget::clicked, this, &MainWindow::onColorColumnClicked);
+    connect(ui->tableWidgetNetworkLumped, &QTableWidget::clicked, this, &MainWindow::onColorColumnClicked);
+    connect(ui->tableWidgetCascade, &QTableWidget::clicked, this, &MainWindow::onColorColumnClicked);
 
     connect(m_server, &Server::filesReceived, this, &MainWindow::onFilesReceived);
     connect(ui->widgetGraph, &QCustomPlot::plottableClick,
@@ -142,50 +157,59 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupModels()
 {
-    m_network_files_model->setColumnCount(6);
-    m_network_files_model->setHorizontalHeaderLabels({"  ", "  ", "File", "fmin", "fmax", "pts"}); //Plot, Color, File, Range
+    const QStringList fileHeaders = headerLabelsFromWidget(ui->tableWidgetNetworkFiles);
+    m_network_files_model->setColumnCount(fileHeaders.size());
+    if (!fileHeaders.isEmpty()) {
+        m_network_files_model->setHorizontalHeaderLabels(fileHeaders);
+    }
     connect(m_network_files_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkFilesModelChanged);
 
-    m_network_lumped_model->setColumnCount(3);
-    m_network_lumped_model->setHorizontalHeaderLabels({"  ", "  ", "Name"});
+    const QStringList lumpedHeaders = headerLabelsFromWidget(ui->tableWidgetNetworkLumped);
+    m_network_lumped_model->setColumnCount(lumpedHeaders.size());
+    if (!lumpedHeaders.isEmpty()) {
+        m_network_lumped_model->setHorizontalHeaderLabels(lumpedHeaders);
+    }
     connect(m_network_lumped_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkLumpedModelChanged);
 
-    m_network_cascade_model->setColumnCount(3);
-    m_network_cascade_model->setHorizontalHeaderLabels({"  ", "  ", "Name"});
+    const QStringList cascadeHeaders = headerLabelsFromWidget(ui->tableWidgetCascade);
+    m_network_cascade_model->setColumnCount(cascadeHeaders.size());
+    if (!cascadeHeaders.isEmpty()) {
+        m_network_cascade_model->setHorizontalHeaderLabels(cascadeHeaders);
+    }
     connect(m_network_cascade_model, &QStandardItemModel::itemChanged, this, &MainWindow::onNetworkCascadeModelChanged);
     connect(m_network_cascade_model, &NetworkItemModel::networkDropped, this, &MainWindow::onNetworkDropped);
 }
 
 void MainWindow::setupViews()
 {
-    ui->tableViewNetworkFiles->setModel(m_network_files_model);
-    ui->tableViewNetworkFiles->setDragDropMode(QAbstractItemView::DragOnly);
-    ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    ui->tableViewNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableViewNetworkFiles->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkFiles));
-    setupTableColumns(ui->tableViewNetworkFiles);
+    ui->tableWidgetNetworkFiles->setModel(m_network_files_model);
+    ui->tableWidgetNetworkFiles->setDragDropMode(QAbstractItemView::DragOnly);
+    ui->tableWidgetNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableWidgetNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableWidgetNetworkFiles->setItemDelegate(new SelectionBoldDelegate(ui->tableWidgetNetworkFiles));
+    setupTableColumns(ui->tableWidgetNetworkFiles);
 
-    ui->tableViewNetworkLumped->setModel(m_network_lumped_model);
-    ui->tableViewNetworkLumped->setDragDropMode(QAbstractItemView::DragOnly);
-    ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    ui->tableViewNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableViewNetworkLumped->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkLumped));
-    setupTableColumns(ui->tableViewNetworkLumped);
+    ui->tableWidgetNetworkLumped->setModel(m_network_lumped_model);
+    ui->tableWidgetNetworkLumped->setDragDropMode(QAbstractItemView::DragOnly);
+    ui->tableWidgetNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableWidgetNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableWidgetNetworkLumped->setItemDelegate(new SelectionBoldDelegate(ui->tableWidgetNetworkLumped));
+    setupTableColumns(ui->tableWidgetNetworkLumped);
 
 
-    ui->tableViewCascade->setModel(m_network_cascade_model);
-    ui->tableViewCascade->setDragEnabled(true);
-    ui->tableViewCascade->setAcceptDrops(true);
-    ui->tableViewCascade->setDragDropMode(QAbstractItemView::DragDrop);
-    ui->tableViewCascade->setDefaultDropAction(Qt::MoveAction);
-    ui->tableViewCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    ui->tableViewCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableViewCascade->setDropIndicatorShown(true);
-    ui->tableViewCascade->setItemDelegate(new SelectionBoldDelegate(ui->tableViewCascade));
-    setupTableColumns(ui->tableViewCascade);
+    ui->tableWidgetCascade->setModel(m_network_cascade_model);
+    ui->tableWidgetCascade->setDragEnabled(true);
+    ui->tableWidgetCascade->setAcceptDrops(true);
+    ui->tableWidgetCascade->setDragDropMode(QAbstractItemView::DragDrop);
+    ui->tableWidgetCascade->setDefaultDropAction(Qt::MoveAction);
+    ui->tableWidgetCascade->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableWidgetCascade->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableWidgetCascade->setDropIndicatorShown(true);
+    ui->tableWidgetCascade->setItemDelegate(new SelectionBoldDelegate(ui->tableWidgetCascade));
+    setupTableColumns(ui->tableWidgetCascade);
 }
 
-void MainWindow::setupTableColumns(QTableView* view)
+void MainWindow::setupTableColumns(QTableWidget* view)
 {
     view->resizeColumnToContents(0);
     view->resizeColumnToContents(1);
@@ -299,8 +323,8 @@ void MainWindow::populateLumpedNetworkTable()
         }
     }
 
-    setupTableColumns(ui->tableViewNetworkLumped);
-    setupTableColumns(ui->tableViewCascade);
+    setupTableColumns(ui->tableWidgetNetworkLumped);
+    setupTableColumns(ui->tableWidgetCascade);
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
 }
 
@@ -530,7 +554,7 @@ void MainWindow::onGraphSelectionChanged(QCPAbstractPlottable *plottable,
     if (!network || network == m_cascade)
         return;
 
-    auto selectInView = [network](NetworkItemModel *model, QTableView *view) {
+    auto selectInView = [network](NetworkItemModel *model, QTableWidget *view) {
         if (!model || !view)
             return;
 
@@ -552,9 +576,9 @@ void MainWindow::onGraphSelectionChanged(QCPAbstractPlottable *plottable,
         }
     };
 
-    selectInView(m_network_files_model, ui->tableViewNetworkFiles);
-    selectInView(m_network_lumped_model, ui->tableViewNetworkLumped);
-    selectInView(m_network_cascade_model, ui->tableViewCascade);
+    selectInView(m_network_files_model, ui->tableWidgetNetworkFiles);
+    selectInView(m_network_lumped_model, ui->tableWidgetNetworkLumped);
+    selectInView(m_network_cascade_model, ui->tableWidgetCascade);
 }
 
 void MainWindow::updatePlots()
@@ -708,7 +732,7 @@ void MainWindow::onGraphSelectionChangedByUser()
         selectedNetworks.insert(network);
     }
 
-    auto syncSelection = [&](QTableView *view, NetworkItemModel *model) {
+    auto syncSelection = [&](QTableWidget *view, NetworkItemModel *model) {
         if (!view || !model)
             return;
 
@@ -728,12 +752,12 @@ void MainWindow::onGraphSelectionChangedByUser()
         }
     };
 
-    syncSelection(ui->tableViewNetworkFiles, m_network_files_model);
-    syncSelection(ui->tableViewNetworkLumped, m_network_lumped_model);
-    syncSelection(ui->tableViewCascade, m_network_cascade_model);
+    syncSelection(ui->tableWidgetNetworkFiles, m_network_files_model);
+    syncSelection(ui->tableWidgetNetworkLumped, m_network_lumped_model);
+    syncSelection(ui->tableWidgetCascade, m_network_cascade_model);
 
     if (cascadeSelected) {
-        if (QItemSelectionModel *selModel = ui->tableViewCascade->selectionModel()) {
+        if (QItemSelectionModel *selModel = ui->tableWidgetCascade->selectionModel()) {
             QSignalBlocker blocker(selModel);
             selModel->clearSelection();
             for (int row = 0; row < m_network_cascade_model->rowCount(); ++row) {
@@ -749,8 +773,8 @@ void MainWindow::onNetworkFilesSelectionChanged(const QItemSelection &selected, 
     Q_UNUSED(selected);
     Q_UNUSED(deselected);
     QWidget *focusWidget = QApplication::focusWidget();
-    if ((focusWidget && (focusWidget == ui->tableViewNetworkFiles || ui->tableViewNetworkFiles->isAncestorOf(focusWidget))) ||
-        ui->tableViewNetworkFiles->hasFocus() || ui->tableViewNetworkFiles->viewport()->hasFocus()) {
+    if ((focusWidget && (focusWidget == ui->tableWidgetNetworkFiles || ui->tableWidgetNetworkFiles->isAncestorOf(focusWidget))) ||
+        ui->tableWidgetNetworkFiles->hasFocus() || ui->tableWidgetNetworkFiles->viewport()->hasFocus()) {
         m_lastSelectionOrigin = SelectionOrigin::Files;
     }
     updateGraphSelectionFromTables();
@@ -761,8 +785,8 @@ void MainWindow::onNetworkLumpedSelectionChanged(const QItemSelection &selected,
     Q_UNUSED(selected);
     Q_UNUSED(deselected);
     QWidget *focusWidget = QApplication::focusWidget();
-    if ((focusWidget && (focusWidget == ui->tableViewNetworkLumped || ui->tableViewNetworkLumped->isAncestorOf(focusWidget))) ||
-        ui->tableViewNetworkLumped->hasFocus() || ui->tableViewNetworkLumped->viewport()->hasFocus()) {
+    if ((focusWidget && (focusWidget == ui->tableWidgetNetworkLumped || ui->tableWidgetNetworkLumped->isAncestorOf(focusWidget))) ||
+        ui->tableWidgetNetworkLumped->hasFocus() || ui->tableWidgetNetworkLumped->viewport()->hasFocus()) {
         m_lastSelectionOrigin = SelectionOrigin::Lumped;
     }
     updateGraphSelectionFromTables();
@@ -773,8 +797,8 @@ void MainWindow::onNetworkCascadeSelectionChanged(const QItemSelection &selected
     Q_UNUSED(selected);
     Q_UNUSED(deselected);
     QWidget *focusWidget = QApplication::focusWidget();
-    if ((focusWidget && (focusWidget == ui->tableViewCascade || ui->tableViewCascade->isAncestorOf(focusWidget))) ||
-        ui->tableViewCascade->hasFocus() || ui->tableViewCascade->viewport()->hasFocus()) {
+    if ((focusWidget && (focusWidget == ui->tableWidgetCascade || ui->tableWidgetCascade->isAncestorOf(focusWidget))) ||
+        ui->tableWidgetCascade->hasFocus() || ui->tableWidgetCascade->viewport()->hasFocus()) {
         m_lastSelectionOrigin = SelectionOrigin::Cascade;
     }
     updateGraphSelectionFromTables();
@@ -813,19 +837,24 @@ void MainWindow::onColorColumnClicked(const QModelIndex &index)
 void MainWindow::updateGraphSelectionFromTables()
 {
     QSet<Network*> selectedNetworks;
-    auto collect = [&](QTableView *view, NetworkItemModel *model) {
-        const QModelIndexList rows = view->selectionModel()->selectedRows();
-        for (const QModelIndex &index : rows) {
-            quintptr ptrVal = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
-            Network *network = reinterpret_cast<Network*>(ptrVal);
-            if (network)
-                selectedNetworks.insert(network);
+    auto collect = [&](QTableWidget *view, NetworkItemModel *model) {
+        if (!view || !model)
+            return;
+
+        if (QItemSelectionModel *selectionModel = view->selectionModel()) {
+            const QModelIndexList rows = selectionModel->selectedRows();
+            for (const QModelIndex &index : rows) {
+                quintptr ptrVal = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+                Network *network = reinterpret_cast<Network*>(ptrVal);
+                if (network)
+                    selectedNetworks.insert(network);
+            }
         }
     };
 
-    collect(ui->tableViewNetworkFiles, m_network_files_model);
-    collect(ui->tableViewNetworkLumped, m_network_lumped_model);
-    collect(ui->tableViewCascade, m_network_cascade_model);
+    collect(ui->tableWidgetNetworkFiles, m_network_files_model);
+    collect(ui->tableWidgetNetworkLumped, m_network_lumped_model);
+    collect(ui->tableWidgetCascade, m_network_cascade_model);
 
     for (int i = 0; i < ui->widgetGraph->graphCount(); ++i) {
         QCPGraph *graph = ui->widgetGraph->graph(i);
@@ -1055,7 +1084,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Delete) {
         QWidget *focusWidget = QApplication::focusWidget();
-        auto viewHasFocus = [focusWidget](QTableView *view) {
+        auto viewHasFocus = [focusWidget](QTableWidget *view) {
             if (!view)
                 return false;
             if (focusWidget) {
@@ -1069,9 +1098,9 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
         bool graphContext = (focusWidget == ui->widgetGraph || (ui->widgetGraph && ui->widgetGraph->isAncestorOf(focusWidget)) ||
                              m_lastSelectionOrigin == SelectionOrigin::Graph);
-        bool filesContext = viewHasFocus(ui->tableViewNetworkFiles) || m_lastSelectionOrigin == SelectionOrigin::Files;
-        bool lumpedContext = viewHasFocus(ui->tableViewNetworkLumped) || m_lastSelectionOrigin == SelectionOrigin::Lumped;
-        bool cascadeContext = viewHasFocus(ui->tableViewCascade) || m_lastSelectionOrigin == SelectionOrigin::Cascade;
+        bool filesContext = viewHasFocus(ui->tableWidgetNetworkFiles) || m_lastSelectionOrigin == SelectionOrigin::Files;
+        bool lumpedContext = viewHasFocus(ui->tableWidgetNetworkLumped) || m_lastSelectionOrigin == SelectionOrigin::Lumped;
+        bool cascadeContext = viewHasFocus(ui->tableWidgetCascade) || m_lastSelectionOrigin == SelectionOrigin::Cascade;
 
         bool plotsNeedUpdate = false;
         bool networksChanged = false;
@@ -1133,8 +1162,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             }
         }
 
-        if (filesContext && ui->tableViewNetworkFiles->selectionModel()) {
-            QModelIndexList selectedRows = ui->tableViewNetworkFiles->selectionModel()->selectedRows();
+        if (filesContext && ui->tableWidgetNetworkFiles->selectionModel()) {
+            QModelIndexList selectedRows = ui->tableWidgetNetworkFiles->selectionModel()->selectedRows();
             if (!selectedRows.isEmpty()) {
                 std::sort(selectedRows.begin(), selectedRows.end(),
                           [](const QModelIndex &a, const QModelIndex &b) { return a.row() > b.row(); });
@@ -1156,8 +1185,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             }
         }
 
-        if (lumpedContext && ui->tableViewNetworkLumped->selectionModel()) {
-            QModelIndexList selectedRows = ui->tableViewNetworkLumped->selectionModel()->selectedRows();
+        if (lumpedContext && ui->tableWidgetNetworkLumped->selectionModel()) {
+            QModelIndexList selectedRows = ui->tableWidgetNetworkLumped->selectionModel()->selectedRows();
             for (const QModelIndex &index : selectedRows) {
                 QStandardItem *item = m_network_lumped_model->item(index.row(), 0);
                 if (!item)
@@ -1175,8 +1204,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             }
         }
 
-        if (cascadeContext && ui->tableViewCascade->selectionModel()) {
-            QModelIndexList selectedRows = ui->tableViewCascade->selectionModel()->selectedRows();
+        if (cascadeContext && ui->tableWidgetCascade->selectionModel()) {
+            QModelIndexList selectedRows = ui->tableWidgetCascade->selectionModel()->selectedRows();
             if (!selectedRows.isEmpty()) {
                 std::sort(selectedRows.begin(), selectedRows.end(),
                           [](const QModelIndex &a, const QModelIndex &b) { return a.row() > b.row(); });
@@ -1493,7 +1522,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         }
 
-        auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model) -> bool {
+        auto handleValueWheel = [&](QTableWidget *view, NetworkItemModel *model) -> bool {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             QModelIndex index = view->indexAt(wheelEvent->position().toPoint());
             if (!index.isValid() || !isParameterValueColumn(index.column()))
@@ -1526,11 +1555,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         };
 
-        if (obj == ui->tableViewNetworkLumped->viewport()) {
-            if (handleValueWheel(ui->tableViewNetworkLumped, m_network_lumped_model))
+        if (obj == ui->tableWidgetNetworkLumped->viewport()) {
+            if (handleValueWheel(ui->tableWidgetNetworkLumped, m_network_lumped_model))
                 return true;
-        } else if (obj == ui->tableViewCascade->viewport()) {
-            if (handleValueWheel(ui->tableViewCascade, m_network_cascade_model))
+        } else if (obj == ui->tableWidgetCascade->viewport()) {
+            if (handleValueWheel(ui->tableWidgetCascade, m_network_cascade_model))
                 return true;
         }
     }

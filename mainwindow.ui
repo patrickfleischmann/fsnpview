@@ -80,7 +80,7 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout">
           <item>
-           <widget class="QTableView" name="tableViewNetworkFiles">
+          <widget class="QTableWidget" name="tableWidgetNetworkFiles">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
               <horstretch>0</horstretch>
@@ -93,6 +93,42 @@
               <pointsize>8</pointsize>
              </font>
             </property>
+            <property name="columnCount">
+             <number>6</number>
+            </property>
+            <property name="rowCount">
+             <number>0</number>
+            </property>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>File</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>fmin</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>fmax</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>pts</string>
+             </property>
+            </column>
             <attribute name="verticalHeaderMinimumSectionSize">
              <number>18</number>
             </attribute>
@@ -155,13 +191,34 @@
            </layout>
           </item>
           <item>
-           <widget class="QTableView" name="tableViewNetworkLumped">
+          <widget class="QTableWidget" name="tableWidgetNetworkLumped">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="columnCount">
+             <number>3</number>
+            </property>
+            <property name="rowCount">
+             <number>0</number>
+            </property>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Name</string>
+             </property>
+            </column>
             <attribute name="verticalHeaderMinimumSectionSize">
              <number>18</number>
             </attribute>
@@ -171,13 +228,34 @@
            </widget>
           </item>
           <item>
-           <widget class="QTableView" name="tableViewCascade">
+           <widget class="QTableWidget" name="tableWidgetCascade">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="columnCount">
+             <number>3</number>
+            </property>
+            <property name="rowCount">
+             <number>0</number>
+            </property>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>  </string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Name</string>
+             </property>
+            </column>
             <attribute name="verticalHeaderMinimumSectionSize">
              <number>18</number>
             </attribute>
