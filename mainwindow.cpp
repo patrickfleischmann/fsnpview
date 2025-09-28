@@ -25,6 +25,7 @@
 #include <QApplication>
 #include <QStringList>
 #include <QLineEdit>
+#include <QAbstractItemModel>
 
 #include <algorithm>
 #include <cmath>
@@ -68,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->checkBoxCrossHair->setChecked(true);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
+    m_cascade->setColor(Qt::magenta);
 
     ui->lineEditGateStart->installEventFilter(this);
     ui->lineEditGateStop->installEventFilter(this);
@@ -376,7 +378,7 @@ void MainWindow::addNetworkToCascade(Network* network)
 
     QStandardItem* colorItem = new QStandardItem();
     colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    colorItem->setBackground(network->color());
+    colorItem->setBackground(m_cascade->color());
     items.append(colorItem);
 
     QStandardItem* nameItem = new QStandardItem(network->displayName());
@@ -385,10 +387,26 @@ void MainWindow::addNetworkToCascade(Network* network)
 
     appendParameterItems(items, network);
     m_network_cascade_model->appendRow(items);
+    updateCascadeColorColumn();
 
     m_cascade->addNetwork(network);
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updatePlots();
+}
+
+void MainWindow::updateCascadeColorColumn()
+{
+    if (!m_network_cascade_model)
+        return;
+
+    if (!m_cascade)
+        return;
+
+    const QColor cascadeColor = m_cascade->color();
+    for (int r = 0; r < m_network_cascade_model->rowCount(); ++r) {
+        if (QStandardItem* colorItem = m_network_cascade_model->item(r, 1))
+            colorItem->setBackground(cascadeColor);
+    }
 }
 
 void MainWindow::setCascadeFrequencyRange(double fmin, double fmax)
@@ -505,7 +523,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         items.append(checkItem);
         QStandardItem* colorItem = new QStandardItem();
         colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-        colorItem->setBackground(cloned->color());
+        colorItem->setBackground(m_cascade->color());
         items.append(colorItem);
         QStandardItem* nameItem = new QStandardItem(cloned->displayName());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
@@ -514,6 +532,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         m_network_cascade_model->insertRow(row, items);
     }
 
+    updateCascadeColorColumn();
     updatePlots();
 }
 
@@ -785,28 +804,54 @@ void MainWindow::onColorColumnClicked(const QModelIndex &index)
     if (index.column() != 1)
         return;
 
-    const QStandardItemModel* model = qobject_cast<const QStandardItemModel*>(index.model());
-    quintptr net_ptr_val = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
-    Network* network = reinterpret_cast<Network*>(net_ptr_val);
-    if (!network)
+    QAbstractItemModel* abstractModel = const_cast<QAbstractItemModel*>(index.model());
+    QStandardItemModel* model = qobject_cast<QStandardItemModel*>(abstractModel);
+    if (!model)
         return;
+
+    const bool cascadeModel = (model == m_network_cascade_model);
+
+    Network* network = nullptr;
+    if (cascadeModel) {
+        network = m_cascade;
+    } else {
+        QStandardItem* idItem = model->item(index.row(), 0);
+        if (!idItem)
+            return;
+        quintptr net_ptr_val = idItem->data(Qt::UserRole).value<quintptr>();
+        network = reinterpret_cast<Network*>(net_ptr_val);
+        if (!network)
+            return;
+    }
 
     QColor color = QColorDialog::getColor(network->color(), this, tr("Select Color"));
     if (!color.isValid())
         return;
 
     network->setColor(color);
-    auto updateColor = [&](NetworkItemModel* m){
-        for (int r = 0; r < m->rowCount(); ++r) {
-            quintptr ptrVal = m->item(r, 0)->data(Qt::UserRole).value<quintptr>();
-            if (reinterpret_cast<Network*>(ptrVal) == network) {
-                m->item(r, 1)->setBackground(color);
+    if (network == m_cascade) {
+        updateCascadeColorColumn();
+    } else {
+        auto updateColor = [&](NetworkItemModel* m, bool isCascadeModel){
+            if (!m)
+                return;
+            for (int r = 0; r < m->rowCount(); ++r) {
+                QStandardItem* item = m->item(r, 0);
+                if (!item)
+                    continue;
+                quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                if (reinterpret_cast<Network*>(ptrVal) == network) {
+                    if (isCascadeModel)
+                        continue;
+                    if (QStandardItem* colorItem = m->item(r, 1))
+                        colorItem->setBackground(color);
+                }
             }
-        }
-    };
-    updateColor(m_network_files_model);
-    updateColor(m_network_lumped_model);
-    updateColor(m_network_cascade_model);
+        };
+        updateColor(m_network_files_model, false);
+        updateColor(m_network_lumped_model, false);
+        updateColor(m_network_cascade_model, true);
+    }
     updatePlots();
 }
 

@@ -2,6 +2,8 @@
 #include "qcustomplot.h"
 #include "plotmanager.h"
 #include "networkfile.h"
+#include "networkcascade.h"
+#include "networklumped.h"
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
@@ -75,6 +77,45 @@ int main(int argc, char **argv)
         double dy = std::abs(current[i].second - baseline[i].second);
         if (dx > tol || dy > tol) {
             std::cerr << "Data mismatch at index " << i << std::endl;
+            return 1;
+        }
+    }
+
+    {
+        QCustomPlot cascadePlot;
+        PlotManager cascadeManager(&cascadePlot);
+
+        NetworkCascade cascade;
+        cascade.setColor(Qt::cyan);
+        NetworkLumped section(NetworkLumped::NetworkType::R_series, {50.0});
+        cascade.addNetwork(&section);
+
+        cascadeManager.setNetworks(QList<Network*>());
+        cascadeManager.setCascade(&cascade);
+        cascadeManager.updatePlots(QStringList{QStringLiteral("s21")}, PlotType::Magnitude);
+
+        if (cascadePlot.graphCount() == 0) {
+            std::cerr << "Cascade plot missing" << std::endl;
+            return 1;
+        }
+
+        bool cascadeGraphFound = false;
+        for (int i = 0; i < cascadePlot.graphCount(); ++i) {
+            QCPGraph *graph = cascadePlot.graph(i);
+            if (!graph)
+                continue;
+            quintptr ptrVal = graph->property("network_ptr").value<quintptr>();
+            if (reinterpret_cast<Network*>(ptrVal) == &cascade) {
+                cascadeGraphFound = true;
+                if (graph->pen().color() != cascade.color()) {
+                    std::cerr << "Cascade graph color mismatch" << std::endl;
+                    return 1;
+                }
+            }
+        }
+
+        if (!cascadeGraphFound) {
+            std::cerr << "Cascade graph not found" << std::endl;
             return 1;
         }
     }

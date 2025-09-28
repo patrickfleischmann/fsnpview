@@ -539,6 +539,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 
         // Cascade
         if (cascadeHasActive) {
+            QColor cascadeColor = m_cascade->color();
+            if (!cascadeColor.isValid())
+                cascadeColor = Qt::magenta;
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
             QCPAbstractPlottable *pl = nullptr;
             for (int i = 0; i < m_plot->plottableCount(); ++i) {
@@ -573,21 +576,24 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
+                        curve->setPen(QPen(cascadeColor, 1, Qt::SolidLine));
                         m_curveFreqs[curve] = freqs;
                     }
                 } else {
-                    if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl))
+                    if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl)) {
                         graph->setData(plotData.first, plotData.second);
+                        graph->setPen(QPen(cascadeColor, 1, Qt::SolidLine));
+                    }
                 }
             } else {
-                pl = plot(plotData.first, plotData.second, Qt::magenta,
+                pl = plot(plotData.first, plotData.second, cascadeColor,
                               graph_name, m_cascade, type);
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
             }
             if (type == PlotType::Smith)
-                addSmithMarkers(plotData.first, plotData.second, Qt::magenta);
+                addSmithMarkers(plotData.first, plotData.second, cascadeColor);
         }
     }
 
