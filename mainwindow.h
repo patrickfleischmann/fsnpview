@@ -112,6 +112,7 @@ private:
     void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride = true);
     static bool nearlyEqual(double lhs, double rhs);
     void applyPhaseUnwrapSetting(bool unwrap);
+    void updateCascadeColorColumn();
 
 
     Ui::MainWindow *ui;
