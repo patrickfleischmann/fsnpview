@@ -115,6 +115,7 @@ private:
     void applyPhaseUnwrapSetting(bool unwrap);
     void updateCascadeStatusIcons();
     QString iconResourceForNetwork(const Network* network) const;
+    void updateCascadeColorColumn();
 
 
     Ui::MainWindow *ui;
