@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/C_series.png</file>
+        <file>icons/C_shunt.png</file>
+        <file>icons/L_series.png</file>
+        <file>icons/L_shunt.png</file>
+        <file>icons/RLC_par_ser.png</file>
+        <file>icons/RLC_par_shunt.png</file>
+        <file>icons/RLC_ser_shunt.png</file>
+        <file>icons/R_series.png</file>
+        <file>icons/R_shunt.png</file>
+        <file>icons/TL.png</file>
+        <file>icons/TL_lossy.png</file>
+        <file>icons/fileNetwork.png</file>
+        <file>icons/p1.png</file>
+        <file>icons/p2.png</file>
+    </qresource>
+</RCC>

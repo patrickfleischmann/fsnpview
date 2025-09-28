@@ -30,10 +30,14 @@
 #include <QSizePolicy>
 #include <QScrollBar>
 #include <QTimer>
+#include <QStatusBar>
+#include <QLabel>
+#include <QPixmap>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace {
 
@@ -71,6 +75,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_initialFrequencyConfigured(false)
 {
     ui->setupUi(this);
+    ui->statusbar->setEnabled(true);
     ui->splitter_3->setStretchFactor(0, 0);
     ui->splitter_3->setStretchFactor(1, 1);
     ui->splitter_2->setStretchFactor(0, 0);
@@ -156,6 +161,7 @@ MainWindow::MainWindow(QWidget *parent)
     updatePlots();
     m_plot_manager->autoscale();
     QTimer::singleShot(0, this, &MainWindow::updateNetworkTablesGeometry);
+    updateCascadeStatusIcons();
 }
 
 MainWindow::~MainWindow()
@@ -446,6 +452,7 @@ void MainWindow::clearCascade()
     m_cascade->clearNetworks();
     m_network_cascade_model->removeRows(0, m_network_cascade_model->rowCount());
     updatePlots();
+    updateCascadeStatusIcons();
 }
 
 void MainWindow::addNetworkToCascade(Network* network)
@@ -483,6 +490,7 @@ void MainWindow::addNetworkToCascade(Network* network)
     m_cascade->addNetwork(network);
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updatePlots();
+    updateCascadeStatusIcons();
 }
 
 void MainWindow::setCascadeFrequencyRange(double fmin, double fmax)
@@ -609,6 +617,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
     }
 
     updatePlots();
+    updateCascadeStatusIcons();
 }
 
 void MainWindow::onGraphSelectionChanged(QCPAbstractPlottable *plottable,
@@ -694,6 +703,87 @@ void MainWindow::applyPhaseUnwrapSetting(bool unwrap)
     }
 }
 
+void MainWindow::updateCascadeStatusIcons()
+{
+    if (!ui || !ui->statusbar)
+        return;
+
+    for (QLabel* label : qAsConst(m_cascadeStatusIconLabels)) {
+        if (!label)
+            continue;
+        ui->statusbar->removeWidget(label);
+        delete label;
+    }
+    m_cascadeStatusIconLabels.clear();
+
+    if (!m_cascade)
+        return;
+
+    QStringList iconKeys;
+    const QList<Network*> cascadeNetworks = m_cascade->getNetworks();
+    for (Network* network : cascadeNetworks) {
+        if (!network || !network->isActive())
+            continue;
+        const QString iconKey = iconResourceForNetwork(network);
+        if (!iconKey.isEmpty())
+            iconKeys.append(iconKey);
+    }
+
+    if (iconKeys.isEmpty())
+        return;
+
+    iconKeys.prepend(QStringLiteral("p1"));
+    iconKeys.append(QStringLiteral("p2"));
+
+    for (const QString& key : std::as_const(iconKeys)) {
+        QPixmap pixmap(QStringLiteral(":/icons/%1.png").arg(key));
+        if (pixmap.isNull())
+            continue;
+        QLabel* label = new QLabel(ui->statusbar);
+        label->setPixmap(pixmap);
+        label->setContentsMargins(0, 0, 0, 0);
+        label->setMargin(0);
+        ui->statusbar->addWidget(label);
+        m_cascadeStatusIconLabels.append(label);
+    }
+}
+
+QString MainWindow::iconResourceForNetwork(const Network* network) const
+{
+    if (!network)
+        return QString();
+
+    if (qobject_cast<const NetworkFile*>(network))
+        return QStringLiteral("fileNetwork");
+
+    if (const auto* lumped = dynamic_cast<const NetworkLumped*>(network)) {
+        switch (lumped->type()) {
+        case NetworkLumped::NetworkType::R_series:
+            return QStringLiteral("R_series");
+        case NetworkLumped::NetworkType::R_shunt:
+            return QStringLiteral("R_shunt");
+        case NetworkLumped::NetworkType::C_series:
+            return QStringLiteral("C_series");
+        case NetworkLumped::NetworkType::C_shunt:
+            return QStringLiteral("C_shunt");
+        case NetworkLumped::NetworkType::L_series:
+            return QStringLiteral("L_series");
+        case NetworkLumped::NetworkType::L_shunt:
+            return QStringLiteral("L_shunt");
+        case NetworkLumped::NetworkType::TransmissionLine:
+            return QStringLiteral("TL");
+        case NetworkLumped::NetworkType::TransmissionLineLossy:
+            return QStringLiteral("TL_lossy");
+        case NetworkLumped::NetworkType::LRC_series_shunt:
+            return QStringLiteral("RLC_ser_shunt");
+        case NetworkLumped::NetworkType::LRC_parallel_series:
+            return QStringLiteral("RLC_par_ser");
+        }
+    }
+
+    return QString();
+}
+
 
 void MainWindow::onNetworkFilesModelChanged(QStandardItem *item)
 {
@@ -749,6 +839,7 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
         if(network) {
             network->setActive(item->checkState() == Qt::Checked);
             updatePlots();
+            updateCascadeStatusIcons();
         }
     } else if (isParameterValueColumn(item->column())) {
         int parameterIndex = parameterIndexFromColumn(item->column());
@@ -1169,6 +1260,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
         bool plotsNeedUpdate = false;
         bool networksChanged = false;
+        bool cascadeChanged = false;
 
         auto uncheckInModel = [](NetworkItemModel *model, Network *network) {
             if (!model || !network)
@@ -1224,6 +1316,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
                     uncheckInModel(m_network_cascade_model, network);
                 }
                 plotsNeedUpdate = true;
+                cascadeChanged = true;
             }
         }
 
@@ -1287,12 +1380,14 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
                     int cascadeIndex = m_cascade->getNetworks().indexOf(network);
                     if (cascadeIndex >= 0) {
                         m_cascade->removeNetwork(cascadeIndex);
+                        cascadeChanged = true;
                     }
                     if (network->parent() == m_cascade) {
                         delete network;
                     }
                     m_network_cascade_model->removeRow(index.row());
                     plotsNeedUpdate = true;
+                    cascadeChanged = true;
                 }
             }
         }
@@ -1304,6 +1399,10 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
         if (plotsNeedUpdate) {
             updatePlots();
+        }
+
+        if (cascadeChanged) {
+            updateCascadeStatusIcons();
         }
 
         event->accept();

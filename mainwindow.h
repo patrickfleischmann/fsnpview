@@ -26,6 +26,7 @@ class PlotManager;
 class QTableView;
 class QCPAbstractPlottable;
 class QResizeEvent;
+class QLabel;
 
 class MainWindow : public QMainWindow
 {
@@ -112,6 +113,8 @@ private:
     void updateNetworkFrequencySettings(double fmin, double fmax, int pointCount, bool manualOverride = true);
     static bool nearlyEqual(double lhs, double rhs);
     void applyPhaseUnwrapSetting(bool unwrap);
+    void updateCascadeStatusIcons();
+    QString iconResourceForNetwork(const Network* network) const;
 
 
     Ui::MainWindow *ui;
@@ -140,5 +143,7 @@ private:
     double m_networkFrequencyMax;
     int m_networkFrequencyPoints;
     bool m_initialFrequencyConfigured;
+
+    QVector<QLabel*> m_cascadeStatusIconLabels;
 };
 #endif // MAINWINDOW_H
