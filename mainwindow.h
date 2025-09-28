@@ -25,6 +25,7 @@ class NetworkFile;
 class PlotManager;
 class QTableView;
 class QCPAbstractPlottable;
+class QResizeEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -89,12 +90,15 @@ private slots:
 protected:
     void keyPressEvent(QKeyEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void updatePlots();
     void setupModels();
     void setupViews();
     void setupTableColumns(QTableView* view);
+    void updateNetworkTablesGeometry();
+    int adjustTableViewToContents(QTableView* view);
     void populateLumpedNetworkTable();
     void configureLumpedAndCascadeColumns(int parameterCount);
     void appendParameterItems(QList<QStandardItem*>& row, Network* network);

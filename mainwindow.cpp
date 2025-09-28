@@ -14,6 +14,7 @@
 #include <QTableView>
 
 #include <QItemSelectionModel>
+#include <QAbstractItemModel>
 #include <QSignalBlocker>
 #include <QColorDialog>
 #include <QVariant>
@@ -25,7 +26,12 @@
 #include <QApplication>
 #include <QStringList>
 #include <QLineEdit>
+
 #include <QAbstractItemModel>
+#include <QList>
+#include <QSizePolicy>
+#include <QScrollBar>
+#include <QTimer>
 
 #include <algorithm>
 #include <cmath>
@@ -67,6 +73,10 @@ MainWindow::MainWindow(QWidget *parent)
     , m_initialFrequencyConfigured(false)
 {
     ui->setupUi(this);
+    ui->splitter_3->setStretchFactor(0, 0);
+    ui->splitter_3->setStretchFactor(1, 1);
+    ui->splitter_2->setStretchFactor(0, 0);
+    ui->splitter_2->setStretchFactor(1, 1);
     ui->checkBoxCrossHair->setChecked(true);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
     m_cascade->setColor(Qt::magenta);
@@ -93,6 +103,20 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupModels();
     setupViews();
+
+    auto connectGeometryUpdates = [this](QAbstractItemModel *model) {
+        if (!model)
+            return;
+        connect(model, &QAbstractItemModel::modelReset, this, &MainWindow::updateNetworkTablesGeometry);
+        connect(model, &QAbstractItemModel::layoutChanged, this, &MainWindow::updateNetworkTablesGeometry);
+        connect(model, &QAbstractItemModel::rowsInserted, this, &MainWindow::updateNetworkTablesGeometry);
+        connect(model, &QAbstractItemModel::rowsRemoved, this, &MainWindow::updateNetworkTablesGeometry);
+        connect(model, &QAbstractItemModel::dataChanged, this, &MainWindow::updateNetworkTablesGeometry);
+    };
+
+    connectGeometryUpdates(m_network_files_model);
+    connectGeometryUpdates(m_network_lumped_model);
+
     populateLumpedNetworkTable();
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updateNetworkFrequencySettings(m_cascade->fmin(), m_cascade->fmax(), m_cascade->pointCount(), false);
@@ -134,6 +158,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->checkBoxS21->setChecked(true);
     updatePlots();
     m_plot_manager->autoscale();
+    QTimer::singleShot(0, this, &MainWindow::updateNetworkTablesGeometry);
 }
 
 MainWindow::~MainWindow()
@@ -165,6 +190,7 @@ void MainWindow::setupViews()
     ui->tableViewNetworkFiles->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkFiles->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableViewNetworkFiles->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkFiles));
+    ui->tableViewNetworkFiles->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     setupTableColumns(ui->tableViewNetworkFiles);
 
     ui->tableViewNetworkLumped->setModel(m_network_lumped_model);
@@ -172,6 +198,7 @@ void MainWindow::setupViews()
     ui->tableViewNetworkLumped->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableViewNetworkLumped->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableViewNetworkLumped->setItemDelegate(new SelectionBoldDelegate(ui->tableViewNetworkLumped));
+    ui->tableViewNetworkLumped->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     setupTableColumns(ui->tableViewNetworkLumped);
 
 
@@ -199,6 +226,72 @@ void MainWindow::setupTableColumns(QTableView* view)
     }
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    updateNetworkTablesGeometry();
+}
+
+void MainWindow::updateNetworkTablesGeometry()
+{
+    int filesHeight = adjustTableViewToContents(ui->tableViewNetworkFiles);
+    int lumpedHeight = adjustTableViewToContents(ui->tableViewNetworkLumped);
+
+    if (filesHeight > 0) {
+        ui->splitter_3->setSizes(QList<int>{filesHeight, 1});
+    }
+
+    if (lumpedHeight > 0) {
+        ui->splitter_2->setSizes(QList<int>{lumpedHeight, 1});
+    }
+}
+
+int MainWindow::adjustTableViewToContents(QTableView *view)
+{
+    if (!view || !view->model())
+        return 0;
+
+    view->setMaximumHeight(QWIDGETSIZE_MAX);
+    view->resizeRowsToContents();
+
+    QHeaderView *header = view->horizontalHeader();
+    int headerHeight = header && header->isVisible() ? header->height() : 0;
+    if (header && headerHeight == 0) {
+        headerHeight = header->sizeHint().height();
+    }
+
+    int height = headerHeight;
+    const int rows = view->model()->rowCount();
+    for (int row = 0; row < rows; ++row) {
+        height += view->rowHeight(row);
+    }
+
+    height += 2 * view->frameWidth();
+
+    if (QScrollBar *scrollBar = view->horizontalScrollBar()) {
+        if (scrollBar->isVisible()) {
+            height += scrollBar->height();
+        }
+    }
+
+    if (height <= 0) {
+        height = view->sizeHint().height();
+    }
+
+    if (height <= 0) {
+        height = headerHeight;
+    }
+
+    if (height <= 0) {
+        height = 1;
+    }
+
+    view->setMaximumHeight(height);
+    view->setMinimumHeight(0);
+    view->updateGeometry();
+    return height;
+}
+
 void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
 {
     m_lumpedParameterCount = parameterCount;
@@ -214,6 +307,8 @@ void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
 
     m_network_cascade_model->setColumnCount(headers.size());
     m_network_cascade_model->setHorizontalHeaderLabels(headers);
+
+    updateNetworkTablesGeometry();
 }
 
 void MainWindow::appendParameterItems(QList<QStandardItem*>& row, Network* network)
