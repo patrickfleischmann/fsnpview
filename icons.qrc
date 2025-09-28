@@ -1,18 +1,18 @@
 <RCC>
     <qresource prefix="/icons">
-        <file>icons/C_series.png</file>
-        <file>icons/C_shunt.png</file>
-        <file>icons/L_series.png</file>
-        <file>icons/L_shunt.png</file>
-        <file>icons/RLC_par_ser.png</file>
-        <file>icons/RLC_par_shunt.png</file>
-        <file>icons/RLC_ser_shunt.png</file>
-        <file>icons/R_series.png</file>
-        <file>icons/R_shunt.png</file>
-        <file>icons/TL.png</file>
-        <file>icons/TL_lossy.png</file>
-        <file>icons/fileNetwork.png</file>
-        <file>icons/p1.png</file>
-        <file>icons/p2.png</file>
+        <file alias="C_series.png">icons/C_series.png</file>
+        <file alias="C_shunt.png">icons/C_shunt.png</file>
+        <file alias="L_series.png">icons/L_series.png</file>
+        <file alias="L_shunt.png">icons/L_shunt.png</file>
+        <file alias="RLC_par_ser.png">icons/RLC_par_ser.png</file>
+        <file alias="RLC_par_shunt.png">icons/RLC_par_shunt.png</file>
+        <file alias="RLC_ser_shunt.png">icons/RLC_ser_shunt.png</file>
+        <file alias="R_series.png">icons/R_series.png</file>
+        <file alias="R_shunt.png">icons/R_shunt.png</file>
+        <file alias="TL.png">icons/TL.png</file>
+        <file alias="TL_lossy.png">icons/TL_lossy.png</file>
+        <file alias="fileNetwork.png">icons/fileNetwork.png</file>
+        <file alias="p1.png">icons/p1.png</file>
+        <file alias="p2.png">icons/p2.png</file>
     </qresource>
 </RCC>
