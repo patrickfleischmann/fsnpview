@@ -953,7 +953,12 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
             }
         }
     } else {
-        if (qAbs(event->pos().x() - tracerPos.x()) < 5) {
+        if (!m_crosshairEnabled) {
+            if (QLineF(event->pos(), tracerPos).length() < 8) {
+                mDraggedTracer = tracer;
+                mDragMode = DragMode::Horizontal;
+            }
+        } else if (qAbs(event->pos().x() - tracerPos.x()) < 5) {
             mDraggedTracer = tracer;
             mDragMode = DragMode::Vertical;
         } else if (qAbs(event->pos().y() - tracerPos.y()) < 5) {
