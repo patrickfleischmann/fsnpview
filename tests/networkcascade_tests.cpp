@@ -159,6 +159,58 @@ void test_lumped_phase_unwrap_matches_manual()
     assert(differenceFound);
 }
 
+void test_transmission_line_group_delay()
+{
+    NetworkLumped transmissionLine(NetworkLumped::NetworkType::TransmissionLine,
+                                   {1000.0, 50.0, 1.0});
+    transmissionLine.setFmin(1e6);
+    transmissionLine.setFmax(10e6);
+    transmissionLine.setPointCount(11);
+
+    const auto groupDelay = transmissionLine.getPlotData(1, PlotType::GroupDelay);
+    assert(!groupDelay.first.isEmpty());
+    assert(groupDelay.first.size() == groupDelay.second.size());
+
+    constexpr double c0 = 299792458.0;
+    const double expectedDelay = 1.0 / c0;
+
+    for (double value : groupDelay.second) {
+        assert(std::abs(value - expectedDelay) < 1e-12);
+    }
+}
+
+void test_cascade_group_delay_adds_line_lengths()
+{
+    NetworkLumped line1(NetworkLumped::NetworkType::TransmissionLine,
+                        {500.0, 50.0, 1.0});
+    NetworkLumped line2(NetworkLumped::NetworkType::TransmissionLine,
+                        {750.0, 50.0, 1.0});
+
+    line1.setFmin(1e6);
+    line1.setFmax(10e6);
+    line1.setPointCount(11);
+    line2.setFmin(1e6);
+    line2.setFmax(10e6);
+    line2.setPointCount(11);
+
+    NetworkCascade cascade;
+    cascade.setFrequencyRange(1e6, 10e6);
+    cascade.setPointCount(11);
+    cascade.addNetwork(&line1);
+    cascade.addNetwork(&line2);
+
+    const auto cascadeDelay = cascade.getPlotData(1, PlotType::GroupDelay);
+    assert(!cascadeDelay.first.isEmpty());
+    assert(cascadeDelay.first.size() == cascadeDelay.second.size());
+
+    constexpr double c0 = 299792458.0;
+    const double expectedDelay = (0.5 + 0.75) / c0;
+
+    for (double value : cascadeDelay.second) {
+        assert(std::abs(value - expectedDelay) < 1e-12);
+    }
+}
+
 void test_cascade_phase_unwrap_matches_manual()
 {
     NetworkLumped section1(NetworkLumped::NetworkType::TransmissionLine, {50.0, 50.0, 3.0});
@@ -197,6 +249,8 @@ int main()
     test_cascade_frequency_settings();
     test_cascade_manual_range_persistence();
     test_lumped_phase_unwrap_matches_manual();
+    test_transmission_line_group_delay();
+    test_cascade_group_delay_adds_line_lengths();
     test_cascade_phase_unwrap_matches_manual();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
