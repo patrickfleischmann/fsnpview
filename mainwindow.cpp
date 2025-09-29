@@ -86,6 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->statusbar->setEnabled(true);
     ui->statusbar->setContentsMargins(0, 0, 0, 0);
     ui->statusbar->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; margin: 0px; padding: 0px; }"));
+
     if (QLayout* statusLayout = ui->statusbar->layout()) {
         statusLayout->setContentsMargins(0, 0, 0, 0);
         statusLayout->setSpacing(0);
@@ -797,6 +798,7 @@ void MainWindow::updateCascadeStatusIcons()
         label->setMargin(0);
         label->setStyleSheet(QStringLiteral("border: none; margin: 0px; padding: 0px;"));
         m_cascadeStatusIconLayout->addWidget(label);
+
     }
 
     m_cascadeStatusIconContainer->setVisible(m_cascadeStatusIconLayout->count() > 0);
