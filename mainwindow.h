@@ -27,6 +27,8 @@ class QTableView;
 class QCPAbstractPlottable;
 class QResizeEvent;
 class QLabel;
+class QWidget;
+class QHBoxLayout;
 
 class MainWindow : public QMainWindow
 {
@@ -147,7 +149,8 @@ private:
     int m_networkFrequencyPoints;
     bool m_initialFrequencyConfigured;
 
-    QVector<QLabel*> m_cascadeStatusIconLabels;
     double m_mouseWheelMultiplier;
+    QWidget* m_cascadeStatusIconContainer;
+    QHBoxLayout* m_cascadeStatusIconLayout;
 };
 #endif // MAINWINDOW_H

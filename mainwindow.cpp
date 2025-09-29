@@ -35,6 +35,10 @@
 #include <QStatusBar>
 #include <QLabel>
 #include <QPixmap>
+#include <QSizeF>
+#include <QHBoxLayout>
+#include <QLayout>
+#include <QWidget>
 
 #include <algorithm>
 #include <cmath>
@@ -76,11 +80,28 @@ MainWindow::MainWindow(QWidget *parent)
     , m_networkFrequencyPoints(0)
     , m_initialFrequencyConfigured(false)
     , m_mouseWheelMultiplier(1.1)
+    , m_cascadeStatusIconContainer(nullptr)
+    , m_cascadeStatusIconLayout(nullptr)
 {
     ui->setupUi(this);
     ui->statusbar->setEnabled(true);
     ui->statusbar->setContentsMargins(0, 0, 0, 0);
     ui->statusbar->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; margin: 0px; padding: 0px; }"));
+
+    if (QLayout* statusLayout = ui->statusbar->layout()) {
+        statusLayout->setContentsMargins(0, 0, 0, 0);
+        statusLayout->setSpacing(0);
+    }
+
+    m_cascadeStatusIconContainer = new QWidget(ui->statusbar);
+    m_cascadeStatusIconContainer->setContentsMargins(0, 0, 0, 0);
+    m_cascadeStatusIconContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_cascadeStatusIconContainer->setStyleSheet(QStringLiteral("border: none; margin: 0px; padding: 0px;"));
+    m_cascadeStatusIconLayout = new QHBoxLayout(m_cascadeStatusIconContainer);
+    m_cascadeStatusIconLayout->setContentsMargins(0, 0, 0, 0);
+    m_cascadeStatusIconLayout->setSpacing(0);
+    ui->statusbar->addWidget(m_cascadeStatusIconContainer, 0);
+
     ui->splitter_3->setStretchFactor(0, 0);
     ui->splitter_3->setStretchFactor(1, 1);
     ui->splitter_2->setStretchFactor(0, 0);
@@ -736,13 +757,17 @@ void MainWindow::updateCascadeStatusIcons()
     if (!ui || !ui->statusbar)
         return;
 
-    for (QLabel* label : qAsConst(m_cascadeStatusIconLabels)) {
-        if (!label)
-            continue;
-        ui->statusbar->removeWidget(label);
-        delete label;
+    if (!m_cascadeStatusIconContainer || !m_cascadeStatusIconLayout)
+        return;
+
+    while (QLayoutItem* item = m_cascadeStatusIconLayout->takeAt(0)) {
+        if (QWidget* widget = item->widget()) {
+            delete widget;
+        }
+        delete item;
     }
-    m_cascadeStatusIconLabels.clear();
+
+    m_cascadeStatusIconContainer->setVisible(false);
 
     if (!m_cascade)
         return;
@@ -767,18 +792,22 @@ void MainWindow::updateCascadeStatusIcons()
         QPixmap pixmap(QStringLiteral(":/icons/%1.png").arg(key));
         if (pixmap.isNull())
             continue;
-        QLabel* label = new QLabel(ui->statusbar);
+        QLabel* label = new QLabel(m_cascadeStatusIconContainer);
         label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        label->setFixedSize(pixmap.size());
+        const qreal deviceRatio = pixmap.devicePixelRatio();
+        const QSize logicalSize = QSizeF(pixmap.width() / deviceRatio, pixmap.height() / deviceRatio).toSize();
+        label->setFixedSize(logicalSize);
         label->setScaledContents(false);
         label->setAlignment(Qt::AlignCenter);
         label->setPixmap(pixmap);
         label->setContentsMargins(0, 0, 0, 0);
         label->setMargin(0);
         label->setStyleSheet(QStringLiteral("border: none; margin: 0px; padding: 0px;"));
-        ui->statusbar->addWidget(label, 0);
-        m_cascadeStatusIconLabels.append(label);
+        m_cascadeStatusIconLayout->addWidget(label);
+
     }
+
+    m_cascadeStatusIconContainer->setVisible(m_cascadeStatusIconLayout->count() > 0);
 }
 
 QString MainWindow::iconResourceForNetwork(const Network* network) const
