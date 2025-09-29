@@ -26,6 +26,8 @@ public:
     NetworkLumped(NetworkType type, const QVector<double>& values, QObject *parent = nullptr);
     NetworkLumped(NetworkType type, std::initializer_list<double> values, QObject *parent = nullptr);
 
+    NetworkType type() const;
+
     QString name() const override;
     QString displayName() const override;
     Eigen::MatrixXcd sparameters(const Eigen::VectorXd& freq) const override;

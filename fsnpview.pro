@@ -60,6 +60,9 @@ HEADERS += \
 FORMS += \
     mainwindow.ui
 
+RESOURCES += \
+    icons.qrc
+
 
 win32 {
     #INCLUDEPATH += C:\home\projekte\Qt\eigen-3.4.0

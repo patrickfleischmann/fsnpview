@@ -51,6 +51,11 @@ NetworkLumped::NetworkLumped(NetworkType type, std::initializer_list<double> val
 {
 }
 
+NetworkLumped::NetworkType NetworkLumped::type() const
+{
+    return m_type;
+}
+
 Network* NetworkLumped::clone(QObject* parent) const
 {
     QVector<double> values;
