@@ -86,8 +86,8 @@ QString NetworkLumped::typeName() const
     case NetworkType::L_shunt:  return QStringLiteral("L_shunt");
     case NetworkType::TransmissionLine: return QStringLiteral("TL");
     case NetworkType::TransmissionLineLossy: return QStringLiteral("TL_lossy");
-    case NetworkType::LRC_series_shunt: return QStringLiteral("LRC_ser_shunt");
-    case NetworkType::LRC_parallel_series: return QStringLiteral("LRC_par_ser");
+    case NetworkType::RLC_series_shunt: return QStringLiteral("RLC_ser_shunt");
+    case NetworkType::RLC_parallel_series: return QStringLiteral("RLC_par_ser");
     }
     return QString();
 }
@@ -186,9 +186,9 @@ Eigen::MatrixXcd NetworkLumped::sparameters(const Eigen::VectorXd& freq) const
             abcd_point(1, 1) = cosh_term;
             break;
         }
-        case NetworkType::LRC_series_shunt: {
-            const double inductance = parameterValueSI(0);
-            const double resistance = parameterValueSI(1);
+        case NetworkType::RLC_series_shunt: {
+            const double resistance = parameterValueSI(0);
+            const double inductance = parameterValueSI(1);
             const double capacitance = parameterValueSI(2);
             std::complex<double> impedance = resistance;
             impedance += j * w * inductance;
@@ -209,9 +209,9 @@ Eigen::MatrixXcd NetworkLumped::sparameters(const Eigen::VectorXd& freq) const
             }
             break;
         }
-        case NetworkType::LRC_parallel_series: {
-            const double inductance = parameterValueSI(0);
-            const double resistance = parameterValueSI(1);
+        case NetworkType::RLC_parallel_series: {
+            const double resistance = parameterValueSI(0);
+            const double inductance = parameterValueSI(1);
             const double capacitance = parameterValueSI(2);
             std::complex<double> admittance = 0.0;
             bool infiniteAdmittance = false;
@@ -446,14 +446,14 @@ void NetworkLumped::initializeParameters(const QVector<double>& values)
         m_parameters.append({QStringLiteral("a_d_dBpm"), 1.0, 1.0});
         m_parameters.append({QStringLiteral("fa_Hz"), 1e9, 1.0});
         break;
-    case NetworkType::LRC_series_shunt:
-        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+    case NetworkType::RLC_series_shunt:
         m_parameters.append({resistanceLabel, 1e-3, 1.0});
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
         m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
         break;
-    case NetworkType::LRC_parallel_series:
-        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
+    case NetworkType::RLC_parallel_series:
         m_parameters.append({resistanceLabel, 1e6, 1.0});
+        m_parameters.append({QStringLiteral("L_nH"), 1.0, 1e-9});
         m_parameters.append({QStringLiteral("C_pF"), 1.0, 1e-12});
         break;
     }

@@ -111,7 +111,7 @@ fsnpview example.s2p -c example.s2p R_series R 75 -f 1e6 1e9 1001 -s result.s2p 
 ```
 
 The CLI understands the same lumped elements that are available in the
-GUI (**R/C/L**, lossy and lossless transmission lines, and the LRC
+GUI (**R/C/L**, lossy and lossless transmission lines, and the RLC
 combinations) and accepts both positional arguments and explicit
 `name=value` overrides.  Combine `-n`, `-c`, and `-s` to automate
 repeatable cascades as part of a data-processing pipeline.

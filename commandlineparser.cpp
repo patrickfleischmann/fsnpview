@@ -64,13 +64,13 @@ const QVector<LumpedDefinition>& lumpedDefinitions()
           {QStringLiteral("a"), {QStringLiteral("Alpha"), QStringLiteral("Loss"), QStringLiteral("a_dBpm")}, 3, true},
           {QStringLiteral("a_d"), {QStringLiteral("AlphaD"), QStringLiteral("Ad"), QStringLiteral("a_d_dBpm")}, 4, true},
           {QStringLiteral("fa"), {QStringLiteral("Fa"), QStringLiteral("FreqRef")}, 5, true}}},
-        {QStringLiteral("LRC_ser_shunt"), {QStringLiteral("LRCSerShunt")}, NetworkLumped::NetworkType::LRC_series_shunt,
-         {{QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 0, true},
-          {QStringLiteral("r"), {QStringLiteral("R")}, 1, true},
+        {QStringLiteral("RLC_ser_shunt"), {QStringLiteral("RLCSerShunt")}, NetworkLumped::NetworkType::RLC_series_shunt,
+         {{QStringLiteral("r"), {QStringLiteral("R")}, 0, true},
+          {QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 1, true},
           {QStringLiteral("c"), {QStringLiteral("C")}, 2, true}}},
-        {QStringLiteral("LRC_par_ser"), {QStringLiteral("LRCParSer")}, NetworkLumped::NetworkType::LRC_parallel_series,
-         {{QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 0, true},
-          {QStringLiteral("r"), {QStringLiteral("R")}, 1, true},
+        {QStringLiteral("RLC_par_ser"), {QStringLiteral("RLCParSer")}, NetworkLumped::NetworkType::RLC_parallel_series,
+         {{QStringLiteral("r"), {QStringLiteral("R")}, 0, true},
+          {QStringLiteral("l"), {QStringLiteral("L"), QStringLiteral("Ind")}, 1, true},
           {QStringLiteral("c"), {QStringLiteral("C")}, 2, true}}}
     };
     return defs;
@@ -362,8 +362,8 @@ QString CommandLineParser::helpText() const
         "  TransmissionLine  len (mm), Z0 (Ohm), er_eff   defaults 1, 50, 1\n"
         "  TL_lossy          len (mm), Z0 (Ohm), er_eff, a (dB/m), a_d (dB/m), fa (Hz)\n"
         "                    defaults 1, 50, 1, 10, 1, 1e9\n"
-        "  LRC_ser_shunt     L (nH), R (Ohm), C (pF) defaults 1, 1e-3, 1\n"
-        "  LRC_par_ser       L (nH), R (Ohm), C (pF) defaults 1, 1e6, 1\n"
+        "  RLC_ser_shunt     R (Ohm), L (nH), C (pF) defaults 1e-3, 1, 1\n"
+        "  RLC_par_ser       R (Ohm), L (nH), C (pF) defaults 1e6, 1, 1\n"
         "\n"
         "Examples:\n"
         "  fsnpview example.s2p -c example.s2p R_series R 75\n"
