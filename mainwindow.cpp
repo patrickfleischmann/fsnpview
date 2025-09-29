@@ -754,10 +754,10 @@ void MainWindow::updateCascadeStatusIcons()
     if (!m_cascadeStatusIconContainer || !m_cascadeStatusIconLayout)
         return;
 
+    // Clear existing widgets
     while (QLayoutItem* item = m_cascadeStatusIconLayout->takeAt(0)) {
-        if (QWidget* widget = item->widget()) {
+        if (QWidget* widget = item->widget())
             delete widget;
-        }
         delete item;
     }
 
@@ -782,27 +782,33 @@ void MainWindow::updateCascadeStatusIcons()
     iconKeys.prepend(QStringLiteral("p1"));
     iconKeys.append(QStringLiteral("p2"));
 
+    // Make sure the layout inside the status bar respects fixed sizes
+    m_cascadeStatusIconLayout->setSizeConstraint(QLayout::SetFixedSize);
+
     for (const QString& key : std::as_const(iconKeys)) {
         QPixmap pixmap(QStringLiteral(":/icons/%1.png").arg(key));
         if (pixmap.isNull())
             continue;
+
         QLabel* label = new QLabel(m_cascadeStatusIconContainer);
-        label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        const qreal deviceRatio = pixmap.devicePixelRatio();
-        const QSize logicalSize = QSizeF(pixmap.width() / deviceRatio, pixmap.height() / deviceRatio).toSize();
-        label->setFixedSize(logicalSize);
-        label->setScaledContents(false);
-        label->setAlignment(Qt::AlignCenter);
         label->setPixmap(pixmap);
+
+        // 🔑 Critical for pixel accuracy in QStatusBar
+        label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        label->setFixedSize(pixmap.size());       // match PNG size exactly
+        label->setScaledContents(false);          // no scaling
+        label->setAlignment(Qt::AlignCenter);
+
         label->setContentsMargins(0, 0, 0, 0);
         label->setMargin(0);
-        label->setStyleSheet(QStringLiteral("border: none; margin: 0px; padding: 0px;"));
-        m_cascadeStatusIconLayout->addWidget(label);
+        label->setStyleSheet("border: none; margin: 0px; padding: 0px;");
 
+        m_cascadeStatusIconLayout->addWidget(label);
     }
 
     m_cascadeStatusIconContainer->setVisible(m_cascadeStatusIconLayout->count() > 0);
 }
+
 
 QString MainWindow::iconResourceForNetwork(const Network* network) const
 {
