@@ -513,6 +513,13 @@
              </widget>
             </item>
             <item>
+             <widget class="QCheckBox" name="checkBoxGroupDelay">
+              <property name="text">
+               <string>gdelay</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QCheckBox" name="checkBoxVSWR">
               <property name="text">
                <string>VSWR</string>
