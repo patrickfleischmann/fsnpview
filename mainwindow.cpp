@@ -75,6 +75,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_networkFrequencyMax(0.0)
     , m_networkFrequencyPoints(0)
     , m_initialFrequencyConfigured(false)
+    , m_mouseWheelMultiplier(1.1)
 {
     ui->setupUi(this);
     ui->statusbar->setEnabled(true);
@@ -93,6 +94,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->lineEditFminNetworks->installEventFilter(this);
     ui->lineEditFmaxNetworks->installEventFilter(this);
     ui->lineEditNpointsNetworks->installEventFilter(this);
+    ui->lineEditMouseWheelMult->installEventFilter(this);
+
+    ui->lineEditMouseWheelMult->setText(QString::number(m_mouseWheelMultiplier, 'g', 6));
 
     Network::TimeGateSettings gateSettings;
     gateSettings.enabled = false;
@@ -698,6 +702,8 @@ void MainWindow::updatePlots()
     PlotType type = PlotType::Magnitude;
     if (ui->checkBoxTDR->isChecked())
         type = PlotType::TDR;
+    else if (ui->checkBoxGroupDelay->isChecked())
+        type = PlotType::GroupDelay;
     else if (ui->checkBoxPhase->isChecked())
         type = PlotType::Phase;
     else if (ui->checkBoxVSWR->isChecked())
@@ -1522,6 +1528,7 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxVSWR->setChecked(false);
         ui->checkBoxSmith->setChecked(false);
         ui->checkBoxTDR->setChecked(false);
+        ui->checkBoxGroupDelay->setChecked(false);
     }
     updatePlots();
 }
@@ -1529,8 +1536,20 @@ void MainWindow::on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1)
 void MainWindow::on_checkBoxPhaseUnwrap_stateChanged(int state)
 {
     applyPhaseUnwrapSetting(state == Qt::Checked);
-    if (ui->checkBoxPhase->isChecked())
+    if (ui->checkBoxPhase->isChecked() || ui->checkBoxGroupDelay->isChecked())
         updatePlots();
+}
+
+void MainWindow::on_checkBoxGroupDelay_checkStateChanged(const Qt::CheckState &arg1)
+{
+    Q_UNUSED(arg1);
+    if (ui->checkBoxGroupDelay->isChecked()) {
+        ui->checkBoxPhase->setChecked(false);
+        ui->checkBoxVSWR->setChecked(false);
+        ui->checkBoxSmith->setChecked(false);
+        ui->checkBoxTDR->setChecked(false);
+    }
+    updatePlots();
 }
 
 void MainWindow::on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1)
@@ -1540,6 +1559,7 @@ void MainWindow::on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxPhase->setChecked(false);
         ui->checkBoxSmith->setChecked(false);
         ui->checkBoxTDR->setChecked(false);
+        ui->checkBoxGroupDelay->setChecked(false);
     }
     updatePlots();
 }
@@ -1551,6 +1571,7 @@ void MainWindow::on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxPhase->setChecked(false);
         ui->checkBoxVSWR->setChecked(false);
         ui->checkBoxTDR->setChecked(false);
+        ui->checkBoxGroupDelay->setChecked(false);
     }
     updatePlots();
 }
@@ -1562,6 +1583,7 @@ void MainWindow::on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1)
         ui->checkBoxPhase->setChecked(false);
         ui->checkBoxVSWR->setChecked(false);
         ui->checkBoxSmith->setChecked(false);
+        ui->checkBoxGroupDelay->setChecked(false);
         if (ui->checkBox->isChecked()) {
             ui->checkBox->setChecked(false);
         }
@@ -1626,9 +1648,28 @@ void MainWindow::on_lineEditNpointsNetworks_editingFinished()
         updatePlots();
 }
 
+void MainWindow::on_lineEditMouseWheelMult_editingFinished()
+{
+    constexpr double minMultiplier = 1.0001;
+    constexpr double maxMultiplier = 10.0;
+
+    bool ok = false;
+    double value = ui->lineEditMouseWheelMult->text().trimmed().toDouble(&ok);
+    if (!ok)
+        value = m_mouseWheelMultiplier;
+
+    value = std::clamp(value, minMultiplier, maxMultiplier);
+    m_mouseWheelMultiplier = value;
+
+    QSignalBlocker blocker(ui->lineEditMouseWheelMult);
+    ui->lineEditMouseWheelMult->setText(QString::number(m_mouseWheelMultiplier, 'g', 6));
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::Wheel) {
+        if (obj == ui->lineEditMouseWheelMult)
+            return true;
         if (obj == ui->lineEditFminNetworks || obj == ui->lineEditFmaxNetworks) {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             if (wheelEvent->angleDelta().y() == 0)
@@ -1763,10 +1804,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             bool ok = false;
             double val = valueItem->text().toDouble(&ok);
             if (ok) {
+                const double multiplier = m_mouseWheelMultiplier;
                 if (wheelEvent->angleDelta().y() > 0)
-                    val *= 1.1;
+                    val *= multiplier;
                 else if (wheelEvent->angleDelta().y() < 0)
-                    val *=  1 / 1.1;
+                    val /= multiplier;
                 valueItem->setText(Network::formatEngineering(val));
             }
             return true;

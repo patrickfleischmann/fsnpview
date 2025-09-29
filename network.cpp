@@ -1,6 +1,8 @@
 #include "network.h"
 #include <complex>
 #include <cmath>
+#include <limits>
+#include <algorithm>
 
 namespace {
 Network::TimeGateSettings g_timeGateSettings;
@@ -194,4 +196,32 @@ Eigen::ArrayXd Network::unwrap(const Eigen::ArrayXd& phase)
         }
     }
     return unwrapped_phase;
+}
+
+Eigen::ArrayXd Network::computeGroupDelay(const Eigen::ArrayXd& phase_rad, const Eigen::ArrayXd& freq_hz)
+{
+    const int count = std::min<int>(phase_rad.size(), freq_hz.size());
+    if (count <= 0)
+        return {};
+
+    Eigen::ArrayXd delay(count);
+    delay.setZero();
+
+    if (count == 1)
+        return delay;
+
+    for (int i = 0; i < count; ++i) {
+        const int prevIndex = (i == 0) ? i : i - 1;
+        const int nextIndex = (i == count - 1) ? i : i + 1;
+        const double df = freq_hz(nextIndex) - freq_hz(prevIndex);
+        if (nextIndex == prevIndex || std::abs(df) < std::numeric_limits<double>::epsilon()) {
+            delay(i) = 0.0;
+            continue;
+        }
+
+        const double dphi = phase_rad(nextIndex) - phase_rad(prevIndex);
+        delay(i) = -(dphi / df) / (2.0 * M_PI);
+    }
+
+    return delay;
 }

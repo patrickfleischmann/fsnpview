@@ -64,6 +64,7 @@ private slots:
 
     void on_checkBoxPhase_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxPhaseUnwrap_stateChanged(int state);
+    void on_checkBoxGroupDelay_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxVSWR_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxSmith_checkStateChanged(const Qt::CheckState &arg1);
     void on_checkBoxTDR_checkStateChanged(const Qt::CheckState &arg1);
@@ -75,6 +76,7 @@ private slots:
     void on_lineEditFminNetworks_editingFinished();
     void on_lineEditFmaxNetworks_editingFinished();
     void on_lineEditNpointsNetworks_editingFinished();
+    void on_lineEditMouseWheelMult_editingFinished();
 
     void onNetworkFilesModelChanged(QStandardItem *item);
     void onNetworkLumpedModelChanged(QStandardItem *item);
@@ -146,5 +148,6 @@ private:
     bool m_initialFrequencyConfigured;
 
     QVector<QLabel*> m_cascadeStatusIconLabels;
+    double m_mouseWheelMultiplier;
 };
 #endif // MAINWINDOW_H
