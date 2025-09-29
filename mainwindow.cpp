@@ -78,6 +78,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui->statusbar->setEnabled(true);
+    ui->statusbar->setContentsMargins(0, 0, 0, 0);
+    ui->statusbar->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; margin: 0px; padding: 0px; }"));
     ui->splitter_3->setStretchFactor(0, 0);
     ui->splitter_3->setStretchFactor(1, 1);
     ui->splitter_2->setStretchFactor(0, 0);
@@ -760,10 +762,15 @@ void MainWindow::updateCascadeStatusIcons()
         if (pixmap.isNull())
             continue;
         QLabel* label = new QLabel(ui->statusbar);
+        label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        label->setFixedSize(pixmap.size());
+        label->setScaledContents(false);
+        label->setAlignment(Qt::AlignCenter);
         label->setPixmap(pixmap);
         label->setContentsMargins(0, 0, 0, 0);
         label->setMargin(0);
-        ui->statusbar->addWidget(label);
+        label->setStyleSheet(QStringLiteral("border: none; margin: 0px; padding: 0px;"));
+        ui->statusbar->addWidget(label, 0);
         m_cascadeStatusIconLabels.append(label);
     }
 }
