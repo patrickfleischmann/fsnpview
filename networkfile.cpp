@@ -102,6 +102,14 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
         yValues = unwrapped_phase_rad * (180.0 / M_PI);
         break;
     }
+    case PlotType::GroupDelay:
+    {
+        xValues = m_data->freq;
+        Eigen::ArrayXd phase_rad = s_param_col.arg();
+        Eigen::ArrayXd unwrapped_phase_rad = m_unwrap_phase ? unwrap(phase_rad) : phase_rad;
+        yValues = Network::computeGroupDelay(unwrapped_phase_rad, xValues);
+        break;
+    }
     case PlotType::VSWR:
         xValues = m_data->freq;
         yValues = (1 + s_param_col.abs()) / (1 - s_param_col.abs());

@@ -9,7 +9,7 @@
 #include <Eigen/Dense>
 #include <complex>
 
-enum class PlotType { Magnitude, Phase, VSWR, Smith, TDR };
+enum class PlotType { Magnitude, Phase, GroupDelay, VSWR, Smith, TDR };
 
 class Network : public QObject
 {
@@ -21,6 +21,7 @@ public:
     static Eigen::Matrix2cd s2abcd(const std::complex<double>& s11, const std::complex<double>& s12, const std::complex<double>& s21, const std::complex<double>& s22, double z0 = 50.0);
     static Eigen::Vector4cd abcd2s(const Eigen::Matrix2cd& abcd, double z0 = 50.0);
     static QString formatEngineering(double value, bool padMantissa = true);
+    static Eigen::ArrayXd computeGroupDelay(const Eigen::ArrayXd& phase_rad, const Eigen::ArrayXd& freq_hz);
 
     virtual QString name() const = 0;
     virtual QString displayName() const;

@@ -311,6 +311,14 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         QVector<double> values(phase_deg.data(), phase_deg.data() + phase_deg.size());
         return qMakePair(freqVector, values);
     }
+    case PlotType::GroupDelay: {
+        Eigen::ArrayXd phase_rad = sparam.arg();
+        if (m_unwrap_phase)
+            phase_rad = unwrap(phase_rad);
+        Eigen::ArrayXd delay = Network::computeGroupDelay(phase_rad, freq.array());
+        QVector<double> values(delay.data(), delay.data() + delay.size());
+        return qMakePair(freqVector, values);
+    }
     case PlotType::VSWR: {
         Eigen::ArrayXd vswr = (1 + sparam.abs()) / (1 - sparam.abs());
         QVector<double> values(vswr.data(), vswr.data() + vswr.size());

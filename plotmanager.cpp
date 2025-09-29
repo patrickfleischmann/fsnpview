@@ -268,6 +268,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             return QString();
         case PlotType::Phase:
             return QStringLiteral("_phase");
+        case PlotType::GroupDelay:
+            return QStringLiteral("_gdelay");
         case PlotType::VSWR:
             return QStringLiteral("_vswr");
         case PlotType::Smith:
@@ -345,6 +347,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         break;
     case PlotType::Phase:
         m_plot->yAxis->setLabel("Phase (deg)");
+        m_plot->xAxis->setLabel("Frequency (Hz)");
+        break;
+    case PlotType::GroupDelay:
+        m_plot->yAxis->setLabel("Group Delay (s)");
         m_plot->xAxis->setLabel("Frequency (Hz)");
         break;
     case PlotType::VSWR:
