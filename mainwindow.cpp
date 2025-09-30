@@ -394,8 +394,8 @@ void MainWindow::populateLumpedNetworkTable()
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::L_shunt, {1.0, 1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLine, {1.0, 50.0, 1.0}));
     m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::TransmissionLineLossy, {1.0, 50.0, 1.0, 10.0, 1.0, 1e9}));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::LRC_series_shunt));
-    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::LRC_parallel_series));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::RLC_series_shunt));
+    m_networks.append(new NetworkLumped(NetworkLumped::NetworkType::RLC_parallel_series));
 
     m_lumpedParameterCount = 0;
     for (auto network_ptr : qAsConst(m_networks)) {
@@ -842,9 +842,9 @@ QString MainWindow::iconResourceForNetwork(const Network* network) const
             return QStringLiteral("TL");
         case NetworkLumped::NetworkType::TransmissionLineLossy:
             return QStringLiteral("TL_lossy");
-        case NetworkLumped::NetworkType::LRC_series_shunt:
+        case NetworkLumped::NetworkType::RLC_series_shunt:
             return QStringLiteral("RLC_ser_shunt");
-        case NetworkLumped::NetworkType::LRC_parallel_series:
+        case NetworkLumped::NetworkType::RLC_parallel_series:
             return QStringLiteral("RLC_par_ser");
         }
     }

@@ -290,25 +290,25 @@ def tokens_tl_lossy(
     ]
 
 
-def tokens_lrc_series_shunt(inductance_nh: float, resistance_ohm: float, capacitance_pf: float) -> list[str]:
+def tokens_rlc_series_shunt(resistance_ohm: float, inductance_nh: float, capacitance_pf: float) -> list[str]:
     return [
-        "LRC_ser_shunt",
-        "l",
-        format_value(inductance_nh),
+        "RLC_ser_shunt",
         "r",
         format_value(resistance_ohm),
+        "l",
+        format_value(inductance_nh),
         "c",
         format_value(capacitance_pf),
     ]
 
 
-def tokens_lrc_parallel_series(inductance_nh: float, resistance_ohm: float, capacitance_pf: float) -> list[str]:
+def tokens_rlc_parallel_series(resistance_ohm: float, inductance_nh: float, capacitance_pf: float) -> list[str]:
     return [
-        "LRC_par_ser",
-        "l",
-        format_value(inductance_nh),
+        "RLC_par_ser",
         "r",
         format_value(resistance_ohm),
+        "l",
+        format_value(inductance_nh),
         "c",
         format_value(capacitance_pf),
     ]
@@ -320,10 +320,10 @@ def network_from_abcd(frequency: rf.Frequency, abcd: np.ndarray, base_name: str)
     return rename_network(network, base_name)
 
 
-def create_lrc_series_shunt(
+def create_rlc_series_shunt(
     factory: Callable[[float], DefinedGammaZ0],
-    inductance_nh: float,
     resistance_ohm: float,
+    inductance_nh: float,
     capacitance_pf: float,
     base_name: str,
 ) -> rf.Network:
@@ -353,10 +353,10 @@ def create_lrc_series_shunt(
     return network_from_abcd(frequency, abcd, base_name)
 
 
-def create_lrc_parallel_series(
+def create_rlc_parallel_series(
     factory: Callable[[float], DefinedGammaZ0],
-    inductance_nh: float,
     resistance_ohm: float,
+    inductance_nh: float,
     capacitance_pf: float,
     base_name: str,
 ) -> rf.Network:
@@ -393,24 +393,24 @@ def create_lrc_parallel_series(
     return network_from_abcd(frequency, abcd, base_name)
 
 
-def expected_lrc_series_shunt(
+def expected_rlc_series_shunt(
     factory: Callable[[float], DefinedGammaZ0],
-    inductance_nh: float,
     resistance_ohm: float,
+    inductance_nh: float,
     capacitance_pf: float,
     base_name: str,
 ) -> rf.Network:
-    return create_lrc_series_shunt(factory, inductance_nh, resistance_ohm, capacitance_pf, base_name)
+    return create_rlc_series_shunt(factory, resistance_ohm, inductance_nh, capacitance_pf, base_name)
 
 
-def expected_lrc_parallel_series(
+def expected_rlc_parallel_series(
     factory: Callable[[float], DefinedGammaZ0],
-    inductance_nh: float,
     resistance_ohm: float,
+    inductance_nh: float,
     capacitance_pf: float,
     base_name: str,
 ) -> rf.Network:
-    return create_lrc_parallel_series(factory, inductance_nh, resistance_ohm, capacitance_pf, base_name)
+    return create_rlc_parallel_series(factory, resistance_ohm, inductance_nh, capacitance_pf, base_name)
 
 
 def wrap_phase_deg(values: np.ndarray) -> np.ndarray:
@@ -678,20 +678,20 @@ def main() -> int:
             npoints=161,
         ),
         LumpedNetworkSpec(
-            name="LRC_ser_shunt",
-            cli_tokens=tokens_lrc_series_shunt(2.5, 0.002, 1.8),
-            build_expected=lambda factory: expected_lrc_series_shunt(
-                factory, 2.5, 0.002, 1.8, "LRC_ser_shunt_expected"
+            name="RLC_ser_shunt",
+            cli_tokens=tokens_rlc_series_shunt(0.002, 2.5, 1.8),
+            build_expected=lambda factory: expected_rlc_series_shunt(
+                factory, 0.002, 2.5, 1.8, "RLC_ser_shunt_expected"
             ),
             fmin_hz=1e4,
             fmax_hz=1e8,
             npoints=91,
         ),
         LumpedNetworkSpec(
-            name="LRC_par_ser",
-            cli_tokens=tokens_lrc_parallel_series(3.7, 750000.0, 2.6),
-            build_expected=lambda factory: expected_lrc_parallel_series(
-                factory, 3.7, 750000.0, 2.6, "LRC_par_ser_expected"
+            name="RLC_par_ser",
+            cli_tokens=tokens_rlc_parallel_series(750000.0, 3.7, 2.6),
+            build_expected=lambda factory: expected_rlc_parallel_series(
+                factory, 750000.0, 3.7, 2.6, "RLC_par_ser_expected"
             ),
             fmin_hz=2e3,
             fmax_hz=2e7,
@@ -931,8 +931,8 @@ def main() -> int:
                 a_d_db_per_m=0.9,
                 fa_hz=4.5e9,
             ),
-            create_lrc_series_shunt(factory, 2.1, 0.0015, 2.2, "All_types_LRC_ser_shunt"),
-            create_lrc_parallel_series(factory, 2.8, 680000.0, 1.7, "All_types_LRC_par_ser"),
+            create_rlc_series_shunt(factory, 0.0015, 2.1, 2.2, "All_types_RLC_ser_shunt"),
+            create_rlc_parallel_series(factory, 680000.0, 2.8, 1.7, "All_types_RLC_par_ser"),
         ]
         return cascade_networks(components, "All_types_cascade_expected")
 
@@ -948,8 +948,8 @@ def main() -> int:
                 + tokens_l_shunt(18.0, 0.33)
                 + tokens_transmission_line_er(0.012, 58.0, 1.7)
                 + tokens_tl_lossy(0.007, 53.0, 2.5, 6.5, 0.9, 4.5e9)
-                + tokens_lrc_series_shunt(2.1, 0.0015, 2.2)
-                + tokens_lrc_parallel_series(2.8, 680000.0, 1.7)
+                + tokens_rlc_series_shunt(0.0015, 2.1, 2.2)
+                + tokens_rlc_parallel_series(680000.0, 2.8, 1.7)
             ),
             build_expected=build_all_types_cascade,
             fmin_hz=1e7,
