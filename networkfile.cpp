@@ -40,6 +40,7 @@ Network* NetworkFile::clone(QObject* parent) const
     copy->setActive(m_is_active);
     copy->setFmin(m_fmin);
     copy->setFmax(m_fmax);
+    copy->copyStyleSettingsFrom(this);
     return copy;
 }
 

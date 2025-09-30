@@ -3,9 +3,18 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include <utility>
 
 namespace {
 Network::TimeGateSettings g_timeGateSettings;
+}
+
+namespace
+{
+    int clampWidth(int width)
+    {
+        return std::clamp(width, 0, 10);
+    }
 }
 
 Eigen::Matrix2cd Network::s2abcd(const std::complex<double>& s11, const std::complex<double>& s12, const std::complex<double>& s21, const std::complex<double>& s22, double z0)
@@ -178,6 +187,140 @@ bool Network::isActive() const
 void Network::setActive(bool active)
 {
     m_is_active = active;
+}
+
+QStringList Network::parameterNames() const
+{
+    QStringList names;
+    const int ports = portCount();
+    if (ports <= 0)
+        return names;
+
+    for (int input = 1; input <= ports; ++input)
+    {
+        for (int output = 1; output <= ports; ++output)
+            names.append(QStringLiteral("s%1%2").arg(output).arg(input));
+    }
+
+    return names;
+}
+
+QString Network::normalizedParameterKey(const QString& parameter)
+{
+    QString key = parameter;
+    key = key.trimmed().toLower();
+    return key;
+}
+
+void Network::updateOrRemovePenSettings(const QString& key, PenSettings&& settings)
+{
+    if (key.isEmpty())
+        return;
+
+    if (!settings.color.has_value() && !settings.width.has_value() && !settings.style.has_value())
+    {
+        m_parameterPenSettings.remove(key);
+        return;
+    }
+
+    m_parameterPenSettings.insert(key, std::move(settings));
+}
+
+QColor Network::parameterColor(const QString& parameter) const
+{
+    const QString key = normalizedParameterKey(parameter);
+    auto it = m_parameterPenSettings.constFind(key);
+    if (it != m_parameterPenSettings.constEnd() && it->color.has_value())
+        return *(it->color);
+    return m_color;
+}
+
+void Network::setParameterColor(const QString& parameter, const QColor& color)
+{
+    const QString key = normalizedParameterKey(parameter);
+    if (key.isEmpty())
+        return;
+
+    PenSettings settings = m_parameterPenSettings.value(key);
+    if (!color.isValid() || color == m_color)
+        settings.color.reset();
+    else
+        settings.color = color;
+
+    updateOrRemovePenSettings(key, std::move(settings));
+}
+
+int Network::parameterWidth(const QString& parameter) const
+{
+    const QString key = normalizedParameterKey(parameter);
+    auto it = m_parameterPenSettings.constFind(key);
+    if (it != m_parameterPenSettings.constEnd() && it->width.has_value())
+        return clampWidth(*(it->width));
+    return 0;
+}
+
+void Network::setParameterWidth(const QString& parameter, int width)
+{
+    const QString key = normalizedParameterKey(parameter);
+    if (key.isEmpty())
+        return;
+
+    PenSettings settings = m_parameterPenSettings.value(key);
+    int clamped = clampWidth(width);
+    if (clamped <= 0)
+        settings.width.reset();
+    else
+        settings.width = clamped;
+
+    updateOrRemovePenSettings(key, std::move(settings));
+}
+
+Qt::PenStyle Network::defaultPenStyleForParameter(const QString& parameter) const
+{
+    const QString key = normalizedParameterKey(parameter);
+    if (key == QLatin1String("s11"))
+        return Qt::DashLine;
+    return Qt::SolidLine;
+}
+
+Qt::PenStyle Network::parameterStyle(const QString& parameter) const
+{
+    const QString key = normalizedParameterKey(parameter);
+    auto it = m_parameterPenSettings.constFind(key);
+    if (it != m_parameterPenSettings.constEnd() && it->style.has_value())
+        return *(it->style);
+    return defaultPenStyleForParameter(parameter);
+}
+
+void Network::setParameterStyle(const QString& parameter, Qt::PenStyle style)
+{
+    const QString key = normalizedParameterKey(parameter);
+    if (key.isEmpty())
+        return;
+
+    PenSettings settings = m_parameterPenSettings.value(key);
+    if (style == defaultPenStyleForParameter(parameter))
+        settings.style.reset();
+    else
+        settings.style = style;
+
+    updateOrRemovePenSettings(key, std::move(settings));
+}
+
+QPen Network::parameterPen(const QString& parameter) const
+{
+    const QColor color = parameterColor(parameter);
+    const int width = parameterWidth(parameter);
+    const Qt::PenStyle style = parameterStyle(parameter);
+    QPen pen(color, width, style);
+    return pen;
+}
+
+void Network::copyStyleSettingsFrom(const Network* other)
+{
+    if (!other)
+        return;
+    m_parameterPenSettings = other->m_parameterPenSettings;
 }
 
 Eigen::ArrayXd Network::unwrap(const Eigen::ArrayXd& phase)

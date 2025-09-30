@@ -40,7 +40,8 @@ SOURCES += \
     networkitemmodel.cpp \
     plotmanager.cpp \
     tdrcalculator.cpp \
-    commandlineparser.cpp
+    commandlineparser.cpp \
+    parameterstyledialog.cpp
 
 HEADERS += \
     SmithChartGrid.h \
@@ -55,7 +56,8 @@ HEADERS += \
     networkitemmodel.h \
     plotmanager.h \
     tdrcalculator.h \
-    commandlineparser.h
+    commandlineparser.h \
+    parameterstyledialog.h
 
 FORMS += \
     mainwindow.ui

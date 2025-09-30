@@ -58,5 +58,6 @@ make -j"$(nproc)"
 ./tdrcalculator_tests
 QT_QPA_PLATFORM=offscreen ./gui_plot_tests
 ./networkcascade_tests
+./network_plot_style_tests
 
 run_regression_test

@@ -3,11 +3,15 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QColor>
 #include <QVector>
 #include <QPair>
+#include <QPen>
+#include <QHash>
 #include <Eigen/Dense>
 #include <complex>
+#include <optional>
 
 enum class PlotType { Magnitude, Phase, GroupDelay, VSWR, Smith, TDR };
 
@@ -60,8 +64,23 @@ public:
     bool isActive() const;
     void setActive(bool active);
 
+    QStringList parameterNames() const;
+
+    QColor parameterColor(const QString& parameter) const;
+    void setParameterColor(const QString& parameter, const QColor& color);
+
+    int parameterWidth(const QString& parameter) const;
+    void setParameterWidth(const QString& parameter, int width);
+
+    Qt::PenStyle parameterStyle(const QString& parameter) const;
+    void setParameterStyle(const QString& parameter, Qt::PenStyle style);
+
+    QPen parameterPen(const QString& parameter) const;
+
 protected:
     Eigen::ArrayXd unwrap(const Eigen::ArrayXd& phase);
+    void copyStyleSettingsFrom(const Network* other);
+    Qt::PenStyle defaultPenStyleForParameter(const QString& parameter) const;
 
     double m_fmin;
     double m_fmax;
@@ -69,6 +88,19 @@ protected:
     bool m_is_visible;
     bool m_unwrap_phase;
     bool m_is_active; // for cascade calculation
+
+private:
+    struct PenSettings
+    {
+        std::optional<QColor> color;
+        std::optional<int> width;
+        std::optional<Qt::PenStyle> style;
+    };
+
+    static QString normalizedParameterKey(const QString& parameter);
+    void updateOrRemovePenSettings(const QString& key, PenSettings&& settings);
+
+    QHash<QString, PenSettings> m_parameterPenSettings;
 };
 
 #endif // NETWORK_H

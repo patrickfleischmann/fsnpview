@@ -72,6 +72,7 @@ Network* NetworkLumped::clone(QObject* parent) const
     copy->setFmin(m_fmin);
     copy->setFmax(m_fmax);
     copy->setPointCount(m_pointCount);
+    copy->copyStyleSettingsFrom(this);
     return copy;
 }
 
