@@ -59,5 +59,6 @@ make -j"$(nproc)"
 QT_QPA_PLATFORM=offscreen ./gui_plot_tests
 ./networkcascade_tests
 ./network_plot_style_tests
+QT_QPA_PLATFORM=offscreen ./parameter_style_dialog_tests
 
 run_regression_test
