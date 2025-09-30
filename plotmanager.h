@@ -21,6 +21,7 @@ class QCPAbstractItem;
 class QCPGraph;
 class QCPCurve;
 class QCPAbstractPlottable;
+class PlotSettingsDialog;
 
 class PlotManager : public QObject
 {
@@ -64,6 +65,14 @@ private:
     void clearSmithMarkers();
     void addSmithMarkers(const QVector<double>& x, const QVector<double>& y, const QColor& color);
     void updateAxisTickers();
+    void showPlotSettingsDialog();
+    void applyAxisRanges(const PlotSettingsDialog &dialog);
+    void applyMarkerPositions(const PlotSettingsDialog &dialog);
+    double markerValue(const QCPItemTracer *tracer) const;
+    void setMarkerValue(QCPItemTracer *tracer, double value);
+    void setCartesianMarkerValue(QCPItemTracer *tracer, double value);
+    void setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency);
+    QString markerLabelText(const QString &markerName) const;
 
 
     QCustomPlot* m_plot;

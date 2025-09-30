@@ -2,6 +2,7 @@
 #include "qcustomplot.h"
 #include "network.h"
 #include "networkcascade.h"
+#include "plotsettingsdialog.h"
 #include "SmithChartGrid.h"
 #include <QDebug>
 #include <QVariant>
@@ -931,6 +932,12 @@ void PlotManager::setCursorBVisible(bool visible)
 
 void PlotManager::mousePress(QMouseEvent *event)
 {
+    if (event->button() == Qt::RightButton)
+    {
+        showPlotSettingsDialog();
+        return;
+    }
+
     if (event->button() == Qt::LeftButton)
     {
         mDraggedTracer = nullptr;
@@ -945,6 +952,195 @@ void PlotManager::mousePress(QMouseEvent *event)
             m_plot->setSelectionRectMode(QCP::srmNone);
         }
     }
+}
+
+QString PlotManager::markerLabelText(const QString &markerName) const
+{
+    QString unit;
+    switch (m_currentPlotType)
+    {
+    case PlotType::TDR:
+        unit = tr("Distance (m)");
+        break;
+    case PlotType::Smith:
+        unit = tr("Frequency (Hz)");
+        break;
+    default:
+        unit = tr("Frequency (Hz)");
+        break;
+    }
+
+    if (unit.isEmpty())
+        return markerName;
+    return QStringLiteral("%1 (%2)").arg(markerName, unit);
+}
+
+void PlotManager::showPlotSettingsDialog()
+{
+    if (!m_plot)
+        return;
+
+    PlotSettingsDialog dialog(m_plot);
+    dialog.setAxisLabels(m_plot->xAxis->label(), m_plot->yAxis->label());
+    dialog.setXAxisRange(m_plot->xAxis->range().lower, m_plot->xAxis->range().upper);
+    dialog.setYAxisRange(m_plot->yAxis->range().lower, m_plot->yAxis->range().upper);
+    dialog.setMarkerLabelTexts(markerLabelText(tr("Marker A position")),
+                               markerLabelText(tr("Marker B position")));
+    dialog.setMarkerValues(markerValue(mTracerA), mTracerA && mTracerA->visible(),
+                           markerValue(mTracerB), mTracerB && mTracerB->visible());
+
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        applyAxisRanges(dialog);
+        applyMarkerPositions(dialog);
+        updateTracers();
+        m_plot->replot();
+    }
+}
+
+void PlotManager::applyAxisRanges(const PlotSettingsDialog &dialog)
+{
+    double xMin = dialog.xMinimum();
+    double xMax = dialog.xMaximum();
+    double yMin = dialog.yMinimum();
+    double yMax = dialog.yMaximum();
+
+    if (std::isfinite(xMin) && std::isfinite(xMax) && xMax > xMin)
+        m_plot->xAxis->setRange(xMin, xMax);
+    if (std::isfinite(yMin) && std::isfinite(yMax) && yMax > yMin)
+        m_plot->yAxis->setRange(yMin, yMax);
+}
+
+void PlotManager::applyMarkerPositions(const PlotSettingsDialog &dialog)
+{
+    if (dialog.markerAIsEnabled())
+        setMarkerValue(mTracerA, dialog.markerAValue());
+    if (dialog.markerBIsEnabled())
+        setMarkerValue(mTracerB, dialog.markerBValue());
+}
+
+double PlotManager::markerValue(const QCPItemTracer *tracer) const
+{
+    if (!tracer || !tracer->visible())
+        return std::numeric_limits<double>::quiet_NaN();
+
+    if (m_currentPlotType == PlotType::Smith)
+    {
+        QCPCurve *curve = m_tracerCurves.value(const_cast<QCPItemTracer *>(tracer), nullptr);
+        int index = m_tracerIndices.value(const_cast<QCPItemTracer *>(tracer), -1);
+        if (curve && index >= 0)
+        {
+            const QVector<double> freqs = m_curveFreqs.value(curve);
+            if (index < freqs.size())
+                return freqs.at(index);
+        }
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    if (const QCPGraph *graph = tracer->graph())
+        return tracer->graphKey();
+
+    return tracer->position->coords().x();
+}
+
+void PlotManager::setMarkerValue(QCPItemTracer *tracer, double value)
+{
+    if (!tracer || !tracer->visible() || !std::isfinite(value))
+        return;
+
+    if (m_currentPlotType == PlotType::Smith)
+        setSmithMarkerFrequency(tracer, value);
+    else
+        setCartesianMarkerValue(tracer, value);
+}
+
+void PlotManager::setCartesianMarkerValue(QCPItemTracer *tracer, double value)
+{
+    if (!tracer)
+        return;
+
+    m_tracerCurves.remove(tracer);
+    m_tracerIndices.remove(tracer);
+
+    QCPGraph *targetGraph = tracer->graph();
+    if (!targetGraph)
+        targetGraph = firstGraph();
+
+    if (targetGraph)
+    {
+        auto data = targetGraph->data();
+        if (!data->isEmpty())
+        {
+            double minKey = data->constBegin()->key;
+            auto itEnd = data->constEnd();
+            --itEnd;
+            double maxKey = itEnd->key;
+            if (value < minKey)
+                value = minKey;
+            else if (value > maxKey)
+                value = maxKey;
+        }
+        tracer->setGraph(targetGraph);
+        tracer->setGraphKey(value);
+    }
+    else
+    {
+        tracer->setGraph(nullptr);
+        tracer->position->setType(QCPItemPosition::ptPlotCoords);
+        tracer->position->setCoords(value, m_plot->yAxis->range().center());
+    }
+}
+
+void PlotManager::setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency)
+{
+    if (!tracer)
+        return;
+
+    tracer->setGraph(nullptr);
+    tracer->position->setType(QCPItemPosition::ptPlotCoords);
+
+    QCPCurve *targetCurve = m_tracerCurves.value(tracer, nullptr);
+    if (!targetCurve)
+        targetCurve = firstSmithCurve();
+
+    if (!targetCurve)
+        return;
+
+    auto data = targetCurve->data();
+    if (data->isEmpty())
+        return;
+
+    QVector<double> freqs = m_curveFreqs.value(targetCurve);
+    int index = 0;
+    if (!freqs.isEmpty())
+    {
+        auto lower = std::lower_bound(freqs.constBegin(), freqs.constEnd(), frequency);
+        if (lower == freqs.constEnd())
+            index = freqs.size() - 1;
+        else if (lower == freqs.constBegin())
+            index = 0;
+        else
+        {
+            index = lower - freqs.constBegin();
+            double lowerDiff = qAbs(*lower - frequency);
+            auto prev = lower;
+            --prev;
+            double prevDiff = qAbs(frequency - *prev);
+            if (prevDiff <= lowerDiff)
+                index = prev - freqs.constBegin();
+        }
+    }
+
+    if (index < 0)
+        index = 0;
+    else if (index >= data->size())
+        index = data->size() - 1;
+
+    auto it = data->constBegin();
+    std::advance(it, index);
+    tracer->position->setCoords(it->key, it->value);
+    m_tracerCurves[tracer] = targetCurve;
+    m_tracerIndices[tracer] = index;
 }
 
 void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
