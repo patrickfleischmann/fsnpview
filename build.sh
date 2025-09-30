@@ -113,6 +113,7 @@ $MOC $MOC_INCLUDES networkfile.h -o moc_networkfile.cpp
 $MOC $MOC_INCLUDES networklumped.h -o moc_networklumped.cpp
 $MOC $MOC_INCLUDES networkcascade.h -o moc_networkcascade.cpp
 $MOC $MOC_INCLUDES qcustomplot.h -o moc_qcustomplot.cpp
+$MOC $MOC_INCLUDES parameterstyledialog.h -o moc_parameterstyledialog.cpp
 
 # Build GUI plot test
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
@@ -133,3 +134,8 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/network_plot_style_tests.cpp network.cpp \
     moc_network.cpp \
     -o network_plot_style_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/parameter_style_dialog_tests.cpp parameterstyledialog.cpp network.cpp \
+    moc_parameterstyledialog.cpp moc_network.cpp \
+    -o parameter_style_dialog_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core)

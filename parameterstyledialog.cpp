@@ -12,6 +12,7 @@
 #include <QColorDialog>
 #include <QList>
 #include <QObject>
+#include <QVariant>
 
 namespace
 {
@@ -44,15 +45,23 @@ ParameterStyleDialog::ParameterStyleDialog(Network* network, QWidget* parent)
         m_parameters = m_network->parameterNames();
 
     m_parameterCombo = new QComboBox(this);
+    m_parameterCombo->setObjectName(QStringLiteral("parameterCombo"));
     m_parameterCombo->addItem(tr("All Parameters"), QString());
     for (const QString& parameter : m_parameters)
         m_parameterCombo->addItem(parameter, parameter);
 
     m_widthCombo = new QComboBox(this);
+    m_widthCombo->setObjectName(QStringLiteral("widthCombo"));
     for (int i = 0; i <= 10; ++i)
-        m_widthCombo->addItem(QString::number(i), i);
+    {
+        const QString label = QString::number(i);
+        m_widthCombo->addItem(label);
+        const int index = m_widthCombo->count() - 1;
+        m_widthCombo->setItemData(index, i, Qt::UserRole);
+    }
 
     m_styleCombo = new QComboBox(this);
+    m_styleCombo->setObjectName(QStringLiteral("styleCombo"));
     for (const PenStyleOption& option : availablePenStyles())
         m_styleCombo->addItem(option.label, static_cast<int>(option.style));
 
@@ -106,7 +115,13 @@ QColor ParameterStyleDialog::selectedColor() const
 
 int ParameterStyleDialog::selectedWidth() const
 {
-    return m_widthCombo->currentData().toInt();
+    const QVariant widthData = m_widthCombo->currentData();
+    if (widthData.isValid())
+        return widthData.toInt();
+
+    bool ok = false;
+    const int fromText = m_widthCombo->currentText().toInt(&ok);
+    return ok ? fromText : 0;
 }
 
 Qt::PenStyle ParameterStyleDialog::selectedStyle() const
