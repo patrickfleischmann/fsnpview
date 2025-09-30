@@ -154,7 +154,7 @@ void PlotManager::updateAxisTickers()
 }
 
 QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QPen &pen,
-                       const QString &name, Network* network, PlotType type)
+                       const QString &name, Network* network, PlotType type, const QString &parameterKey)
 {
     if (type == PlotType::Smith)
     {
@@ -163,6 +163,7 @@ QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<
         curve->setPen(pen);
         curve->setName(name);
         curve->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
+        curve->setProperty("sparam_key", parameterKey);
         curve->setSelectable(QCP::stWhole);
         return curve;
     }
@@ -171,6 +172,7 @@ QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<
     graph->setPen(pen);
     graph->setName(name);
     graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
+    graph->setProperty("sparam_key", parameterKey);
     graph->setSelectable(QCP::stWhole);
 
     return graph;
@@ -523,6 +525,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             }
             QVector<double> freqs = network->frequencies();
             if (pl) {
+                pl->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
+                pl->setProperty("sparam_key", sparam);
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
@@ -537,7 +541,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 }
             } else {
                 pl = plot(plotData.first, plotData.second,
-                              pen, graph_name, network, type);
+                              pen, graph_name, network, type, sparam);
+                if (pl) {
+                    pl->setProperty("sparam_key", sparam);
+                }
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
@@ -586,6 +593,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             QVector<double> freqs = m_cascade->frequencies();
             if (pl) {
                 pl->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(m_cascade)));
+                pl->setProperty("sparam_key", sparam);
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
@@ -600,7 +608,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 }
             } else {
                 pl = plot(plotData.first, plotData.second, pen,
-                              graph_name, m_cascade, type);
+                              graph_name, m_cascade, type, sparam);
+                if (pl) {
+                    pl->setProperty("sparam_key", sparam);
+                }
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
@@ -1451,10 +1462,37 @@ bool PlotManager::removeSelectedMathPlots()
 
 void PlotManager::selectionChanged()
 {
+    if (!m_plot)
+        return;
+
+    constexpr double highlightWidth = 2.5;
+
     for (int i = 0; i < m_plot->plottableCount(); ++i) {
         QCPAbstractPlottable *pl = m_plot->plottable(i);
+        if (!pl)
+            continue;
+
         QPen pen = pl->pen();
-        pen.setWidthF(pl->selected() ? 2.5 : 1.0);
+        double baseWidth = pen.widthF();
+
+        Network *network = nullptr;
+        const QVariant networkVariant = pl->property("network_ptr");
+        if (networkVariant.isValid())
+            network = reinterpret_cast<Network*>(networkVariant.value<quintptr>());
+
+        QString parameterKey = pl->property("sparam_key").toString();
+
+        if (network && !parameterKey.isEmpty()) {
+            QPen basePen = network->parameterPen(parameterKey);
+            pen = basePen;
+            baseWidth = pen.widthF();
+        }
+
+        if (pl->selected())
+            pen.setWidthF(std::max(baseWidth, highlightWidth));
+        else
+            pen.setWidthF(baseWidth);
+
         pl->setPen(pen);
     }
     m_plot->replot();

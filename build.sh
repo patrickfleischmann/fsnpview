@@ -139,3 +139,9 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/parameter_style_dialog_tests.cpp parameterstyledialog.cpp network.cpp \
     moc_parameterstyledialog.cpp moc_network.cpp \
     -o parameter_style_dialog_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/plotmanager_selection_tests.cpp plotmanager.cpp network.cpp networklumped.cpp \
+    networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
+    moc_plotmanager.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
+    -o plotmanager_selection_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
