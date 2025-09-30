@@ -13,6 +13,7 @@
 #include <cmath>
 #include <QSharedPointer>
 #include <QLocale>
+#include <QApplication>
 
 namespace
 {
@@ -51,6 +52,8 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_keepAspectConnected(false)
     , m_currentPlotType(PlotType::Magnitude)
     , m_crosshairEnabled(true)
+    , m_showPlotSettingsOnRightRelease(false)
+    , m_rightClickPressPos()
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
@@ -934,7 +937,8 @@ void PlotManager::mousePress(QMouseEvent *event)
 {
     if (event->button() == Qt::RightButton)
     {
-        showPlotSettingsDialog();
+        m_rightClickPressPos = event->pos();
+        m_showPlotSettingsOnRightRelease = true;
         return;
     }
 
@@ -1181,6 +1185,12 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
 
 void PlotManager::mouseMove(QMouseEvent *event)
 {
+    if (m_showPlotSettingsOnRightRelease && (event->buttons() & Qt::RightButton))
+    {
+        if ((event->pos() - m_rightClickPressPos).manhattanLength() > QApplication::startDragDistance())
+            m_showPlotSettingsOnRightRelease = false;
+    }
+
     if (mDraggedTracer)
     {
         if (mDragMode == DragMode::Vertical)
@@ -1253,6 +1263,12 @@ void PlotManager::mouseRelease(QMouseEvent *event)
             mDragMode = DragMode::None;
             m_plot->setSelectionRectMode(QCP::srmZoom);
         }
+    }
+    else if (event->button() == Qt::RightButton)
+    {
+        if (m_showPlotSettingsOnRightRelease)
+            showPlotSettingsDialog();
+        m_showPlotSettingsOnRightRelease = false;
     }
 }
 

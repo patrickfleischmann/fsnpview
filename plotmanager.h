@@ -96,6 +96,8 @@ private:
     bool m_keepAspectConnected;
     PlotType m_currentPlotType;
     bool m_crosshairEnabled;
+    bool m_showPlotSettingsOnRightRelease;
+    QPoint m_rightClickPressPos;
 };
 
 #endif // PLOTMANAGER_H

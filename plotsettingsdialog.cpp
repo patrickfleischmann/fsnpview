@@ -22,6 +22,7 @@ QLineEdit *makeLineEdit(QWidget *parent)
     validator->setNotation(QDoubleValidator::ScientificNotation);
     validator->setLocale(QLocale::c());
     validator->setBottom(-std::numeric_limits<double>::max());
+    validator->setTop(std::numeric_limits<double>::max());
     edit->setValidator(validator);
     edit->setAlignment(Qt::AlignRight);
     return edit;
