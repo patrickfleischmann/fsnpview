@@ -90,6 +90,19 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
 
     configureCursorStyles(m_currentPlotType);
 
+
+    m_colors.append(QColor(  0,   0, 255));   // Blue
+    m_colors.append(QColor(  0, 128,   0));   // Medium Green
+ //   m_colors.append(QColor(255,   0,   0));   // Red reserved for math difference plot
+    m_colors.append(QColor(  0, 191, 191));   // Cyan / Teal
+    m_colors.append(QColor(191,   0, 191));   // Magenta / Purple
+    m_colors.append(QColor(191, 191,   0));   // Olive / Yellow-Green
+    m_colors.append(QColor( 64,  64,  64));   // Dark Gray
+    m_colors.append(QColor(  0,  60, 110));   // Dark Blue
+    m_colors.append(QColor(140,  50,  15));   // Dark Orange
+    m_colors.append(QColor(145, 110,  15));   // Dark Mustard Yellow
+    m_colors.append(QColor( 90,  30, 105));   // Dark Purple
+
     m_colors.append(QColor(0, 114, 189));   // Blue
     m_colors.append(QColor(217, 83, 25));    // Orange
     m_colors.append(QColor(237, 177, 32));   // Yellow
@@ -97,6 +110,16 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_colors.append(QColor(119, 172, 48));   // Green
     m_colors.append(QColor(77, 190, 238));   // Light Blue
     m_colors.append(QColor(162, 20, 47));    // Red
+    m_colors.append(QColor( 70, 110,  30));   // Dark Green
+    m_colors.append(QColor( 40, 120, 150));   // Dark Teal Blue
+    m_colors.append(QColor(110,  15,  35));   // Dark Red
+    m_colors.append(QColor(  0,   0, 160));   // Dark Royal Blue
+    m_colors.append(QColor(  0, 100,   0));   // Dark Forest Green
+    m_colors.append(QColor(170,   0,   0));   // Dark Crimson Red
+    m_colors.append(QColor(  0, 120, 120));   // Dark Cyan / Teal
+    m_colors.append(QColor(120,   0, 120));   // Dark Magenta / Violet
+    m_colors.append(QColor(120, 120,   0));   // Dark Olive Green
+    m_colors.append(QColor( 40,  40,  40));   // Deep Gray
 
     updateAxisTickers();
 }
