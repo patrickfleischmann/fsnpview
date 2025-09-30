@@ -128,3 +128,8 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     networklumped.cpp networkcascade.cpp tdrcalculator.cpp \
     moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp moc_networkcascade.cpp \
     -o networkcascade_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/network_plot_style_tests.cpp network.cpp \
+    moc_network.cpp \
+    -o network_plot_style_tests $(pkg-config --cflags --libs Qt6Core Qt6Gui)

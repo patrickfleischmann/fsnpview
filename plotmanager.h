@@ -50,9 +50,8 @@ public slots:
 
 private:
     enum class DragMode { None, Vertical, Horizontal, Curve };
-    QCPAbstractPlottable* plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
-              const QString &name, Network* network, PlotType type,
-              Qt::PenStyle style = Qt::SolidLine);
+    QCPAbstractPlottable* plot(const QVector<double> &x, const QVector<double> &y, const QPen &pen,
+              const QString &name, Network* network, PlotType type);
     void updateTracerText(QCPItemTracer *tracer, QCPItemText *text);
     void updateTracers();
     void checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer);

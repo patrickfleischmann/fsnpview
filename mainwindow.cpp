@@ -6,6 +6,7 @@
 #include "qcustomplot.h"
 #include "server.h"
 #include "plotmanager.h"
+#include "parameterstyledialog.h"
 #include <QFileDialog>
 #include <QMenu>
 #include <QMenuBar>
@@ -16,7 +17,6 @@
 #include <QItemSelectionModel>
 #include <QAbstractItemModel>
 #include <QSignalBlocker>
-#include <QColorDialog>
 #include <QVariant>
 #include <QHeaderView>
 #include <QWheelEvent>
@@ -1058,33 +1058,54 @@ void MainWindow::onColorColumnClicked(const QModelIndex &index)
             return;
     }
 
-    QColor color = QColorDialog::getColor(network->color(), this, tr("Select Color"));
-    if (!color.isValid())
+    ParameterStyleDialog dialog(network, this);
+    if (dialog.exec() != QDialog::Accepted)
         return;
 
-    network->setColor(color);
-    if (network == m_cascade) {
-        updateCascadeColorColumn();
+    const QString parameterKey = dialog.selectedParameter();
+    const QColor color = dialog.selectedColor();
+    const int width = dialog.selectedWidth();
+    const Qt::PenStyle style = dialog.selectedStyle();
+
+    if (dialog.applyToAllParameters()) {
+        if (color.isValid())
+            network->setColor(color);
+        const QStringList parameters = network->parameterNames();
+        for (const QString& param : parameters) {
+            network->setParameterColor(param, color);
+            network->setParameterWidth(param, width);
+            network->setParameterStyle(param, style);
+        }
     } else {
-        auto updateColor = [&](NetworkItemModel* m, bool isCascadeModel){
-            if (!m)
-                return;
-            for (int r = 0; r < m->rowCount(); ++r) {
-                QStandardItem* item = m->item(r, 0);
-                if (!item)
-                    continue;
-                quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
-                if (reinterpret_cast<Network*>(ptrVal) == network) {
-                    if (isCascadeModel)
+        network->setParameterColor(parameterKey, color);
+        network->setParameterWidth(parameterKey, width);
+        network->setParameterStyle(parameterKey, style);
+    }
+
+    if (dialog.applyToAllParameters()) {
+        if (network == m_cascade) {
+            updateCascadeColorColumn();
+        } else {
+            auto updateColor = [&](NetworkItemModel* m, bool isCascadeModel){
+                if (!m)
+                    return;
+                for (int r = 0; r < m->rowCount(); ++r) {
+                    QStandardItem* item = m->item(r, 0);
+                    if (!item)
                         continue;
-                    if (QStandardItem* colorItem = m->item(r, 1))
-                        colorItem->setBackground(color);
+                    quintptr ptrVal = item->data(Qt::UserRole).value<quintptr>();
+                    if (reinterpret_cast<Network*>(ptrVal) == network) {
+                        if (isCascadeModel)
+                            continue;
+                        if (QStandardItem* colorItem = m->item(r, 1))
+                            colorItem->setBackground(color);
+                    }
                 }
-            }
-        };
-        updateColor(m_network_files_model, false);
-        updateColor(m_network_lumped_model, false);
-        updateColor(m_network_cascade_model, true);
+            };
+            updateColor(m_network_files_model, false);
+            updateColor(m_network_lumped_model, false);
+            updateColor(m_network_cascade_model, true);
+        }
     }
     updatePlots();
 }

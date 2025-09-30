@@ -149,15 +149,14 @@ void PlotManager::updateAxisTickers()
     m_plot->yAxis2->setTicker(yTicker);
 }
 
-QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QColor &color,
-                       const QString &name, Network* network, PlotType type,
-                       Qt::PenStyle style)
+QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QPen &pen,
+                       const QString &name, Network* network, PlotType type)
 {
     if (type == PlotType::Smith)
     {
         QCPCurve *curve = new QCPCurve(m_plot->xAxis, m_plot->yAxis);
         curve->setData(x, y);
-        curve->setPen(QPen(color, 1, style));
+        curve->setPen(pen);
         curve->setName(name);
         curve->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
         curve->setSelectable(QCP::stWhole);
@@ -165,7 +164,7 @@ QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<
     }
     QCPGraph *graph = m_plot->addGraph(m_plot->xAxis, m_plot->yAxis);
     graph->setData(x, y);
-    graph->setPen(QPen(color, 1, style));
+    graph->setPen(pen);
     graph->setName(name);
     graph->setProperty("network_ptr", QVariant::fromValue(reinterpret_cast<quintptr>(network)));
     graph->setSelectable(QCP::stWhole);
@@ -490,6 +489,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 continue;
 
             QString graph_name = network->name() + "_" + sparam + suffix;
+            QPen pen = network->parameterPen(sparam);
             QCPAbstractPlottable *pl = nullptr;
             for (int i = 0; i < m_plot->plottableCount(); ++i) {
                 if (m_plot->plottable(i)->name() == graph_name) {
@@ -522,32 +522,35 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
-                        curve->setPen(QPen(network->color(), 1, Qt::SolidLine));
+                        curve->setPen(pen);
                         m_curveFreqs[curve] = freqs;
                     }
                 } else {
                     if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl)) {
                         graph->setData(plotData.first, plotData.second);
-                        graph->setPen(QPen(network->color(), 1, Qt::SolidLine));
+                        graph->setPen(pen);
                     }
                 }
             } else {
                 pl = plot(plotData.first, plotData.second,
-                              network->color(), graph_name, network, type);
+                              pen, graph_name, network, type);
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
                         m_curveFreqs[curve] = freqs;
             }
 
             if (type == PlotType::Smith)
-                addSmithMarkers(plotData.first, plotData.second, network->color());
+                addSmithMarkers(plotData.first, plotData.second, pen.color());
         }
 
         // Cascade
         if (cascadeHasActive) {
-            QColor cascadeColor = m_cascade->color();
-            if (!cascadeColor.isValid())
+            QPen pen = m_cascade->parameterPen(sparam);
+            QColor cascadeColor = pen.color();
+            if (!cascadeColor.isValid()) {
                 cascadeColor = Qt::magenta;
+                pen.setColor(cascadeColor);
+            }
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
             QCPAbstractPlottable *pl = nullptr;
             for (int i = 0; i < m_plot->plottableCount(); ++i) {
@@ -582,17 +585,17 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 if (type == PlotType::Smith) {
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                         curve->setData(plotData.first, plotData.second);
-                        curve->setPen(QPen(cascadeColor, 1, Qt::SolidLine));
+                        curve->setPen(pen);
                         m_curveFreqs[curve] = freqs;
                     }
                 } else {
                     if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl)) {
                         graph->setData(plotData.first, plotData.second);
-                        graph->setPen(QPen(cascadeColor, 1, Qt::SolidLine));
+                        graph->setPen(pen);
                     }
                 }
             } else {
-                pl = plot(plotData.first, plotData.second, cascadeColor,
+                pl = plot(plotData.first, plotData.second, pen,
                               graph_name, m_cascade, type);
                 if (type == PlotType::Smith)
                     if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl))
@@ -1197,7 +1200,7 @@ void PlotManager::createMathPlot()
 
         if (!x.isEmpty())
         {
-            if (QCPAbstractPlottable *pl = plot(x, y, Qt::red,
+            if (QCPAbstractPlottable *pl = plot(x, y, QPen(Qt::red),
                                                QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
                                                nullptr, PlotType::Magnitude))
             {

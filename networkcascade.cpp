@@ -265,6 +265,7 @@ Network* NetworkCascade::clone(QObject* parent) const
     copy->setActive(m_is_active);
     copy->setFrequencyRange(m_fmin, m_fmax, m_manualFrequencyRange);
     copy->setPointCount(m_pointCount);
+    copy->copyStyleSettingsFrom(this);
     for (const auto& net : m_networks) {
         copy->addNetwork(net->clone(copy));
     }
