@@ -5,7 +5,7 @@ Fast SnP file viewer with cascading capability.
 
 About SnP file format: [Wikipedia/Touchstone file](https://en.wikipedia.org/wiki/Touchstone_file)
 
-## Windows Installation and usage
+## Windows Installation and Usage
 Download and extract fsnpview.zip. 
 
 To quickly open .snp files from explorer, register the extracted fsnpview.exe with the "open with" dialog.
