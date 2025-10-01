@@ -1114,9 +1114,24 @@ void MainWindow::updateGraphSelectionFromTables()
 {
     QSet<Network*> selectedNetworks;
     auto collect = [&](QTableView *view, NetworkItemModel *model) {
-        const QModelIndexList rows = view->selectionModel()->selectedRows();
+        if (!view || !model)
+            return;
+        QItemSelectionModel *selectionModel = view->selectionModel();
+        if (!selectionModel)
+            return;
+
+        const QModelIndexList rows = selectionModel->selectedRows();
         for (const QModelIndex &index : rows) {
-            quintptr ptrVal = model->item(index.row(), 0)->data(Qt::UserRole).value<quintptr>();
+            if (!index.isValid())
+                continue;
+            const int row = index.row();
+            if (row < 0 || row >= model->rowCount())
+                continue;
+            QStandardItem *idItem = model->item(row, 0);
+            if (!idItem)
+                continue;
+
+            quintptr ptrVal = idItem->data(Qt::UserRole).value<quintptr>();
             Network *network = reinterpret_cast<Network*>(ptrVal);
             if (network)
                 selectedNetworks.insert(network);
