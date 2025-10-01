@@ -114,13 +114,14 @@ $MOC $MOC_INCLUDES networklumped.h -o moc_networklumped.cpp
 $MOC $MOC_INCLUDES networkcascade.h -o moc_networkcascade.cpp
 $MOC $MOC_INCLUDES qcustomplot.h -o moc_qcustomplot.cpp
 $MOC $MOC_INCLUDES parameterstyledialog.h -o moc_parameterstyledialog.cpp
+$MOC $MOC_INCLUDES plotsettingsdialog.h -o moc_plotsettingsdialog.cpp
 
 # Build GUI plot test
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
-    tests/gui_plot_tests.cpp plotmanager.cpp network.cpp networkfile.cpp \
+    tests/gui_plot_tests.cpp plotmanager.cpp plotsettingsdialog.cpp network.cpp networkfile.cpp \
     networklumped.cpp networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp \
     tdrcalculator.cpp \
-    moc_plotmanager.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp \
+    moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp \
     moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o gui_plot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
 
@@ -141,7 +142,13 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     -o parameter_style_dialog_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core)
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
-    tests/plotmanager_selection_tests.cpp plotmanager.cpp network.cpp networklumped.cpp \
+    tests/plotmanager_selection_tests.cpp plotmanager.cpp plotsettingsdialog.cpp network.cpp networklumped.cpp \
     networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
-    moc_plotmanager.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
+    moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o plotmanager_selection_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/plotmanager_mathplot_tests.cpp plotmanager.cpp plotsettingsdialog.cpp network.cpp networklumped.cpp \
+    networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
+    moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
+    -o plotmanager_mathplot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)

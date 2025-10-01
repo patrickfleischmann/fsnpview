@@ -61,5 +61,6 @@ QT_QPA_PLATFORM=offscreen ./gui_plot_tests
 ./network_plot_style_tests
 QT_QPA_PLATFORM=offscreen ./parameter_style_dialog_tests
 QT_QPA_PLATFORM=offscreen ./plotmanager_selection_tests
+QT_QPA_PLATFORM=offscreen ./plotmanager_mathplot_tests
 
 run_regression_test

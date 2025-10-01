@@ -14,6 +14,7 @@
 #include <QSharedPointer>
 #include <QLocale>
 #include <QApplication>
+#include <QStringList>
 
 namespace
 {
@@ -258,6 +259,216 @@ QCPCurve *PlotManager::smithCurveAt(const QPoint &pos) const
     return nullptr;
 }
 
+QCPGraph *PlotManager::graphByName(const QString &name) const
+{
+    if (!m_plot)
+        return nullptr;
+
+    for (int i = 0; i < m_plot->plottableCount(); ++i)
+    {
+        QCPAbstractPlottable *pl = m_plot->plottable(i);
+        if (!pl)
+            continue;
+        if (pl->name() == name)
+        {
+            if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl))
+                return graph;
+            return nullptr;
+        }
+    }
+    return nullptr;
+}
+
+bool PlotManager::computeMathPlotData(QCPGraph *graph1, QCPGraph *graph2,
+                                      QVector<double> &x, QVector<double> &y) const
+{
+    if (!graph1 || !graph2)
+        return false;
+
+    auto interpolate = [](QCPGraph *graph, double key, double &result) -> bool
+    {
+        if (!graph)
+            return false;
+        auto data = graph->data();
+        if (data->isEmpty())
+            return false;
+        auto it = data->findBegin(key);
+        if (it == data->constBegin())
+        {
+            if (qFuzzyCompare(it->key, key))
+            {
+                result = it->value;
+                return true;
+            }
+            return false;
+        }
+        if (it == data->constEnd())
+            return false;
+        if (qFuzzyCompare(it->key, key))
+        {
+            result = it->value;
+            return true;
+        }
+        auto itPrev = it;
+        --itPrev;
+        double x1 = itPrev->key;
+        double y1 = itPrev->value;
+        double x2 = it->key;
+        double y2 = it->value;
+        if (qFuzzyCompare(x1, x2))
+            return false;
+        double t = (key - x1) / (x2 - x1);
+        result = y1 + t * (y2 - y1);
+        return true;
+    };
+
+    std::set<double> keys;
+    auto data1 = graph1->data();
+    for (auto it = data1->constBegin(); it != data1->constEnd(); ++it)
+        keys.insert(it->key);
+    auto data2 = graph2->data();
+    for (auto it = data2->constBegin(); it != data2->constEnd(); ++it)
+        keys.insert(it->key);
+
+    QVector<double> diffX;
+    QVector<double> diffY;
+    for (double key : keys)
+    {
+        double y1 = 0;
+        double y2 = 0;
+        if (interpolate(graph1, key, y1) && interpolate(graph2, key, y2))
+        {
+            diffX.append(key);
+            diffY.append(y1 - y2);
+        }
+    }
+
+    x = diffX;
+    y = diffY;
+    return !x.isEmpty();
+}
+
+void PlotManager::updateMathPlots()
+{
+    if (!m_plot)
+        return;
+
+    QList<QCPAbstractPlottable*> toRemove;
+
+    auto metaForGraph = [](QCPGraph *graph) -> QVariantMap
+    {
+        QVariantMap meta;
+        if (!graph)
+            return meta;
+        meta.insert(QStringLiteral("network_ptr"), graph->property("network_ptr"));
+        meta.insert(QStringLiteral("sparam_key"), graph->property("sparam_key"));
+        return meta;
+    };
+
+    auto resolveGraphFromMeta = [&](const QVariant &metaVariant) -> QCPGraph*
+    {
+        QVariantMap meta = metaVariant.toMap();
+        if (meta.isEmpty())
+            return nullptr;
+
+        QVariant networkVariant = meta.value(QStringLiteral("network_ptr"));
+        QString sparamKey = meta.value(QStringLiteral("sparam_key")).toString();
+        if (!networkVariant.isValid() || sparamKey.isEmpty())
+            return nullptr;
+
+        for (int j = 0; j < m_plot->plottableCount(); ++j)
+        {
+            if (QCPGraph *graph = qobject_cast<QCPGraph*>(m_plot->plottable(j)))
+            {
+                if (graph->property("math_plot").toBool())
+                    continue;
+                if (graph->property("network_ptr") == networkVariant &&
+                    graph->property("sparam_key").toString() == sparamKey)
+                {
+                    return graph;
+                }
+            }
+        }
+
+        return nullptr;
+    };
+
+    for (int i = 0; i < m_plot->plottableCount(); ++i)
+    {
+        QCPGraph *mathGraph = qobject_cast<QCPGraph*>(m_plot->plottable(i));
+        if (!mathGraph)
+            continue;
+        if (!mathGraph->property("math_plot").toBool())
+            continue;
+
+        QVector<QCPGraph*> resolvedGraphs;
+        QStringList resolvedNames;
+        QVariantList resolvedMeta;
+
+        QVariantList storedMeta = mathGraph->property("math_plot_source_meta").toList();
+        if (storedMeta.size() == 2)
+        {
+            for (const QVariant &metaVariant : storedMeta)
+            {
+                if (QCPGraph *sourceGraph = resolveGraphFromMeta(metaVariant))
+                {
+                    resolvedGraphs.append(sourceGraph);
+                    resolvedNames.append(sourceGraph->name());
+                    resolvedMeta.append(metaForGraph(sourceGraph));
+                }
+            }
+        }
+
+        if (resolvedGraphs.size() != 2)
+        {
+            resolvedGraphs.clear();
+            resolvedNames.clear();
+            resolvedMeta.clear();
+
+            QStringList sources = mathGraph->property("math_plot_sources").toStringList();
+            if (sources.size() == 2)
+            {
+                for (const QString &name : sources)
+                {
+                    if (QCPGraph *sourceGraph = graphByName(name))
+                    {
+                        resolvedGraphs.append(sourceGraph);
+                        resolvedNames.append(sourceGraph->name());
+                        resolvedMeta.append(metaForGraph(sourceGraph));
+                    }
+                }
+            }
+        }
+
+        if (resolvedGraphs.size() != 2)
+        {
+            toRemove.append(mathGraph);
+            continue;
+        }
+
+        QVector<double> x;
+        QVector<double> y;
+        if (computeMathPlotData(resolvedGraphs.at(0), resolvedGraphs.at(1), x, y) && !x.isEmpty())
+        {
+            mathGraph->setData(x, y);
+            mathGraph->setName(QStringLiteral("%1 - %2").arg(resolvedGraphs.at(0)->name())
+                                                   .arg(resolvedGraphs.at(1)->name()));
+            mathGraph->setProperty("math_plot_sources", resolvedNames);
+            mathGraph->setProperty("math_plot_source_meta", resolvedMeta);
+        }
+        else
+        {
+            toRemove.append(mathGraph);
+        }
+    }
+
+    for (QCPAbstractPlottable *pl : toRemove)
+    {
+        if (pl)
+            m_plot->removePlottable(pl);
+    }
+}
+
 void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 {
 #ifdef FSNPVIEW_ENABLE_PLOT_DEBUG
@@ -430,6 +641,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         QCPAbstractPlottable *pl = m_plot->plottable(i);
         if (type == PlotType::Smith && m_smithGridCurves.contains(qobject_cast<QCPCurve*>(pl)))
             continue;
+        if (pl->property("math_plot").toBool())
+            continue;
+
         if (!required_graphs.contains(pl->name())) {
             if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                 m_curveFreqs.remove(curve);
@@ -771,6 +985,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         restoreSmithTracer(mTracerA, tracerAState);
         restoreSmithTracer(mTracerB, tracerBState);
     }
+
+    updateMathPlots();
 
     m_plot->replot();
     selectionChanged();
@@ -1364,75 +1580,59 @@ void PlotManager::updateTracers()
 
 void PlotManager::createMathPlot()
 {
-    if (m_plot->selectedGraphs().size() == 2)
+    if (!m_plot)
+        return;
+
+    QVector<QCPGraph*> selectedGraphs;
+    const auto selected = m_plot->selectedPlottables();
+    for (QCPAbstractPlottable *pl : selected)
     {
-        QCPGraph *graph1 = m_plot->selectedGraphs().at(0);
-        QCPGraph *graph2 = m_plot->selectedGraphs().at(1);
+        if (!pl)
+            continue;
+        if (pl->property("math_plot").toBool())
+            continue;
+        if (QCPGraph *graph = qobject_cast<QCPGraph*>(pl))
+            selectedGraphs.append(graph);
+    }
 
-        auto interpolate = [](QCPGraph *graph, double key, double &result) -> bool
+    if (selectedGraphs.size() != 2)
+        return;
+
+    QCPGraph *graph1 = selectedGraphs.at(0);
+    QCPGraph *graph2 = selectedGraphs.at(1);
+
+    QVector<double> x;
+    QVector<double> y;
+    if (!computeMathPlotData(graph1, graph2, x, y) || x.isEmpty())
+        return;
+
+    if (QCPAbstractPlottable *pl = plot(x, y, QPen(Qt::red),
+                                        QStringLiteral("%1 - %2").arg(graph1->name()).arg(graph2->name()),
+                                        nullptr, PlotType::Magnitude))
+    {
+        if (QCPGraph *mathGraph = qobject_cast<QCPGraph*>(pl))
         {
-            auto data = graph->data();
-            if (data->isEmpty())
-                return false;
-            auto it = data->findBegin(key);
-            if (it == data->constBegin())
+            mathGraph->setProperty("math_plot", true);
+            QStringList sources{graph1->name(), graph2->name()};
+            mathGraph->setProperty("math_plot_sources", sources);
+            QVariantList sourceMeta;
+            auto appendMeta = [&](QCPGraph *sourceGraph)
             {
-                if (qFuzzyCompare(it->key, key))
-                {
-                    result = it->value;
-                    return true;
-                }
-                return false;
-            }
-            if (it == data->constEnd())
-                return false;
-            if (qFuzzyCompare(it->key, key))
-            {
-                result = it->value;
-                return true;
-            }
-            auto itPrev = it;
-            --itPrev;
-            double x1 = itPrev->key;
-            double y1 = itPrev->value;
-            double x2 = it->key;
-            double y2 = it->value;
-            if (qFuzzyCompare(x1, x2))
-                return false;
-            double t = (key - x1) / (x2 - x1);
-            result = y1 + t * (y2 - y1);
-            return true;
-        };
-
-        std::set<double> keys;
-        for (auto it = graph1->data()->constBegin(); it != graph1->data()->constEnd(); ++it)
-            keys.insert(it->key);
-        for (auto it = graph2->data()->constBegin(); it != graph2->data()->constEnd(); ++it)
-            keys.insert(it->key);
-
-        QVector<double> x, y;
-        for (double key : keys)
-        {
-            double y1, y2;
-            if (interpolate(graph1, key, y1) && interpolate(graph2, key, y2))
-            {
-                x.append(key);
-                y.append(y1 - y2);
-            }
-        }
-
-        if (!x.isEmpty())
-        {
-            if (QCPAbstractPlottable *pl = plot(x, y, QPen(Qt::red),
-                                               QString("%1 - %2").arg(graph1->name()).arg(graph2->name()),
-                                               nullptr, PlotType::Magnitude))
-            {
-                if (QCPGraph *mathGraph = qobject_cast<QCPGraph*>(pl))
-                    mathGraph->setProperty("math_plot", true);
-            }
-            m_plot->replot();
+                if (!sourceGraph)
+                    return;
+                QVariantMap meta;
+                meta.insert(QStringLiteral("network_ptr"), sourceGraph->property("network_ptr"));
+                meta.insert(QStringLiteral("sparam_key"), sourceGraph->property("sparam_key"));
+                sourceMeta.append(meta);
+            };
+            appendMeta(graph1);
+            appendMeta(graph2);
+            if (sourceMeta.size() == 2)
+                mathGraph->setProperty("math_plot_source_meta", sourceMeta);
         }
     }
+
+    m_plot->replot();
 }
 
 bool PlotManager::removeSelectedMathPlots()
