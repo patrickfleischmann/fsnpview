@@ -722,7 +722,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         if (outputPort < 1 || inputPort < 1 || outputPort > ports || inputPort > ports)
             return -1;
 
-        return (inputPort - 1) * ports + (outputPort - 1);
+        return (outputPort - 1) * ports + (inputPort - 1);
     };
 
     for (const auto& sparam : sparams) {

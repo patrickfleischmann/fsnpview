@@ -167,7 +167,7 @@ void test_transmission_line_group_delay()
     transmissionLine.setFmax(10e6);
     transmissionLine.setPointCount(11);
 
-    const auto groupDelay = transmissionLine.getPlotData(1, PlotType::GroupDelay);
+    const auto groupDelay = transmissionLine.getPlotData(2, PlotType::GroupDelay);
     assert(!groupDelay.first.isEmpty());
     assert(groupDelay.first.size() == groupDelay.second.size());
 
@@ -199,7 +199,7 @@ void test_cascade_group_delay_adds_line_lengths()
     cascade.addNetwork(&line1);
     cascade.addNetwork(&line2);
 
-    const auto cascadeDelay = cascade.getPlotData(1, PlotType::GroupDelay);
+    const auto cascadeDelay = cascade.getPlotData(2, PlotType::GroupDelay);
     assert(!cascadeDelay.first.isEmpty());
     assert(cascadeDelay.first.size() == cascadeDelay.second.size());
 

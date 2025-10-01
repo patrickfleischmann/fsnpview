@@ -28,7 +28,7 @@ public:
     QPair<QVector<double>, QVector<double>> getPlotData(int s_param_idx, PlotType type) override
     {
         (void)type;
-        if (s_param_idx != 1)
+        if (s_param_idx != 2)
             return {};
         return {QVector<double>{1.0, 2.0}, QVector<double>{-1.0, -2.0}};
     }
