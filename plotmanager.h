@@ -60,6 +60,10 @@ private:
     QCPGraph *firstGraph() const;
     QCPCurve *firstSmithCurve() const;
     QCPCurve *smithCurveAt(const QPoint &pos) const;
+    QCPGraph *graphByName(const QString &name) const;
+    bool computeMathPlotData(QCPGraph *graph1, QCPGraph *graph2,
+                             QVector<double> &x, QVector<double> &y) const;
+    void updateMathPlots();
     void setupSmithGrid();
     void clearSmithGrid();
     void clearSmithMarkers();
