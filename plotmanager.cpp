@@ -16,10 +16,24 @@
 #include <QApplication>
 #include <QStringList>
 #include <QColor>
+#include <QPen>
+#include <QVector>
 
 namespace
 {
 class EngineeringAxisTicker : public QCPAxisTicker
+{
+protected:
+    QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override
+    {
+        Q_UNUSED(locale)
+        Q_UNUSED(formatChar)
+        Q_UNUSED(precision)
+        return Network::formatEngineering(tick, false);
+    }
+};
+
+class EngineeringAxisTickerFixed : public QCPAxisTickerFixed
 {
 protected:
     QString getTickLabel(double tick, const QLocale &locale, QChar formatChar, int precision) override
@@ -56,6 +70,14 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_crosshairEnabled(true)
     , m_showPlotSettingsOnRightRelease(false)
     , m_rightClickPressPos()
+    , m_gridPenStyle(Qt::DotLine)
+    , m_gridColor(QColor(200, 200, 200))
+    , m_subGridPenStyle(Qt::NoPen)
+    , m_subGridColor(QColor(220, 220, 220))
+    , m_xTickAuto(true)
+    , m_xTickSpacing(0.0)
+    , m_yTickAuto(true)
+    , m_yTickSpacing(0.0)
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
@@ -124,6 +146,30 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_colors.append(QColor( 40,  40,  40));   // Deep Gray
 
     updateAxisTickers();
+
+    if (m_plot)
+    {
+        if (QCPGrid *grid = m_plot->xAxis->grid())
+        {
+            if (!grid->visible())
+                m_gridPenStyle = Qt::NoPen;
+            else
+                m_gridPenStyle = grid->pen().style();
+            QColor penColor = grid->pen().color();
+            if (penColor.isValid())
+                m_gridColor = penColor;
+
+            if (!grid->subGridVisible())
+                m_subGridPenStyle = Qt::NoPen;
+            else
+                m_subGridPenStyle = grid->subGridPen().style();
+            QColor subColor = grid->subGridPen().color();
+            if (subColor.isValid())
+                m_subGridColor = subColor;
+        }
+
+        applyStoredGridSettings();
+    }
 }
 
 void PlotManager::setNetworks(const QList<Network*>& networks)
@@ -158,24 +204,42 @@ void PlotManager::updateAxisTickers()
     m_plot->xAxis2->setScaleType(m_plot->xAxis->scaleType());
     m_plot->yAxis2->setScaleType(m_plot->yAxis->scaleType());
 
-    if (m_plot->xAxis->scaleType() == QCPAxis::stLogarithmic)
+    auto configureAxis = [](QCPAxis *primary, QCPAxis *secondary,
+                            bool autoSpacing, double spacing)
     {
-        QSharedPointer<EngineeringAxisTickerLog> logTicker(new EngineeringAxisTickerLog);
-        logTicker->setLogBase(10);
-        logTicker->setSubTickCount(8);
-        m_plot->xAxis->setTicker(logTicker);
-        m_plot->xAxis2->setTicker(logTicker);
-    }
-    else
-    {
-        QSharedPointer<EngineeringAxisTicker> ticker(new EngineeringAxisTicker);
-        m_plot->xAxis->setTicker(ticker);
-        m_plot->xAxis2->setTicker(ticker);
-    }
+        if (!primary || !secondary)
+            return;
 
-    QSharedPointer<EngineeringAxisTicker> yTicker(new EngineeringAxisTicker);
-    m_plot->yAxis->setTicker(yTicker);
-    m_plot->yAxis2->setTicker(yTicker);
+        if (primary->scaleType() == QCPAxis::stLogarithmic)
+        {
+            QSharedPointer<EngineeringAxisTickerLog> logTicker(new EngineeringAxisTickerLog);
+            logTicker->setLogBase(10);
+            logTicker->setSubTickCount(8);
+            primary->setTicker(logTicker);
+            secondary->setTicker(logTicker);
+            return;
+        }
+
+        if (!autoSpacing && std::isfinite(spacing) && spacing > 0.0)
+        {
+            QSharedPointer<EngineeringAxisTickerFixed> fixedTicker(new EngineeringAxisTickerFixed);
+            fixedTicker->setTickStep(spacing);
+            fixedTicker->setScaleStrategy(QCPAxisTickerFixed::ssNone);
+            primary->setTicker(fixedTicker);
+            secondary->setTicker(fixedTicker);
+            return;
+        }
+
+        QSharedPointer<EngineeringAxisTicker> ticker(new EngineeringAxisTicker);
+        primary->setTicker(ticker);
+        secondary->setTicker(ticker);
+    };
+
+    bool useAutoX = m_xTickAuto || m_plot->xAxis->scaleType() != QCPAxis::stLinear;
+    bool useAutoY = m_yTickAuto || m_plot->yAxis->scaleType() != QCPAxis::stLinear;
+
+    configureAxis(m_plot->xAxis, m_plot->xAxis2, useAutoX, m_xTickSpacing);
+    configureAxis(m_plot->yAxis, m_plot->yAxis2, useAutoY, m_yTickSpacing);
 }
 
 QCPAbstractPlottable* PlotManager::plot(const QVector<double> &x, const QVector<double> &y, const QPen &pen,
@@ -1244,13 +1308,37 @@ void PlotManager::showPlotSettingsDialog()
     dialog.setMarkerValues(markerValue(mTracerA), mTracerA && mTracerA->visible(),
                            markerValue(mTracerB), mTracerB && mTracerB->visible());
 
+    QPen gridPen(m_gridColor.isValid() ? m_gridColor : QColor(200, 200, 200));
+    gridPen.setWidthF(0.0);
+    gridPen.setStyle(m_gridPenStyle == Qt::NoPen ? Qt::DotLine : m_gridPenStyle);
+    QPen subGridPen(m_subGridColor.isValid() ? m_subGridColor : QColor(220, 220, 220));
+    subGridPen.setWidthF(0.0);
+    subGridPen.setStyle(m_subGridPenStyle == Qt::NoPen ? Qt::DotLine : m_subGridPenStyle);
+    dialog.setGridSettings(gridPen, m_gridPenStyle != Qt::NoPen,
+                           subGridPen, m_subGridPenStyle != Qt::NoPen);
+
+    bool xManualEnabled = m_plot->xAxis->scaleType() == QCPAxis::stLinear;
+    bool yManualEnabled = m_plot->yAxis->scaleType() == QCPAxis::stLinear;
+    double xAutoSpacing = currentTickStep(m_plot->xAxis);
+    double yAutoSpacing = currentTickStep(m_plot->yAxis);
+    dialog.setXAxisTickSpacing(m_xTickSpacing, m_xTickAuto || !xManualEnabled,
+                               xAutoSpacing, xManualEnabled);
+    dialog.setYAxisTickSpacing(m_yTickSpacing, m_yTickAuto || !yManualEnabled,
+                               yAutoSpacing, yManualEnabled);
+
     if (dialog.exec() == QDialog::Accepted)
-    {
-        applyAxisRanges(dialog);
-        applyMarkerPositions(dialog);
-        updateTracers();
+        applySettingsFromDialog(dialog);
+}
+
+void PlotManager::applySettingsFromDialog(const PlotSettingsDialog &dialog)
+{
+    applyAxisRanges(dialog);
+    applyGridSettings(dialog);
+    applyTickSettings(dialog);
+    applyMarkerPositions(dialog);
+    updateTracers();
+    if (m_plot)
         m_plot->replot();
-    }
 }
 
 void PlotManager::applyAxisRanges(const PlotSettingsDialog &dialog)
@@ -1272,6 +1360,145 @@ void PlotManager::applyMarkerPositions(const PlotSettingsDialog &dialog)
         setMarkerValue(mTracerA, dialog.markerAValue());
     if (dialog.markerBIsEnabled())
         setMarkerValue(mTracerB, dialog.markerBValue());
+}
+
+void PlotManager::applyGridSettings(const PlotSettingsDialog &dialog)
+{
+    if (!m_plot)
+        return;
+
+    Qt::PenStyle gridStyle = dialog.gridPenStyle();
+    Qt::PenStyle subGridStyle = dialog.subGridPenStyle();
+
+    QColor gridColor = dialog.gridColor();
+    if (!gridColor.isValid())
+        gridColor = QColor(200, 200, 200);
+    QColor subGridColor = dialog.subGridColor();
+    if (!subGridColor.isValid())
+        subGridColor = QColor(220, 220, 220);
+
+    m_gridPenStyle = gridStyle;
+    m_gridColor = gridColor;
+    m_subGridPenStyle = subGridStyle;
+    m_subGridColor = subGridColor;
+
+    applyStoredGridSettings();
+}
+
+void PlotManager::applyTickSettings(const PlotSettingsDialog &dialog)
+{
+    if (m_plot && m_plot->xAxis->scaleType() == QCPAxis::stLinear)
+    {
+        if (dialog.xTickSpacingIsAutomatic())
+        {
+            m_xTickAuto = true;
+        }
+        else
+        {
+            double spacing = dialog.xTickSpacing();
+            if (std::isfinite(spacing) && spacing > 0.0)
+            {
+                m_xTickAuto = false;
+                m_xTickSpacing = spacing;
+            }
+            else
+            {
+                m_xTickAuto = true;
+            }
+        }
+    }
+
+    if (m_plot && m_plot->yAxis->scaleType() == QCPAxis::stLinear)
+    {
+        if (dialog.yTickSpacingIsAutomatic())
+        {
+            m_yTickAuto = true;
+        }
+        else
+        {
+            double spacing = dialog.yTickSpacing();
+            if (std::isfinite(spacing) && spacing > 0.0)
+            {
+                m_yTickAuto = false;
+                m_yTickSpacing = spacing;
+            }
+            else
+            {
+                m_yTickAuto = true;
+            }
+        }
+    }
+
+    updateAxisTickers();
+}
+
+void PlotManager::applyStoredGridSettings()
+{
+    if (!m_plot)
+        return;
+
+    auto applyToAxis = [&](QCPAxis *axis)
+    {
+        if (!axis)
+            return;
+        if (QCPGrid *grid = axis->grid())
+        {
+            bool gridVisible = m_gridPenStyle != Qt::NoPen;
+            grid->setVisible(gridVisible);
+            QPen pen = gridVisible ? grid->pen() : QPen(Qt::NoPen);
+            if (gridVisible)
+            {
+                pen.setColor(m_gridColor);
+                pen.setStyle(m_gridPenStyle);
+                pen.setWidthF(0.0);
+            }
+            grid->setPen(pen);
+
+            bool subVisible = m_subGridPenStyle != Qt::NoPen;
+            grid->setSubGridVisible(subVisible);
+            QPen subPen = subVisible ? grid->subGridPen() : QPen(Qt::NoPen);
+            if (subVisible)
+            {
+                subPen.setColor(m_subGridColor);
+                subPen.setStyle(m_subGridPenStyle);
+                subPen.setWidthF(0.0);
+            }
+            grid->setSubGridPen(subPen);
+        }
+    };
+
+    applyToAxis(m_plot->xAxis);
+    applyToAxis(m_plot->yAxis);
+    applyToAxis(m_plot->xAxis2);
+    applyToAxis(m_plot->yAxis2);
+}
+
+double PlotManager::currentTickStep(const QCPAxis *axis) const
+{
+    if (!axis || !axis->ticker())
+        return std::numeric_limits<double>::quiet_NaN();
+
+    QVector<double> ticks;
+    axis->ticker()->generate(axis->range(), axis->parentPlot()->locale(),
+                             axis->numberFormat().isEmpty() ? QLatin1Char('g') : axis->numberFormat().at(0),
+                             axis->numberPrecision(), ticks, nullptr, nullptr);
+
+    if (ticks.size() < 2)
+        return std::numeric_limits<double>::quiet_NaN();
+
+    double minDiff = std::numeric_limits<double>::infinity();
+    for (int i = 1; i < ticks.size(); ++i)
+    {
+        double diff = ticks.at(i) - ticks.at(i - 1);
+        diff = std::abs(diff);
+        if (diff > 0.0 && diff < minDiff)
+            minDiff = diff;
+    }
+
+    if (!std::isfinite(minDiff) || minDiff <= 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
+
+    return minDiff;
 }
 
 double PlotManager::markerValue(const QCPItemTracer *tracer) const
