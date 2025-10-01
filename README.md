@@ -2,6 +2,7 @@
 
 # fsnpview
 Fast snp file viewer with cascading capability.
+
 About SnP file format: [Wikipedia/Touchstone file](https://en.wikipedia.org/wiki/Touchstone_file)
 
 ## Windows Installation and usage
