@@ -217,7 +217,7 @@ QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_
         return qMakePair(freqVector, values);
     }
     case PlotType::Phase: {
-        Eigen::ArrayXd phase_rad = sparam.arg();
+        Eigen::ArrayXd phase_rad = Network::wrapToMinusPiPi(sparam.arg());
         if (m_unwrap_phase)
             phase_rad = unwrap(phase_rad);
         Eigen::ArrayXd phase_deg = phase_rad * (180.0 / pi);
@@ -225,7 +225,7 @@ QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_
         return qMakePair(freqVector, values);
     }
     case PlotType::GroupDelay: {
-        Eigen::ArrayXd phase_rad = sparam.arg();
+        Eigen::ArrayXd phase_rad = Network::wrapToMinusPiPi(sparam.arg());
         if (m_unwrap_phase)
             phase_rad = unwrap(phase_rad);
         Eigen::ArrayXd delay = Network::computeGroupDelay(phase_rad, freq.array());

@@ -98,7 +98,7 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
     case PlotType::Phase:
     {
         xValues = m_data->freq;
-        Eigen::ArrayXd phase_rad = s_param_col.arg();
+        Eigen::ArrayXd phase_rad = Network::wrapToMinusPiPi(s_param_col.arg());
         Eigen::ArrayXd unwrapped_phase_rad = m_unwrap_phase ? unwrap(phase_rad) : phase_rad;
         yValues = unwrapped_phase_rad * (180.0 / M_PI);
         break;
@@ -106,7 +106,7 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
     case PlotType::GroupDelay:
     {
         xValues = m_data->freq;
-        Eigen::ArrayXd phase_rad = s_param_col.arg();
+        Eigen::ArrayXd phase_rad = Network::wrapToMinusPiPi(s_param_col.arg());
         Eigen::ArrayXd unwrapped_phase_rad = m_unwrap_phase ? unwrap(phase_rad) : phase_rad;
         yValues = Network::computeGroupDelay(unwrapped_phase_rad, xValues);
         break;
