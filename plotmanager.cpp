@@ -15,6 +15,7 @@
 #include <QLocale>
 #include <QApplication>
 #include <QStringList>
+#include <QColor>
 
 namespace
 {
@@ -1688,7 +1689,8 @@ void PlotManager::selectionChanged()
     if (!m_plot)
         return;
 
-    constexpr double highlightWidth = 2.5;
+    constexpr double selectionWidthIncrease = 2.0;
+    const QColor defaultSelectionColor(80, 80, 255);
 
     for (int i = 0; i < m_plot->plottableCount(); ++i) {
         QCPAbstractPlottable *pl = m_plot->plottable(i);
@@ -1696,7 +1698,8 @@ void PlotManager::selectionChanged()
             continue;
 
         QPen pen = pl->pen();
-        double baseWidth = pen.widthF();
+        QPen basePen = pen;
+        double baseWidth = basePen.widthF();
 
         Network *network = nullptr;
         const QVariant networkVariant = pl->property("network_ptr");
@@ -1706,15 +1709,30 @@ void PlotManager::selectionChanged()
         QString parameterKey = pl->property("sparam_key").toString();
 
         if (network && !parameterKey.isEmpty()) {
-            QPen basePen = network->parameterPen(parameterKey);
-            pen = basePen;
-            baseWidth = pen.widthF();
+            basePen = network->parameterPen(parameterKey);
+            baseWidth = basePen.widthF();
         }
 
-        if (pl->selected())
-            pen.setWidthF(std::max(baseWidth, highlightWidth));
-        else
-            pen.setWidthF(baseWidth);
+        const double selectedWidth = baseWidth + selectionWidthIncrease;
+
+        if (QCPSelectionDecorator *decorator = pl->selectionDecorator()) {
+            QPen decoratorPen = decorator->pen();
+            decoratorPen.setWidthF(selectedWidth);
+            decorator->setPen(decoratorPen);
+        }
+
+        if (pl->selected()) {
+            QPen selectionPen = basePen;
+            QColor selectionColor = defaultSelectionColor;
+            if (QCPSelectionDecorator *decorator = pl->selectionDecorator())
+                selectionColor = decorator->pen().color();
+            selectionPen.setColor(selectionColor);
+            selectionPen.setWidthF(selectedWidth);
+            pen = selectionPen;
+        } else {
+            basePen.setWidthF(baseWidth);
+            pen = basePen;
+        }
 
         pl->setPen(pen);
     }
