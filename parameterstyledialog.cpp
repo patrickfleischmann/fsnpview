@@ -3,11 +3,13 @@
 #include "network.h"
 
 #include <QComboBox>
+#include <QCursor>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QPushButton>
+#include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QColorDialog>
 #include <QList>
@@ -65,17 +67,18 @@ ParameterStyleDialog::ParameterStyleDialog(Network* network, QWidget* parent)
     for (const PenStyleOption& option : availablePenStyles())
         m_styleCombo->addItem(option.label, static_cast<int>(option.style));
 
-    m_colorButton = new QPushButton(tr("Choose..."), this);
     m_colorPreview = new QFrame(this);
     m_colorPreview->setFrameShape(QFrame::Box);
     m_colorPreview->setMinimumSize(32, 20);
     m_colorPreview->setMaximumHeight(24);
+    m_colorPreview->setCursor(Qt::PointingHandCursor);
+    m_colorPreview->setToolTip(tr("Click to choose a color"));
+    m_colorPreview->installEventFilter(this);
 
     m_buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 
     auto colorLayout = new QHBoxLayout;
     colorLayout->addWidget(m_colorPreview);
-    colorLayout->addWidget(m_colorButton);
     colorLayout->addStretch(1);
 
     auto formLayout = new QFormLayout;
@@ -88,7 +91,6 @@ ParameterStyleDialog::ParameterStyleDialog(Network* network, QWidget* parent)
     mainLayout->addLayout(formLayout);
     mainLayout->addWidget(m_buttonBox);
 
-    connect(m_colorButton, &QPushButton::clicked, this, &ParameterStyleDialog::chooseColor);
     connect(m_parameterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &ParameterStyleDialog::parameterChanged);
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, &ParameterStyleDialog::accept);
@@ -152,6 +154,24 @@ void ParameterStyleDialog::parameterChanged(int index)
 
     const QString parameterKey = m_parameterCombo->currentData().toString();
     updateControlsForParameter(parameterKey);
+}
+
+bool ParameterStyleDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_colorPreview && event)
+    {
+        if (event->type() == QEvent::MouseButtonRelease)
+        {
+            auto mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton)
+            {
+                chooseColor();
+                return true;
+            }
+        }
+    }
+
+    return QDialog::eventFilter(watched, event);
 }
 
 void ParameterStyleDialog::updateControlsForParameter(const QString& parameterKey)

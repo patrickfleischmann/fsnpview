@@ -1,15 +1,15 @@
 #ifndef PARAMETERSTYLEDIALOG_H
 #define PARAMETERSTYLEDIALOG_H
 
-#include <QDialog>
 #include <QColor>
-#include <QStringList>
+#include <QDialog>
 #include <QPen>
+#include <QStringList>
 
 class QComboBox;
-class QPushButton;
 class QDialogButtonBox;
 class QFrame;
+class QEvent;
 class Network;
 
 class ParameterStyleDialog : public QDialog
@@ -29,6 +29,7 @@ private slots:
     void parameterChanged(int index);
 
 private:
+    bool eventFilter(QObject* watched, QEvent* event) override;
     void updateControlsForParameter(const QString& parameterKey);
     void updateColorPreview();
 
@@ -39,7 +40,6 @@ private:
     QComboBox* m_parameterCombo;
     QComboBox* m_widthCombo;
     QComboBox* m_styleCombo;
-    QPushButton* m_colorButton;
     QFrame* m_colorPreview;
     QDialogButtonBox* m_buttonBox;
 };
