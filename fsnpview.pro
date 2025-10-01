@@ -42,7 +42,8 @@ SOURCES += \
     tdrcalculator.cpp \
     commandlineparser.cpp \
     parameterstyledialog.cpp \
-    plotsettingsdialog.cpp
+    plotsettingsdialog.cpp \
+    cascadeio.cpp
 
 HEADERS += \
     SmithChartGrid.h \
@@ -59,7 +60,8 @@ HEADERS += \
     tdrcalculator.h \
     commandlineparser.h \
     parameterstyledialog.h \
-    plotsettingsdialog.h
+    plotsettingsdialog.h \
+    cascadeio.h
 
 FORMS += \
     mainwindow.ui
