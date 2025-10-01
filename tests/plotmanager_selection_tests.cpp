@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <QColor>
 
 class DummyPlotNetwork : public Network
 {
@@ -89,6 +90,7 @@ int main(int argc, char** argv)
     }
 
     const double initialWidth = graph->pen().widthF();
+    const QColor initialColor = graph->pen().color();
     if (std::abs(initialWidth - 4.0) > 1e-6) {
         std::cerr << "Unexpected initial pen width: " << initialWidth << std::endl;
         return 1;
@@ -99,6 +101,49 @@ int main(int argc, char** argv)
     const double postSelectionWidth = graph->pen().widthF();
     if (std::abs(postSelectionWidth - 4.0) > 1e-6) {
         std::cerr << "Selection handling changed the custom width to " << postSelectionWidth << std::endl;
+        return 1;
+    }
+
+    QCPSelectionDecorator *decorator = graph->selectionDecorator();
+    if (!decorator) {
+        std::cerr << "Graph had no selection decorator" << std::endl;
+        return 1;
+    }
+
+    graph->setSelection(QCPDataSelection(graph->data()->dataRange()));
+    manager.selectionChanged();
+
+    const double selectedWidth = graph->pen().widthF();
+    const double expectedSelectedWidth = initialWidth + 2.0;
+    if (std::abs(selectedWidth - expectedSelectedWidth) > 1e-6) {
+        std::cerr << "Selected graph width was " << selectedWidth
+                  << " but expected " << expectedSelectedWidth << std::endl;
+        return 1;
+    }
+
+    if (std::abs(decorator->pen().widthF() - expectedSelectedWidth) > 1e-6) {
+        std::cerr << "Decorator width was " << decorator->pen().widthF()
+                  << " but expected " << expectedSelectedWidth << std::endl;
+        return 1;
+    }
+
+    if (graph->pen().color() != decorator->pen().color()) {
+        std::cerr << "Legend pen color did not match decorator color" << std::endl;
+        return 1;
+    }
+
+    graph->setSelection(QCPDataSelection());
+    manager.selectionChanged();
+
+    const double deselectedWidth = graph->pen().widthF();
+    if (std::abs(deselectedWidth - initialWidth) > 1e-6) {
+        std::cerr << "Deselected width was " << deselectedWidth
+                  << " but expected " << initialWidth << std::endl;
+        return 1;
+    }
+
+    if (graph->pen().color() != initialColor) {
+        std::cerr << "Deselected graph color changed unexpectedly" << std::endl;
         return 1;
     }
 
