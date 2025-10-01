@@ -36,6 +36,7 @@ public:
     QColor nextColor();
     void setXAxisScaleType(QCPAxis::ScaleType type);
     void setCrosshairEnabled(bool enabled);
+    void applySettingsFromDialog(const PlotSettingsDialog &dialog);
 
 public slots:
     void mouseDoubleClick(QMouseEvent *event);
@@ -72,11 +73,15 @@ private:
     void showPlotSettingsDialog();
     void applyAxisRanges(const PlotSettingsDialog &dialog);
     void applyMarkerPositions(const PlotSettingsDialog &dialog);
+    void applyGridSettings(const PlotSettingsDialog &dialog);
+    void applyTickSettings(const PlotSettingsDialog &dialog);
+    void applyStoredGridSettings();
     double markerValue(const QCPItemTracer *tracer) const;
     void setMarkerValue(QCPItemTracer *tracer, double value);
     void setCartesianMarkerValue(QCPItemTracer *tracer, double value);
     void setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency);
     QString markerLabelText(const QString &markerName) const;
+    double currentTickStep(const QCPAxis *axis) const;
 
 
     QCustomPlot* m_plot;
@@ -102,6 +107,16 @@ private:
     bool m_crosshairEnabled;
     bool m_showPlotSettingsOnRightRelease;
     QPoint m_rightClickPressPos;
+
+    Qt::PenStyle m_gridPenStyle;
+    QColor m_gridColor;
+    Qt::PenStyle m_subGridPenStyle;
+    QColor m_subGridColor;
+
+    bool m_xTickAuto;
+    double m_xTickSpacing;
+    bool m_yTickAuto;
+    double m_yTickSpacing;
 };
 
 #endif // PLOTMANAGER_H

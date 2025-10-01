@@ -152,3 +152,9 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
     moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o plotmanager_mathplot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/plotsettingsdialog_tests.cpp plotmanager.cpp plotsettingsdialog.cpp network.cpp networklumped.cpp \
+    networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
+    moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
+    -o plotsettingsdialog_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
