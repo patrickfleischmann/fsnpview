@@ -10,7 +10,7 @@ Download and extract fsnpview.zip.
 
 To quickly open .snp files from explorer, register the extracted fsnpview.exe with the "open with" dialog.
 
-Multiple files can be opened at once. All files will be opened in the same instance.
+Multiple files can be opened at once or one by one. All files will be opened in the same instance.
 
 ## Dependencies
 
