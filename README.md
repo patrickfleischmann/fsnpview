@@ -1,7 +1,7 @@
 <img width="100" height="100" alt="fsnpview" src="https://github.com/user-attachments/assets/d457d2c4-23b8-49bb-a929-e3451aebf44a" />
 
 # fsnpview
-Fast snp file viewer with cascading capability.
+Fast SnP file viewer with cascading capability.
 
 About SnP file format: [Wikipedia/Touchstone file](https://en.wikipedia.org/wiki/Touchstone_file)
 
