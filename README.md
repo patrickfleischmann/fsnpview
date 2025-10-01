@@ -1,4 +1,6 @@
-# snpview
+<img width="578" height="517" alt="fsnpview" src="https://github.com/user-attachments/assets/d457d2c4-23b8-49bb-a929-e3451aebf44a" />
+
+# fsnpview
 fast snp (touchstone) file viewer
 
 ## Dependencies
