@@ -1,4 +1,4 @@
-<img width="200" height="200" alt="fsnpview" src="https://github.com/user-attachments/assets/d457d2c4-23b8-49bb-a929-e3451aebf44a" />
+<img width="100" height="100" alt="fsnpview" src="https://github.com/user-attachments/assets/d457d2c4-23b8-49bb-a929-e3451aebf44a" />
 
 # fsnpview
 fast snp (touchstone) file viewer
