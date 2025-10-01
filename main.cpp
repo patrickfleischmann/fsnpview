@@ -3,13 +3,11 @@
 #include "networkcascade.h"
 #include "networkfile.h"
 #include "networklumped.h"
-#include "parser_touchstone.h"
+#include "cascadeio.h"
 
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDataStream>
-#include <QFile>
-#include <QByteArray>
 #include <QFileInfo>
 #include <QLocalSocket>
 #include <QSet>
@@ -79,56 +77,6 @@ Eigen::VectorXd buildFrequencyVector(const CommandLineParser::Options& options, 
     return Eigen::VectorXd::LinSpaced(points, fmin, fmax);
 }
 
-bool saveCascadeToFile(const NetworkCascade& cascade, const Eigen::VectorXd& freq, QString path)
-{
-    if (freq.size() == 0) {
-        std::cerr << "Cannot save cascade: no frequency points available." << std::endl;
-        return false;
-    }
-
-    ts::TouchstoneData data;
-    data.ports = cascade.portCount();
-    if (data.ports <= 0) {
-        std::cerr << "Cannot save cascade: invalid port count." << std::endl;
-        return false;
-    }
-    data.parameter = "S";
-    data.format = "RI";
-    data.freq_unit = "HZ";
-    data.R = 50.0;
-    data.freq = freq;
-
-    const Eigen::Index rows = freq.size();
-    const Eigen::Index cols = static_cast<Eigen::Index>(data.ports * data.ports);
-    data.sparams.resize(rows, cols);
-    data.sparams.setZero();
-
-    Eigen::MatrixXcd s_matrix = cascade.sparameters(freq);
-    for (Eigen::Index row = 0; row < rows; ++row) {
-        for (Eigen::Index col = 0; col < cols && col < s_matrix.cols(); ++col) {
-            data.sparams(row, col) = s_matrix(row, col);
-        }
-    }
-
-    if (!path.endsWith(QStringLiteral(".s2p"), Qt::CaseInsensitive)) {
-        path += QStringLiteral(".s2p");
-    }
-
-    QFileInfo info(path);
-    const QString absolutePath = info.absoluteFilePath();
-
-    try {
-        const QByteArray encoded = QFile::encodeName(absolutePath);
-        ts::write_touchstone(data, std::string(encoded.constData()));
-    } catch (const std::exception& ex) {
-        std::cerr << "Failed to save cascade: " << ex.what() << std::endl;
-        return false;
-    }
-
-    std::cout << "Cascade saved to \"" << absolutePath.toStdString() << "\"" << std::endl;
-    return true;
-}
-
 int runNoGui(const CommandLineParser::Options& options)
 {
     for (const QString& file : options.files) {
@@ -179,8 +127,15 @@ int runNoGui(const CommandLineParser::Options& options)
 
     int exitCode = 0;
     if (options.saveRequested) {
-        if (!saveCascadeToFile(cascade, freq, options.savePath))
+        QString savedPath;
+        QString errorMessage;
+        if (saveCascadeToFile(cascade, freq, options.savePath, &savedPath, &errorMessage)) {
+            std::cout << "Cascade saved to \"" << savedPath.toStdString() << "\"" << std::endl;
+        } else {
+            if (!errorMessage.isEmpty())
+                std::cerr << errorMessage.toStdString() << std::endl;
             exitCode = 1;
+        }
     } else {
         std::cout << "Cascade configured with " << cascade.getNetworks().size()
                   << " network(s)." << std::endl;
@@ -327,7 +282,14 @@ int main(int argc, char *argv[])
     if (options.saveRequested) {
         if (!window.cascade()->getNetworks().isEmpty()) {
             Eigen::VectorXd freq = buildFrequencyVector(options, *window.cascade());
-            saveSuccess = saveCascadeToFile(*window.cascade(), freq, options.savePath);
+            QString savedPath;
+            QString errorMessage;
+            saveSuccess = saveCascadeToFile(*window.cascade(), freq, options.savePath, &savedPath, &errorMessage);
+            if (saveSuccess) {
+                std::cout << "Cascade saved to \"" << savedPath.toStdString() << "\"" << std::endl;
+            } else if (!errorMessage.isEmpty()) {
+                std::cerr << errorMessage.toStdString() << std::endl;
+            }
         } else {
             std::cerr << "Cannot save cascade: no networks configured." << std::endl;
             saveSuccess = false;

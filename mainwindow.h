@@ -19,6 +19,7 @@ QT_END_NAMESPACE
 #include "networkcascade.h"
 #include "networkitemmodel.h"
 #include <memory>
+#include <Eigen/Dense>
 
 class Server;
 class NetworkFile;
@@ -47,6 +48,7 @@ public:
 
 private slots:
     void on_actionOpen_triggered();
+    void onSaveCascadeTriggered();
     void on_pushButtonAutoscale_clicked();
     void onFilesReceived(const QStringList &files);
 
@@ -101,6 +103,7 @@ private:
     void updatePlots();
     void setupModels();
     void setupViews();
+    void setupShortcuts();
     void setupTableColumns(QTableView* view);
     void updateNetworkTablesGeometry();
     int adjustTableViewToContents(QTableView* view);
@@ -120,6 +123,7 @@ private:
     void updateCascadeStatusIcons();
     QString iconResourceForNetwork(const Network* network) const;
     void updateCascadeColorColumn();
+    Eigen::VectorXd cascadeFrequencyVector() const;
 
 
     Ui::MainWindow *ui;

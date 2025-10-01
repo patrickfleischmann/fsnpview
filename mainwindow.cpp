@@ -7,8 +7,8 @@
 #include "server.h"
 #include "plotmanager.h"
 #include "parameterstyledialog.h"
+#include "cascadeio.h"
 #include <QFileDialog>
-#include <QMenu>
 #include <QMenuBar>
 #include <QCheckBox>
 #include <QSet>
@@ -38,6 +38,10 @@
 #include <QSizeF>
 #include <QHBoxLayout>
 #include <QLayout>
+#include <QShortcut>
+#include <QKeySequence>
+#include <QMessageBox>
+#include <QDir>
 #include <QWidget>
 
 #include <algorithm>
@@ -84,6 +88,8 @@ MainWindow::MainWindow(QWidget *parent)
     , m_cascadeStatusIconLayout(nullptr)
 {
     ui->setupUi(this);
+    if (QMenuBar* bar = menuBar())
+        bar->setVisible(false);
     ui->statusbar->setEnabled(true);
     ui->statusbar->setContentsMargins(0, 0, 0, 0);
     ui->statusbar->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; margin: 0px; padding: 0px; }"));
@@ -128,13 +134,9 @@ MainWindow::MainWindow(QWidget *parent)
     refreshGateControls();
     ui->checkBoxGate->setChecked(gateSettings.enabled);
 
-    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-    QAction *openAct = new QAction(tr("&Open..."), this);
-    fileMenu->addAction(openAct);
-    connect(openAct, &QAction::triggered, this, &MainWindow::on_actionOpen_triggered);
-
     setupModels();
     setupViews();
+    setupShortcuts();
 
     auto connectGeometryUpdates = [this](QAbstractItemModel *model) {
         if (!model)
@@ -198,6 +200,15 @@ MainWindow::~MainWindow()
 {
     delete ui;
     qDeleteAll(m_networks);
+}
+
+void MainWindow::setupShortcuts()
+{
+    auto *openShortcut = new QShortcut(QKeySequence::Open, this);
+    connect(openShortcut, &QShortcut::activated, this, &MainWindow::on_actionOpen_triggered);
+
+    auto *saveShortcut = new QShortcut(QKeySequence::Save, this);
+    connect(saveShortcut, &QShortcut::activated, this, &MainWindow::onSaveCascadeTriggered);
 }
 
 void MainWindow::setupModels()
@@ -537,6 +548,35 @@ void MainWindow::updateCascadeColorColumn()
         if (QStandardItem* colorItem = m_network_cascade_model->item(r, 1))
             colorItem->setBackground(cascadeColor);
     }
+}
+
+Eigen::VectorXd MainWindow::cascadeFrequencyVector() const
+{
+    if (!m_cascade)
+        return {};
+
+    int points = m_networkFrequencyPoints > 1 ? m_networkFrequencyPoints : m_cascade->pointCount();
+    if (points < 2)
+        points = std::max(2, m_cascade->pointCount());
+    if (points < 2)
+        points = 2;
+
+    double fmin = (m_networkFrequencyMin > 0.0) ? m_networkFrequencyMin : m_cascade->fmin();
+    double fmax = (m_networkFrequencyMax > 0.0) ? m_networkFrequencyMax : m_cascade->fmax();
+
+    if (fmax <= fmin) {
+        const double cascadeFmin = m_cascade->fmin();
+        const double cascadeFmax = m_cascade->fmax();
+        if (cascadeFmax > cascadeFmin) {
+            fmin = cascadeFmin;
+            fmax = cascadeFmax;
+        } else {
+            fmin = 1e6;
+            fmax = 10e9;
+        }
+    }
+
+    return Eigen::VectorXd::LinSpaced(points, fmin, fmax);
 }
 
 void MainWindow::setCascadeFrequencyRange(double fmin, double fmax)
@@ -1337,6 +1377,45 @@ void MainWindow::on_actionOpen_triggered()
     if (!filePaths.isEmpty()) {
         processFiles(filePaths);
     }
+}
+
+void MainWindow::onSaveCascadeTriggered()
+{
+    if (!m_cascade || m_cascade->getNetworks().isEmpty()) {
+        QMessageBox::information(this,
+                                 tr("Save Cascade"),
+                                 tr("There are no networks in the cascade to save."));
+        return;
+    }
+
+    const QString selectedPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Cascaded Result"),
+        QString(),
+        tr("Touchstone files (*.s2p);;All files (*.*)"));
+
+    if (selectedPath.isEmpty())
+        return;
+
+    const Eigen::VectorXd freq = cascadeFrequencyVector();
+    if (freq.size() == 0) {
+        QMessageBox::critical(this,
+                              tr("Save Cascade"),
+                              tr("Cannot save cascade: no frequency points available."));
+        return;
+    }
+
+    QString savedPath;
+    QString errorMessage;
+    if (!saveCascadeToFile(*m_cascade, freq, selectedPath, &savedPath, &errorMessage)) {
+        if (errorMessage.isEmpty())
+            errorMessage = tr("Failed to save cascade.");
+        QMessageBox::critical(this, tr("Save Cascade"), errorMessage);
+        return;
+    }
+
+    if (QStatusBar *bar = statusBar())
+        bar->showMessage(tr("Cascade saved to \"%1\"").arg(QDir::toNativeSeparators(savedPath)), 5000);
 }
 
 void MainWindow::on_pushButtonAutoscale_clicked()
