@@ -368,3 +368,24 @@ Eigen::ArrayXd Network::computeGroupDelay(const Eigen::ArrayXd& phase_rad, const
 
     return delay;
 }
+
+Eigen::ArrayXd Network::wrapToMinusPiPi(const Eigen::ArrayXd& phase_rad)
+{
+    Eigen::ArrayXd wrapped = phase_rad;
+    const double pi = M_PI;
+    const double twoPi = 2.0 * M_PI;
+    constexpr double tolerance = 1e-12;
+    for (int i = 0; i < wrapped.size(); ++i) {
+        double value = wrapped(i);
+        if (!std::isfinite(value))
+            continue;
+        while (value < -pi - tolerance)
+            value += twoPi;
+        while (value > pi + tolerance)
+            value -= twoPi;
+        if (value >= pi - tolerance)
+            value -= twoPi;
+        wrapped(i) = value;
+    }
+    return wrapped;
+}

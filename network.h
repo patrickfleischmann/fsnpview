@@ -26,6 +26,7 @@ public:
     static Eigen::Vector4cd abcd2s(const Eigen::Matrix2cd& abcd, double z0 = 50.0);
     static QString formatEngineering(double value, bool padMantissa = true);
     static Eigen::ArrayXd computeGroupDelay(const Eigen::ArrayXd& phase_rad, const Eigen::ArrayXd& freq_hz);
+    static Eigen::ArrayXd wrapToMinusPiPi(const Eigen::ArrayXd& phase_rad);
 
     virtual QString name() const = 0;
     virtual QString displayName() const;

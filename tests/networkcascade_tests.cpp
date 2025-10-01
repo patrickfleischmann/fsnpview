@@ -37,6 +37,29 @@ void test_cascade_two_files()
     assert(close(s_matrix(0, 3), s22_expected));
 }
 
+void test_wrap_to_minus_pi_pi()
+{
+    Eigen::ArrayXd values(5);
+    values << M_PI, -M_PI, M_PI + 1e-10, -M_PI - 1e-10, M_PI - 1e-10;
+    Eigen::ArrayXd wrapped = Network::wrapToMinusPiPi(values);
+
+    constexpr double pi = M_PI;
+    constexpr double tol = 1e-9;
+
+    auto inRange = [&](double angle) {
+        return angle <= pi + tol && angle >= -pi - tol;
+    };
+
+    assert(std::abs(wrapped(0) + pi) <= tol);
+    assert(std::abs(wrapped(1) + pi) <= tol);
+    assert(std::abs(wrapped(2) + pi) <= tol);
+    assert(std::abs(wrapped(3) + pi) <= tol);
+    assert(std::abs(wrapped(4) - (pi - 1e-10)) <= tol);
+
+    for (int i = 0; i < wrapped.size(); ++i)
+        assert(inRange(wrapped(i)));
+}
+
 namespace {
 constexpr double pi = 3.14159265358979323846;
 
@@ -243,6 +266,7 @@ void test_cascade_phase_unwrap_matches_manual()
 
 int main()
 {
+    test_wrap_to_minus_pi_pi();
     test_cascade_two_files();
     test_phase_unwrap_toggle();
     test_lumped_frequency_point_count();
