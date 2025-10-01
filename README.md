@@ -144,3 +144,6 @@ Commit the regenerated baseline file.
 
 On Windows, replace `./fsnpview` with `fsnpview.exe` and use Windows-style
 paths when specifying files.
+
+## Screenshots
+<img width="1447" height="917" alt="Screenshot 2025-10-01 220438" src="https://github.com/user-attachments/assets/32dcd518-a45f-46c7-81ae-a08afdf10f01" />
