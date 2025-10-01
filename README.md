@@ -2,7 +2,7 @@
 
 # fsnpview
 Fast snp file viewer with cascading capability.
-About SnP files: [Wikipedia Touchstone file]([https://pages.github.com/](https://en.wikipedia.org/wiki/Touchstone_file))
+About SnP file format: [Wikipedia/Touchstone file](https://en.wikipedia.org/wiki/Touchstone_file)
 
 ## Windows Installation and usage
 Download and extract fsnpview.zip. 
