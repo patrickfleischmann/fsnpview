@@ -1,5 +1,14 @@
-# snpview
-fast snp (touchstone) file viewer
+<img width="100" height="100" alt="fsnpview" src="https://github.com/user-attachments/assets/d457d2c4-23b8-49bb-a929-e3451aebf44a" />
+
+# fsnpview
+Fast snp file viewer with cascading capability.
+
+About SnP file format: [Wikipedia/Touchstone file](https://en.wikipedia.org/wiki/Touchstone_file)
+
+## Windows Installation and usage
+Download and extract fsnpview.zip. 
+To quickly open .snp files from explorer, register the extracted fsnpview.exe with the "open with" dialog.
+Multiple files can be opened at once. All files will be opened in the same instance.
 
 ## Dependencies
 
@@ -142,3 +151,6 @@ Commit the regenerated baseline file.
 
 On Windows, replace `./fsnpview` with `fsnpview.exe` and use Windows-style
 paths when specifying files.
+
+## Screenshots
+<img width="1447" height="917" alt="Screenshot 2025-10-01 220438" src="https://github.com/user-attachments/assets/32dcd518-a45f-46c7-81ae-a08afdf10f01" />
