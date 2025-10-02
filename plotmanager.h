@@ -117,6 +117,7 @@ private:
     double m_xTickSpacing;
     bool m_yTickAuto;
     double m_yTickSpacing;
+    QCPAxis::ScaleType m_requestedXAxisScaleType;
 };
 
 #endif // PLOTMANAGER_H
