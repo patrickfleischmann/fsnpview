@@ -78,6 +78,7 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_xTickSpacing(0.0)
     , m_yTickAuto(true)
     , m_yTickSpacing(0.0)
+    , m_requestedXAxisScaleType(plot ? plot->xAxis->scaleType() : QCPAxis::stLinear)
 {
     m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iMultiSelect);
     connect(m_plot, &QCustomPlot::mouseDoubleClick, this, &PlotManager::mouseDoubleClick);
@@ -191,6 +192,13 @@ QColor PlotManager::nextColor()
 
 void PlotManager::setXAxisScaleType(QCPAxis::ScaleType type)
 {
+    m_requestedXAxisScaleType = type;
+    if (m_currentPlotType == PlotType::Smith)
+        return;
+
+    if (!m_plot)
+        return;
+
     m_plot->xAxis->setScaleType(type);
     m_plot->xAxis2->setScaleType(type);
     updateAxisTickers();
@@ -680,6 +688,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     configureCursorStyles(type);
 
     if (type == PlotType::Smith) {
+        if (m_plot) {
+            m_plot->xAxis->setScaleType(QCPAxis::stLinear);
+            m_plot->xAxis2->setScaleType(QCPAxis::stLinear);
+            m_plot->yAxis->setScaleType(QCPAxis::stLinear);
+            m_plot->yAxis2->setScaleType(QCPAxis::stLinear);
+            updateAxisTickers();
+        }
         setupSmithGrid();
     } else {
         clearSmithGrid();
@@ -687,6 +702,11 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         m_curveFreqs.clear();
         m_tracerCurves.clear();
         m_tracerIndices.clear();
+        if (m_plot) {
+            m_plot->xAxis->setScaleType(m_requestedXAxisScaleType);
+            m_plot->xAxis2->setScaleType(m_requestedXAxisScaleType);
+            updateAxisTickers();
+        }
         m_plot->xAxis->setTicks(true);
         m_plot->yAxis->setTicks(true);
         m_plot->xAxis->setTickLabels(true);
