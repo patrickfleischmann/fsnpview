@@ -326,8 +326,10 @@ QPair<QVector<double>, QVector<double>> NetworkLumped::getPlotData(int s_param_i
         return qMakePair(freqVector, values);
     }
     case PlotType::Smith: {
-        QVector<double> xValues(sparam.real().data(), sparam.real().data() + sparam.real().size());
-        QVector<double> yValues(sparam.imag().data(), sparam.imag().data() + sparam.imag().size());
+        Eigen::ArrayXd realPart = sparam.real();
+        Eigen::ArrayXd imagPart = sparam.imag();
+        QVector<double> xValues(realPart.data(), realPart.data() + realPart.size());
+        QVector<double> yValues(imagPart.data(), imagPart.data() + imagPart.size());
         return qMakePair(xValues, yValues);
     }
     case PlotType::TDR:

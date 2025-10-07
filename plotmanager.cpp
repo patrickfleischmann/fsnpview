@@ -680,6 +680,11 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     configureCursorStyles(type);
 
     if (type == PlotType::Smith) {
+        m_plot->xAxis->setScaleType(QCPAxis::stLinear);
+        m_plot->xAxis2->setScaleType(QCPAxis::stLinear);
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);
+        m_plot->yAxis2->setScaleType(QCPAxis::stLinear);
+        updateAxisTickers();
         setupSmithGrid();
     } else {
         clearSmithGrid();
