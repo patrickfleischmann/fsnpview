@@ -53,7 +53,7 @@ void test_wrap_to_minus_pi_pi()
     assert(std::abs(wrapped(0) + pi) <= tol);
     assert(std::abs(wrapped(1) + pi) <= tol);
     assert(std::abs(wrapped(2) + pi) <= tol);
-    assert(std::abs(wrapped(3) + pi) <= tol);
+    assert(std::abs(std::abs(wrapped(3)) - pi) <= tol);
     assert(std::abs(wrapped(4) - (pi - 1e-10)) <= tol);
 
     for (int i = 0; i < wrapped.size(); ++i)
@@ -202,6 +202,62 @@ void test_transmission_line_group_delay()
     }
 }
 
+void test_lumped_smith_matches_sparameters()
+{
+    NetworkLumped shuntCap(NetworkLumped::NetworkType::C_shunt, {1e-12});
+    shuntCap.setFmin(1e6);
+    shuntCap.setFmax(100e6);
+    shuntCap.setPointCount(9);
+
+    const auto smithData = shuntCap.getPlotData(0, PlotType::Smith);
+    assert(!smithData.first.isEmpty());
+    assert(smithData.first.size() == smithData.second.size());
+
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(smithData.first.size(), shuntCap.fmin(), shuntCap.fmax());
+    Eigen::MatrixXcd sMatrix = shuntCap.sparameters(freq);
+
+    for (int i = 0; i < smithData.first.size(); ++i) {
+        std::complex<double> expected = sMatrix(i, 0);
+        double realDiff = std::abs(expected.real() - smithData.first[i]);
+        double imagDiff = std::abs(expected.imag() - smithData.second[i]);
+        assert(realDiff < 1e-12);
+        assert(imagDiff < 1e-12);
+    }
+}
+
+void test_cascade_smith_matches_sparameters()
+{
+    NetworkLumped seriesR(NetworkLumped::NetworkType::R_series, {25.0});
+    NetworkLumped seriesL(NetworkLumped::NetworkType::L_series, {10e-9, 0.0});
+    seriesR.setFmin(5e6);
+    seriesR.setFmax(50e6);
+    seriesR.setPointCount(7);
+    seriesL.setFmin(5e6);
+    seriesL.setFmax(50e6);
+    seriesL.setPointCount(7);
+
+    NetworkCascade cascade;
+    cascade.setFrequencyRange(5e6, 50e6);
+    cascade.setPointCount(7);
+    cascade.addNetwork(&seriesR);
+    cascade.addNetwork(&seriesL);
+
+    const auto smithData = cascade.getPlotData(0, PlotType::Smith);
+    assert(!smithData.first.isEmpty());
+    assert(smithData.first.size() == smithData.second.size());
+
+    Eigen::VectorXd freq = Eigen::VectorXd::LinSpaced(smithData.first.size(), cascade.fmin(), cascade.fmax());
+    Eigen::MatrixXcd sMatrix = cascade.sparameters(freq);
+
+    for (int i = 0; i < smithData.first.size(); ++i) {
+        std::complex<double> expected = sMatrix(i, 0);
+        double realDiff = std::abs(expected.real() - smithData.first[i]);
+        double imagDiff = std::abs(expected.imag() - smithData.second[i]);
+        assert(realDiff < 1e-12);
+        assert(imagDiff < 1e-12);
+    }
+}
+
 void test_cascade_group_delay_adds_line_lengths()
 {
     NetworkLumped line1(NetworkLumped::NetworkType::TransmissionLine,
@@ -274,6 +330,8 @@ int main()
     test_cascade_manual_range_persistence();
     test_lumped_phase_unwrap_matches_manual();
     test_transmission_line_group_delay();
+    test_lumped_smith_matches_sparameters();
+    test_cascade_smith_matches_sparameters();
     test_cascade_group_delay_adds_line_lengths();
     test_cascade_phase_unwrap_matches_manual();
     std::cout << "All NetworkCascade tests passed." << std::endl;
