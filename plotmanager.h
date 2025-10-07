@@ -49,8 +49,17 @@ public slots:
     bool removeSelectedMathPlots();
     void selectionChanged();
     void keepAspectRatio();
+    void handleAxisRangeChanged(const QCPRange &newRange);
+    void handleBeforeReplot();
 
 private:
+    struct AxisState
+    {
+        bool valid = false;
+        QCPRange xRange;
+        QCPRange yRange;
+    };
+
     enum class DragMode { None, Vertical, Horizontal, Curve };
     QCPAbstractPlottable* plot(const QVector<double> &x, const QVector<double> &y, const QPen &pen,
               const QString &name, Network* network, PlotType type, const QString &parameterKey = QString());
@@ -82,6 +91,9 @@ private:
     void setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency);
     QString markerLabelText(const QString &markerName) const;
     double currentTickStep(const QCPAxis *axis) const;
+    void storeAxisState(PlotType type);
+    bool applyStoredAxisState(PlotType type);
+    void enforceSmithAspectRatio();
 
 
     QCustomPlot* m_plot;
@@ -107,6 +119,9 @@ private:
     bool m_crosshairEnabled;
     bool m_showPlotSettingsOnRightRelease;
     QPoint m_rightClickPressPos;
+
+    bool m_restoringAxisState;
+    QMap<PlotType, AxisState> m_axisStates;
 
     Qt::PenStyle m_gridPenStyle;
     QColor m_gridColor;
