@@ -8,6 +8,25 @@
 namespace {
 constexpr double pi = 3.14159265358979323846;
 
+int sanitizePort(int requestedPort, int portCount)
+{
+    if (portCount <= 0)
+        return 1;
+    return std::clamp(requestedPort, 1, portCount);
+}
+
+int defaultFromPort(int /*portCount*/)
+{
+    return 1;
+}
+
+int defaultToPort(int portCount)
+{
+    if (portCount >= 2)
+        return 2;
+    return 1;
+}
+
 Eigen::Matrix2cd redhefferStar(const Eigen::Matrix2cd& left, const Eigen::Matrix2cd& right)
 {
     const std::complex<double> s11_left = left(0, 0);
@@ -65,6 +84,12 @@ void NetworkCascade::insertNetwork(int index, Network* network)
     if (index < 0 || index > m_networks.size())
         index = m_networks.size();
     m_networks.insert(index, network);
+    const int portCount = network ? network->portCount() : 0;
+    const int toPort = defaultToPort(portCount);
+    const int fromPort = defaultFromPort(portCount);
+    m_toPorts.insert(index, toPort);
+    m_fromPorts.insert(index, fromPort);
+    setNetworkPortSelection(index, toPort, fromPort);
     updateFrequencyRange();
 }
 
@@ -75,6 +100,8 @@ void NetworkCascade::moveNetwork(int from, int to)
     if (from == to)
         return;
     m_networks.insert(to, m_networks.takeAt(from));
+    m_toPorts.insert(to, m_toPorts.takeAt(from));
+    m_fromPorts.insert(to, m_fromPorts.takeAt(from));
     updateFrequencyRange();
 }
 
@@ -82,6 +109,8 @@ void NetworkCascade::removeNetwork(int index)
 {
     if (index >= 0 && index < m_networks.size()) {
         m_networks.removeAt(index);
+        m_toPorts.removeAt(index);
+        m_fromPorts.removeAt(index);
         updateFrequencyRange();
     }
 }
@@ -89,6 +118,8 @@ void NetworkCascade::removeNetwork(int index)
 void NetworkCascade::clearNetworks()
 {
     m_networks.clear();
+    m_toPorts.clear();
+    m_fromPorts.clear();
     updateFrequencyRange();
 }
 
@@ -137,16 +168,35 @@ Eigen::MatrixXcd NetworkCascade::sparameters(const Eigen::VectorXd& freq) const
     if (freq.size() == 0)
         return {};
 
-    QList<Network*> activeNetworks;
-    for (const auto& network : m_networks) {
-        if (network->isActive())
-            activeNetworks.append(network);
-    }
+    struct StageData
+    {
+        Eigen::MatrixXcd response;
+        int ports = 0;
+        int inputPort = 0;
+        int outputPort = 0;
+    };
 
-    std::vector<Eigen::MatrixXcd> networkResponses;
-    networkResponses.reserve(activeNetworks.size());
-    for (const auto& network : activeNetworks) {
-        networkResponses.push_back(network->sparameters(freq));
+    std::vector<StageData> stages;
+    stages.reserve(m_networks.size());
+
+    for (int idx = 0; idx < m_networks.size(); ++idx) {
+        Network* network = m_networks.at(idx);
+        if (!network || !network->isActive())
+            continue;
+
+        StageData stage;
+        stage.response = network->sparameters(freq);
+        stage.ports = std::max(network->portCount(), 1);
+
+        const auto selection = networkPortSelection(idx);
+        stage.outputPort = sanitizePort(selection.first, stage.ports) - 1;
+        stage.inputPort = sanitizePort(selection.second, stage.ports) - 1;
+        if (stage.outputPort < 0)
+            stage.outputPort = 0;
+        if (stage.inputPort < 0)
+            stage.inputPort = 0;
+
+        stages.push_back(std::move(stage));
     }
 
     Eigen::MatrixXcd total(freq.size(), 4);
@@ -155,22 +205,96 @@ Eigen::MatrixXcd NetworkCascade::sparameters(const Eigen::VectorXd& freq) const
         accumulated << 0.0, 1.0,
                         1.0, 0.0;
 
-        for (const auto& response : networkResponses) {
-            if (response.rows() != freq.size() || response.cols() < 4)
+        for (const auto& stage : stages) {
+            const Eigen::MatrixXcd& response = stage.response;
+            const int ports = stage.ports;
+            if (response.rows() != freq.size())
                 continue;
 
+            const Eigen::Index requiredCols = static_cast<Eigen::Index>(ports) * static_cast<Eigen::Index>(ports);
+            if (response.cols() < requiredCols)
+                continue;
+
+            const Eigen::Index s11Index = static_cast<Eigen::Index>(stage.inputPort * ports + stage.inputPort);
+            const Eigen::Index s12Index = static_cast<Eigen::Index>(stage.outputPort * ports + stage.inputPort);
+            const Eigen::Index s21Index = static_cast<Eigen::Index>(stage.inputPort * ports + stage.outputPort);
+            const Eigen::Index s22Index = static_cast<Eigen::Index>(stage.outputPort * ports + stage.outputPort);
+
+            if (s11Index >= response.cols() || s12Index >= response.cols() ||
+                s21Index >= response.cols() || s22Index >= response.cols()) {
+                continue;
+            }
+
             Eigen::Matrix2cd s_matrix;
-            s_matrix << response(row, 0), response(row, 1),
-                         response(row, 2), response(row, 3);
+            s_matrix << response(row, s11Index), response(row, s12Index),
+                         response(row, s21Index), response(row, s22Index);
 
             accumulated = redhefferStar(accumulated, s_matrix);
         }
 
-        total.row(row) << accumulated(0, 0), accumulated(0, 1),
-                           accumulated(1, 0), accumulated(1, 1);
+        total.row(row) << accumulated(0, 0), accumulated(1, 0),
+                           accumulated(0, 1), accumulated(1, 1);
     }
 
     return total;
+}
+
+void NetworkCascade::setNetworkPortSelection(int index, int toPort, int fromPort)
+{
+    if (index < 0 || index >= m_networks.size())
+        return;
+
+    Network* network = m_networks.at(index);
+    const int portCount = network ? network->portCount() : 0;
+
+    const int sanitizedFrom = sanitizePort(fromPort, portCount);
+    int sanitizedTo = sanitizePort(toPort, portCount);
+
+    if (portCount == 1)
+        sanitizedTo = sanitizedFrom;
+
+    if (index >= m_fromPorts.size())
+        m_fromPorts.resize(m_networks.size(), defaultFromPort(portCount));
+    if (index >= m_toPorts.size())
+        m_toPorts.resize(m_networks.size(), defaultToPort(portCount));
+
+    m_fromPorts[index] = sanitizedFrom;
+    m_toPorts[index] = sanitizedTo;
+}
+
+int NetworkCascade::toPort(int index) const
+{
+    return networkPortSelection(index).first;
+}
+
+int NetworkCascade::fromPort(int index) const
+{
+    return networkPortSelection(index).second;
+}
+
+QPair<int, int> NetworkCascade::networkPortSelection(int index) const
+{
+    if (index < 0 || index >= m_networks.size())
+        return qMakePair(1, 1);
+
+    Network* network = m_networks.at(index);
+    const int portCount = network ? network->portCount() : 0;
+
+    int storedTo = (index < m_toPorts.size()) ? m_toPorts.at(index) : defaultToPort(portCount);
+    int storedFrom = (index < m_fromPorts.size()) ? m_fromPorts.at(index) : defaultFromPort(portCount);
+
+    int sanitizedFrom = sanitizePort(storedFrom, portCount);
+    int sanitizedTo = sanitizePort(storedTo, portCount);
+
+    if (portCount == 1)
+        sanitizedTo = sanitizedFrom;
+
+    if (sanitizedTo != storedTo && index < m_toPorts.size())
+        const_cast<NetworkCascade*>(this)->m_toPorts[index] = sanitizedTo;
+    if (sanitizedFrom != storedFrom && index < m_fromPorts.size())
+        const_cast<NetworkCascade*>(this)->m_fromPorts[index] = sanitizedFrom;
+
+    return qMakePair(sanitizedTo, sanitizedFrom);
 }
 
 QPair<QVector<double>, QVector<double>> NetworkCascade::getPlotData(int s_param_idx, PlotType type)
@@ -268,8 +392,15 @@ Network* NetworkCascade::clone(QObject* parent) const
     copy->setFrequencyRange(m_fmin, m_fmax, m_manualFrequencyRange);
     copy->setPointCount(m_pointCount);
     copy->copyStyleSettingsFrom(this);
-    for (const auto& net : m_networks) {
-        copy->addNetwork(net->clone(copy));
+    for (int i = 0; i < m_networks.size(); ++i) {
+        Network* net = m_networks.at(i);
+        if (!net)
+            continue;
+        Network* cloned = net->clone(copy);
+        copy->addNetwork(cloned);
+        const auto selection = networkPortSelection(i);
+        const int insertedIndex = copy->getNetworks().size() - 1;
+        copy->setNetworkPortSelection(insertedIndex, selection.first, selection.second);
     }
     return copy;
 }
