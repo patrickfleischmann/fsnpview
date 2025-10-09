@@ -17,6 +17,7 @@
 #include <QStringList>
 #include <QColor>
 #include <QPen>
+#include <QSignalBlocker>
 #include <QVector>
 
 namespace
@@ -67,9 +68,10 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     , m_color_index(0)
     , m_keepAspectConnected(false)
     , m_currentPlotType(PlotType::Magnitude)
-    , m_crosshairEnabled(true)
+    , m_crosshairEnabled(false)
     , m_showPlotSettingsOnRightRelease(false)
     , m_rightClickPressPos()
+    , m_restoringAxisState(false)
     , m_gridPenStyle(Qt::DotLine)
     , m_gridColor(QColor(200, 200, 200))
     , m_subGridPenStyle(Qt::NoPen)
@@ -85,6 +87,9 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     connect(m_plot, &QCustomPlot::mouseMove, this, &PlotManager::mouseMove);
     connect(m_plot, &QCustomPlot::mouseRelease, this, &PlotManager::mouseRelease);
     connect(m_plot, &QCustomPlot::selectionChangedByUser, this, &PlotManager::selectionChanged);
+    connect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(handleAxisRangeChanged(QCPRange)));
+    connect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(handleAxisRangeChanged(QCPRange)));
+    connect(m_plot, &QCustomPlot::beforeReplot, this, &PlotManager::handleBeforeReplot);
 
     m_plot->setSelectionRectMode(QCP::srmZoom);
     m_plot->setRangeDragButton(Qt::RightButton);
@@ -563,6 +568,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     qDebug() << "  updatePlots()";
 #endif
     PlotType previousPlotType = m_currentPlotType;
+    storeAxisState(previousPlotType);
 
     auto suffixForType = [](PlotType plotType) -> QString
     {
@@ -699,6 +705,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         m_plot->xAxis->grid()->setVisible(true);
         m_plot->yAxis->grid()->setVisible(true);
     }
+
+    applyStoredAxisState(type);
 
     bool cascadeHasActive = false;
     if (m_cascade) {
@@ -1081,12 +1089,8 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 
     updateMathPlots();
 
-    m_plot->replot();
-    selectionChanged();
-    updateTracers();
-
     if (type == PlotType::Smith) {
-        m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
+        enforceSmithAspectRatio();
         if (!m_keepAspectConnected) {
             connect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
             connect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
@@ -1097,6 +1101,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
         m_keepAspectConnected = false;
     }
+
+    selectionChanged();
+    updateTracers();
+    m_plot->replot();
 }
 
 void PlotManager::autoscale()
@@ -1973,7 +1981,102 @@ void PlotManager::selectionChanged()
 
 void PlotManager::keepAspectRatio()
 {
+    enforceSmithAspectRatio();
+}
+
+void PlotManager::enforceSmithAspectRatio()
+{
+    if (!m_plot || !m_plot->xAxis || !m_plot->yAxis)
+        return;
+
+    if (m_plot->axisRectCount() <= 0)
+        return;
+
+    QCPAxisRect *rect = m_plot->axisRect();
+    if (!rect || rect->width() <= 0 || rect->height() <= 0)
+        return;
+
+    const QCPRange xRange = m_plot->xAxis->range();
+    const QCPRange yRange = m_plot->yAxis->range();
+    if (!std::isfinite(xRange.lower) || !std::isfinite(xRange.upper) || xRange.size() <= 0)
+        return;
+    if (!std::isfinite(yRange.lower) || !std::isfinite(yRange.upper) || yRange.size() <= 0)
+        return;
+
     m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
+}
+
+void PlotManager::storeAxisState(PlotType type)
+{
+    if (!m_plot)
+        return;
+
+    const QCPRange xRange = m_plot->xAxis->range();
+    const QCPRange yRange = m_plot->yAxis->range();
+
+    if (!std::isfinite(xRange.lower) || !std::isfinite(xRange.upper) ||
+        !std::isfinite(yRange.lower) || !std::isfinite(yRange.upper))
+        return;
+
+    if (xRange.size() <= 0 || yRange.size() <= 0)
+        return;
+
+    AxisState &state = m_axisStates[type];
+    state.xRange = xRange;
+    state.yRange = yRange;
+    state.valid = true;
+}
+
+bool PlotManager::applyStoredAxisState(PlotType type)
+{
+    if (!m_plot)
+        return false;
+
+    auto it = m_axisStates.constFind(type);
+    if (it == m_axisStates.constEnd() || !it->valid)
+        return false;
+
+    const AxisState state = it.value();
+    m_restoringAxisState = true;
+    m_plot->xAxis->setRange(state.xRange);
+    m_plot->yAxis->setRange(state.yRange);
+    m_restoringAxisState = false;
+
+    m_axisStates[type] = state;
+
+    return true;
+}
+
+void PlotManager::handleAxisRangeChanged(const QCPRange &newRange)
+{
+    if (m_restoringAxisState)
+        return;
+
+    if (!std::isfinite(newRange.lower) || !std::isfinite(newRange.upper) || newRange.size() <= 0)
+        return;
+
+    QCPAxis *axis = qobject_cast<QCPAxis*>(sender());
+    if (!axis)
+        return;
+
+    AxisState &state = m_axisStates[m_currentPlotType];
+    if (axis->orientation() == Qt::Horizontal)
+        state.xRange = newRange;
+    else
+        state.yRange = newRange;
+
+    if (std::isfinite(state.xRange.lower) && std::isfinite(state.xRange.upper) &&
+        std::isfinite(state.yRange.lower) && std::isfinite(state.yRange.upper) &&
+        state.xRange.size() > 0 && state.yRange.size() > 0)
+    {
+        state.valid = true;
+    }
+}
+
+void PlotManager::handleBeforeReplot()
+{
+    if (m_currentPlotType == PlotType::Smith)
+        enforceSmithAspectRatio();
 }
 
 void PlotManager::setupSmithGrid()
@@ -2040,8 +2143,16 @@ void PlotManager::setupSmithGrid()
         }
     }
 
-    m_plot->xAxis->setRange(-1.05, 1.05);
-    m_plot->yAxis->setRange(-1.05, 1.05);
+    const bool haveStoredSmithState = m_axisStates.value(PlotType::Smith).valid;
+    {
+        QSignalBlocker blockX(m_plot->xAxis);
+        QSignalBlocker blockY(m_plot->yAxis);
+        if (!haveStoredSmithState)
+        {
+            m_plot->xAxis->setRange(-1.05, 1.05);
+            m_plot->yAxis->setRange(-1.05, 1.05);
+        }
+    }
     m_plot->xAxis->setTicks(false);
     m_plot->yAxis->setTicks(false);
     m_plot->xAxis->setTickLabels(false);
