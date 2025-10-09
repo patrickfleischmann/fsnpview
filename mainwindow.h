@@ -109,6 +109,7 @@ private:
     int adjustTableViewToContents(QTableView* view);
     void populateLumpedNetworkTable();
     void configureLumpedAndCascadeColumns(int parameterCount);
+    void appendPortItems(QList<QStandardItem*>& row, int toPort, int fromPort, bool editable);
     void appendParameterItems(QList<QStandardItem*>& row, Network* network);
     bool isParameterValueColumn(int column) const;
     int parameterIndexFromColumn(int column) const;

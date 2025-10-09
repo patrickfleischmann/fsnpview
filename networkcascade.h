@@ -27,6 +27,11 @@ public:
     QVector<double> frequencies() const override;
     int portCount() const override;
 
+    void setNetworkPortSelection(int index, int toPort, int fromPort);
+    int toPort(int index) const;
+    int fromPort(int index) const;
+    QPair<int, int> networkPortSelection(int index) const;
+
     void setFrequencyRange(double fmin, double fmax, bool manualOverride = true);
     void clearManualFrequencyRange();
     bool hasManualFrequencyRange() const;
@@ -38,6 +43,8 @@ private:
     void updateFrequencyRange();
 
     QList<Network*> m_networks;
+    QList<int> m_toPorts;
+    QList<int> m_fromPorts;
     int m_pointCount;
     bool m_manualFrequencyRange;
 };

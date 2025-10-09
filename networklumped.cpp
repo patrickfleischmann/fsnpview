@@ -251,8 +251,8 @@ Eigen::MatrixXcd NetworkLumped::sparameters(const Eigen::VectorXd& freq) const
         }
 
         Eigen::Matrix2cd scattering = abcdToSParameterMatrix(abcd_point);
-        scattering_matrix.row(i) << scattering(0, 0), scattering(0, 1),
-                                    scattering(1, 0), scattering(1, 1);
+        scattering_matrix.row(i) << scattering(0, 0), scattering(1, 0),
+                                    scattering(0, 1), scattering(1, 1);
     }
 
     return scattering_matrix;

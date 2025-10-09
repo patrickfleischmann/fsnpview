@@ -19,6 +19,7 @@
 #include <QSignalBlocker>
 #include <QVariant>
 #include <QHeaderView>
+#include <QStandardItem>
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <QFont>
@@ -66,6 +67,14 @@ protected:
         }
     }
 };
+
+constexpr int ColumnCheck = 0;
+constexpr int ColumnColor = 1;
+constexpr int ColumnName = 2;
+constexpr int ColumnTo = 3;
+constexpr int ColumnFrom = 4;
+constexpr int ColumnFirstParameterDescription = 5;
+constexpr int ColumnFirstParameterValue = 6;
 
 } // namespace
 
@@ -340,7 +349,7 @@ void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
 {
     m_lumpedParameterCount = parameterCount;
 
-    QStringList headers = {"  ", "  ", "Name"};
+    QStringList headers = {"  ", "  ", "Name", "To", "From"};
     for (int i = 0; i < parameterCount; ++i) {
         headers << QStringLiteral("Par%1").arg(i + 1);
         headers << QStringLiteral("Val%1").arg(i + 1);
@@ -353,6 +362,22 @@ void MainWindow::configureLumpedAndCascadeColumns(int parameterCount)
     m_network_cascade_model->setHorizontalHeaderLabels(headers);
 
     updateNetworkTablesGeometry();
+}
+
+void MainWindow::appendPortItems(QList<QStandardItem*>& row, int toPort, int fromPort, bool editable)
+{
+    auto makePortItem = [&](int port) {
+        QStandardItem* item = new QStandardItem(port > 0 ? QString::number(port) : QString());
+        Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+        if (editable)
+            flags |= Qt::ItemIsEditable;
+        item->setFlags(flags);
+        item->setTextAlignment(Qt::AlignCenter);
+        return item;
+    };
+
+    row.append(makePortItem(toPort));
+    row.append(makePortItem(fromPort));
 }
 
 void MainWindow::appendParameterItems(QList<QStandardItem*>& row, Network* network)
@@ -378,21 +403,24 @@ void MainWindow::appendParameterItems(QList<QStandardItem*>& row, Network* netwo
 
 bool MainWindow::isParameterValueColumn(int column) const
 {
-    if (column < 4)
+    if (m_lumpedParameterCount <= 0)
         return false;
 
-    int maxColumn = 3 + 2 * m_lumpedParameterCount;
-    if (column >= maxColumn)
+    if (column < ColumnFirstParameterValue)
         return false;
 
-    return column % 2 == 0;
+    int maxColumn = ColumnFirstParameterValue + 2 * m_lumpedParameterCount - 2;
+    if (column > maxColumn)
+        return false;
+
+    return (column - ColumnFirstParameterValue) % 2 == 0;
 }
 
 int MainWindow::parameterIndexFromColumn(int column) const
 {
     if (!isParameterValueColumn(column))
         return -1;
-    return (column - 4) / 2;
+    return (column - ColumnFirstParameterValue) / 2;
 }
 
 void MainWindow::populateLumpedNetworkTable()
@@ -432,12 +460,16 @@ void MainWindow::populateLumpedNetworkTable()
             colorItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
             colorItem->setBackground(network_ptr->color());
             row.append(colorItem);
-            QStandardItem* nameItem = new QStandardItem(network_ptr->displayName());
-            nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-            row.append(nameItem);
-            appendParameterItems(row, network_ptr);
-            m_network_lumped_model->appendRow(row);
-        }
+        QStandardItem* nameItem = new QStandardItem(network_ptr->displayName());
+        nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        row.append(nameItem);
+        const int portCount = std::max(network_ptr->portCount(), 1);
+        const int defaultFrom = 1;
+        const int defaultTo = (portCount >= 2) ? 2 : defaultFrom;
+        appendPortItems(row, defaultTo, defaultFrom, false);
+        appendParameterItems(row, network_ptr);
+        m_network_lumped_model->appendRow(row);
+    }
     }
 
     setupTableColumns(ui->tableViewNetworkLumped);
@@ -509,6 +541,10 @@ void MainWindow::addNetworkToCascade(Network* network)
         network->setColor(m_plot_manager->nextColor());
     }
 
+    m_cascade->addNetwork(network);
+    const int insertedIndex = m_cascade->getNetworks().size() - 1;
+    const auto portSelection = m_cascade->networkPortSelection(insertedIndex);
+
     QList<QStandardItem*> items;
     QStandardItem* checkItem = new QStandardItem();
     checkItem->setCheckable(true);
@@ -525,11 +561,11 @@ void MainWindow::addNetworkToCascade(Network* network)
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     items.append(nameItem);
 
+    appendPortItems(items, portSelection.first, portSelection.second, true);
     appendParameterItems(items, network);
     m_network_cascade_model->appendRow(items);
     updateCascadeColorColumn();
 
-    m_cascade->addNetwork(network);
     applyPhaseUnwrapSetting(ui->checkBoxPhaseUnwrap->isChecked());
     updatePlots();
     updateCascadeStatusIcons();
@@ -545,7 +581,7 @@ void MainWindow::updateCascadeColorColumn()
 
     const QColor cascadeColor = m_cascade->color();
     for (int r = 0; r < m_network_cascade_model->rowCount(); ++r) {
-        if (QStandardItem* colorItem = m_network_cascade_model->item(r, 1))
+        if (QStandardItem* colorItem = m_network_cascade_model->item(r, ColumnColor))
             colorItem->setBackground(cascadeColor);
     }
 }
@@ -684,6 +720,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
     } else {
         Network* cloned = network->clone(m_cascade);
         m_cascade->insertNetwork(row, cloned);
+        const auto portSelection = m_cascade->networkPortSelection(row);
 
         QList<QStandardItem*> items;
         QStandardItem* checkItem = new QStandardItem();
@@ -698,6 +735,7 @@ void MainWindow::onNetworkDropped(Network* network, int row, const QModelIndex& 
         QStandardItem* nameItem = new QStandardItem(cloned->displayName());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         items.append(nameItem);
+        appendPortItems(items, portSelection.first, portSelection.second, true);
         appendParameterItems(items, cloned);
         m_network_cascade_model->insertRow(row, items);
     }
@@ -941,7 +979,7 @@ void MainWindow::onNetworkLumpedModelChanged(QStandardItem *item)
 
 void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
 {
-    if (item->column() == 0) {
+    if (item->column() == ColumnCheck) {
         quintptr net_ptr_val = item->data(Qt::UserRole).value<quintptr>();
         Network* network = reinterpret_cast<Network*>(net_ptr_val);
         if(network) {
@@ -949,11 +987,43 @@ void MainWindow::onNetworkCascadeModelChanged(QStandardItem *item)
             updatePlots();
             updateCascadeStatusIcons();
         }
+    } else if (item->column() == ColumnTo || item->column() == ColumnFrom) {
+        if (!m_cascade)
+            return;
+
+        const int row = item->row();
+        if (row < 0 || row >= m_cascade->getNetworks().size())
+            return;
+
+        bool ok = false;
+        int value = item->text().toInt(&ok);
+
+        int toPort = m_cascade->toPort(row);
+        int fromPort = m_cascade->fromPort(row);
+
+        if (item->column() == ColumnTo && ok)
+            toPort = value;
+        else if (item->column() == ColumnFrom && ok)
+            fromPort = value;
+
+        m_cascade->setNetworkPortSelection(row, toPort, fromPort);
+        const auto selection = m_cascade->networkPortSelection(row);
+
+        {
+            QSignalBlocker blocker(m_network_cascade_model);
+            if (QStandardItem* toItem = m_network_cascade_model->item(row, ColumnTo))
+                toItem->setText(QString::number(selection.first));
+            if (QStandardItem* fromItem = m_network_cascade_model->item(row, ColumnFrom))
+                fromItem->setText(QString::number(selection.second));
+        }
+
+        updatePlots();
+        updateCascadeStatusIcons();
     } else if (isParameterValueColumn(item->column())) {
         int parameterIndex = parameterIndexFromColumn(item->column());
         if (parameterIndex < 0)
             return;
-        quintptr net_ptr_val = m_network_cascade_model->item(item->row(), 0)->data(Qt::UserRole).value<quintptr>();
+        quintptr net_ptr_val = m_network_cascade_model->item(item->row(), ColumnCheck)->data(Qt::UserRole).value<quintptr>();
         Network* network_base = reinterpret_cast<Network*>(net_ptr_val);
         if(auto network = dynamic_cast<NetworkLumped*>(network_base)) {
             if (parameterIndex >= network->parameterCount()) {
@@ -1137,7 +1207,7 @@ void MainWindow::onColorColumnClicked(const QModelIndex &index)
                     if (reinterpret_cast<Network*>(ptrVal) == network) {
                         if (isCascadeModel)
                             continue;
-                        if (QStandardItem* colorItem = m->item(r, 1))
+                        if (QStandardItem* colorItem = m->item(r, ColumnColor))
                             colorItem->setBackground(color);
                     }
                 }

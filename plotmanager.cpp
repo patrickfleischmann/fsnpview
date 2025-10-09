@@ -1102,9 +1102,11 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         m_keepAspectConnected = false;
     }
 
+
     selectionChanged();
     updateTracers();
     m_plot->replot();
+
 }
 
 void PlotManager::autoscale()
@@ -2001,6 +2003,7 @@ void PlotManager::enforceSmithAspectRatio()
     if (!std::isfinite(xRange.lower) || !std::isfinite(xRange.upper) || xRange.size() <= 0)
         return;
     if (!std::isfinite(yRange.lower) || !std::isfinite(yRange.upper) || yRange.size() <= 0)
+
         return;
 
     m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
