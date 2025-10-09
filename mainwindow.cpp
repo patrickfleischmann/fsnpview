@@ -121,7 +121,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->splitter_3->setStretchFactor(1, 1);
     ui->splitter_2->setStretchFactor(0, 0);
     ui->splitter_2->setStretchFactor(1, 1);
-    ui->checkBoxCrossHair->setChecked(true);
+    ui->checkBoxCrossHair->setChecked(false);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
     m_cascade->setColor(Qt::magenta);
 
