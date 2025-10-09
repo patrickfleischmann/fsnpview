@@ -22,8 +22,8 @@ void test_cascade_two_files()
     Eigen::MatrixXcd s_matrix = cascade.sparameters(freq);
 
     std::complex<double> s11_expected(0.014920405958677847, 0.01630490315700499);
-    std::complex<double> s12_expected(0.9574040676271609, -0.20781677254865813);
-    std::complex<double> s21_expected(0.959119351068381, -0.2029186101162592);
+    std::complex<double> s12_expected(0.959119351068381, -0.2029186101162592);
+    std::complex<double> s21_expected(0.9574040676271609, -0.20781677254865813);
     std::complex<double> s22_expected(0.01709181671098506, 0.014520122008960062);
 
     auto close = [](std::complex<double> a, std::complex<double> b) {
@@ -32,8 +32,8 @@ void test_cascade_two_files()
     };
 
     assert(close(s_matrix(0, 0), s11_expected));
-    assert(close(s_matrix(0, 1), s12_expected));
-    assert(close(s_matrix(0, 2), s21_expected));
+    assert(close(s_matrix(0, 1), s21_expected));
+    assert(close(s_matrix(0, 2), s12_expected));
     assert(close(s_matrix(0, 3), s22_expected));
 }
 
@@ -180,6 +180,79 @@ void test_lumped_phase_unwrap_matches_manual()
     }
 
     assert(differenceFound);
+}
+
+void test_cascade_multiport_port_selection()
+{
+    NetworkFile multi(QStringLiteral("test/a (12).s6p"));
+
+    NetworkCascade cascade;
+    cascade.addNetwork(&multi);
+    cascade.setNetworkPortSelection(0, 3, 6);
+
+    QVector<double> freqs = multi.frequencies();
+    assert(!freqs.isEmpty());
+
+    Eigen::VectorXd freq(1);
+    freq << freqs.first();
+
+    Eigen::MatrixXcd cascadeS = cascade.sparameters(freq);
+    Eigen::MatrixXcd baseS = multi.sparameters(freq);
+
+    const int ports = multi.portCount();
+    assert(ports >= 2);
+
+    auto columnFor = [ports](int inputPort, int outputPort) {
+        return inputPort * ports + outputPort;
+    };
+
+    const int toIndex = cascade.toPort(0) - 1;
+    const int fromIndex = cascade.fromPort(0) - 1;
+
+    auto nearlyEqual = [](std::complex<double> a, std::complex<double> b) {
+        return std::abs(a.real() - b.real()) < 1e-9 &&
+               std::abs(a.imag() - b.imag()) < 1e-9;
+    };
+
+    assert(nearlyEqual(cascadeS(0, 0), baseS(0, columnFor(fromIndex, fromIndex))));
+    assert(nearlyEqual(cascadeS(0, 1), baseS(0, columnFor(fromIndex, toIndex))));
+    assert(nearlyEqual(cascadeS(0, 2), baseS(0, columnFor(toIndex, fromIndex))));
+    assert(nearlyEqual(cascadeS(0, 3), baseS(0, columnFor(toIndex, toIndex))));
+}
+
+void test_cascade_two_port_flip()
+{
+    NetworkFile net(QStringLiteral("test/a (2).s2p"));
+
+    NetworkCascade cascade;
+    cascade.addNetwork(&net);
+    cascade.setNetworkPortSelection(0, 1, 2);
+
+    Eigen::VectorXd freq(1);
+    freq << 40e6;
+
+    Eigen::MatrixXcd cascadeS = cascade.sparameters(freq);
+    Eigen::MatrixXcd baseS = net.sparameters(freq);
+
+    const int ports = net.portCount();
+    assert(ports == 2);
+
+    auto columnFor = [](int inputPort, int outputPort) {
+        return inputPort * 2 + outputPort;
+    };
+
+    const int toIndex = cascade.toPort(0) - 1;
+    const int fromIndex = cascade.fromPort(0) - 1;
+
+    auto nearlyEqual = [](std::complex<double> a, std::complex<double> b) {
+        return std::abs(a.real() - b.real()) < 1e-9 &&
+               std::abs(a.imag() - b.imag()) < 1e-9;
+    };
+
+    assert(nearlyEqual(cascadeS(0, 0), baseS(0, columnFor(fromIndex, fromIndex))));
+    assert(nearlyEqual(cascadeS(0, 1), baseS(0, columnFor(fromIndex, toIndex)))); // S21_new == original S12
+    assert(nearlyEqual(cascadeS(0, 2), baseS(0, columnFor(toIndex, fromIndex)))); // S12_new == original S21
+    assert(nearlyEqual(cascadeS(0, 3), baseS(0, columnFor(toIndex, toIndex))));
 }
 
 void test_transmission_line_group_delay()
@@ -334,6 +407,8 @@ int main()
     test_cascade_smith_matches_sparameters();
     test_cascade_group_delay_adds_line_lengths();
     test_cascade_phase_unwrap_matches_manual();
+    test_cascade_multiport_port_selection();
+    test_cascade_two_port_flip();
     std::cout << "All NetworkCascade tests passed." << std::endl;
     return 0;
 }

@@ -218,17 +218,20 @@ Eigen::MatrixXcd NetworkFile::sparameters(const Eigen::VectorXd& freq) const
     }
 
     const int ports = m_data->ports;
-    if (ports != 2) {
+    if (ports <= 0) {
         return {};
     }
 
-    Eigen::MatrixXcd s_matrix(freq.size(), 4);
+    const Eigen::Index expectedCols = static_cast<Eigen::Index>(ports) * static_cast<Eigen::Index>(ports);
+    if (m_data->sparams.cols() < expectedCols) {
+        return {};
+    }
+
+    Eigen::MatrixXcd s_matrix(freq.size(), expectedCols);
     for (int i = 0; i < freq.size(); ++i) {
-        std::complex<double> s11 = interpolate_s_param(freq(i), 0);
-        std::complex<double> s12 = interpolate_s_param(freq(i), 1);
-        std::complex<double> s21 = interpolate_s_param(freq(i), 2);
-        std::complex<double> s22 = interpolate_s_param(freq(i), 3);
-        s_matrix.row(i) << s11, s12, s21, s22;
+        for (Eigen::Index col = 0; col < expectedCols; ++col) {
+            s_matrix(i, col) = interpolate_s_param(freq(i), static_cast<int>(col));
+        }
     }
 
     return s_matrix;
