@@ -62,7 +62,7 @@ as an argument or on its own:
 ./fsnpview                         # start with an empty session
 ```
 
-If you start without a file, use **File → Open…** or drag and drop a
+If you start without a file, press `Ctrl+O` or drag and drop a
 `.sNp` file into the window to load it.  The left-hand tables list loaded
 network files and the available lumped elements.  Check the box next to
 an entry to add or remove its trace from the plot.  You can drag networks
@@ -72,34 +72,34 @@ onto the cascade table to evaluate a chain of networks.
 
 **Loading and organizing data**
 
-*   Use **File → Open…** or press `Ctrl+O` to browse for Touchstone files without leaving the main window; each file you pick is added to the current session.【F:mainwindow.cpp†L205-L211】
-*   Drag Touchstone rows or lumped elements from the left-hand tables into the cascade table to build or reorder network chains; both the source tables and the cascade support multi-selection and drag and drop.【F:mainwindow.cpp†L230-L258】
-*   Press `Ctrl+S` to export the active cascade; the shortcut opens a Touchstone save dialog when the cascade contains any networks.【F:mainwindow.cpp†L205-L211】【F:mainwindow.cpp†L1370-L1406】
+*   Press `Ctrl+O` to browse for Touchstone files without leaving the main window; each file you pick is added to the current session.
+*   Drag Touchstone rows or lumped elements from the left-hand tables into the cascade table to build or reorder network chains; both the source tables and the cascade support multi-selection and drag and drop.
+*   Press `Ctrl+S` to export the active cascade; the shortcut opens a Touchstone save dialog when the cascade contains any networks.
 
 **Trace selection and measurements**
 
-*   Toggle the individual S-parameters with the row of checkboxes (`s11`–`s33`) above the plot area to show or hide specific traces.【F:mainwindow.ui†L256-L319】
-*   The toolbar checkboxes also let you enable the red/blue measurement cursors, the crosshair overlay, and the legend so you can inspect values directly on the chart.【F:mainwindow.ui†L337-L471】
-*   Select traces or table rows and press **Delete** to hide the traces, remove cascaded elements, or delete loaded files depending on which pane is focused; the command respects context so you do not have to clear the whole session.【F:mainwindow.cpp†L1500-L1615】
-*   Highlight exactly two traces and press the `-` key to create a red math trace representing the point-by-point difference between them.【F:mainwindow.cpp†L1619-L1622】【F:plotmanager.cpp†L1832-L1882】
+*   Toggle the individual S-parameters with the row of checkboxes (`s11`–`s33`) above the plot area to show or hide specific traces.
+*   The toolbar checkboxes also let you enable the red/blue measurement cursors, the crosshair overlay, and the legend so you can inspect values directly on the chart.
+*   Select traces or table rows and press **Delete** to hide the traces, remove cascaded elements, or delete loaded files depending on which pane is focused; the command respects context so you do not have to clear the whole session.
+*   Highlight exactly two traces and press the `-` key to create a red math trace representing the point-by-point difference between them.
 
 **Display modes and analysis**
 
-*   Switch between linear and logarithmic frequency axes with the **f Log** checkbox, and turn on **Phase**, **gdelay**, **VSWR**, **Smith**, or **TDR** views to swap the plot into the matching analysis mode; enabling one of these mutually exclusive views automatically disables the others to keep the display coherent.【F:mainwindow.ui†L492-L541】【F:mainwindow.cpp†L1674-L1742】
-*   Use **Unwrap** to keep phase plots continuous and toggle **Gate** to activate time-domain gating; the start/stop distance and effective dielectric fields immediately reapply when edited.【F:mainwindow.ui†L506-L625】【F:mainwindow.cpp†L1744-L1767】
+*   Switch between linear and logarithmic frequency axes with the **f Log** checkbox, and turn on **Phase**, **gdelay**, **VSWR**, **Smith**, or **TDR** views to swap the plot into the matching analysis mode; enabling one of these mutually exclusive views automatically disables the others to keep the display coherent.
+*   Use **Unwrap** to keep phase plots continuous and toggle **Gate** to activate time-domain gating; the start/stop distance and effective dielectric fields immediately reapply when edited.
 
 **Frequency grids and mouse-wheel helpers**
 
-*   Edit the `f min`, `f max`, and `pt` fields above the lumped-element table to resample cascades onto a new frequency grid; every change is validated and applied as soon as you finish editing the field.【F:mainwindow.ui†L111-L144】【F:mainwindow.cpp†L1777-L1798】
-*   Roll the mouse wheel while hovering over the frequency, point-count, or gating fields to nudge the values up or down with engineering notation updates, or over the `*` multiplier box to clamp a new mouse-wheel gain between 1.0001× and 10× for fine or coarse adjustments.【F:mainwindow.cpp†L1801-L1931】
-*   Scroll over lumped-element parameter cells (in either the component library or the cascade) to scale the highlighted value by the configured multiplier—handy for quick tuning sweeps.【F:mainwindow.cpp†L1933-L1972】
+*   Edit the `f min`, `f max`, and `pt` fields above the lumped-element table to resample cascades onto a new frequency grid; every change is validated and applied as soon as you finish editing the field.
+*   Roll the mouse wheel while hovering over the frequency, point-count, or gating fields to nudge the values up or down with engineering notation updates, or over the `*` multiplier box to clamp a new mouse-wheel gain between 1.0001× and 10× for fine or coarse adjustments.
+*   Scroll over lumped-element parameter cells (in either the component library or the cascade) to scale the highlighted value by the configured multiplier—handy for quick tuning sweeps.
 
 **Plot styling and grids**
 
-*   Right-click and release on the plot to open the Plot Settings dialog without disturbing the current zoom; the shortcut works even while cursors are active.【F:plotmanager.cpp†L1251-L1274】【F:plotmanager.cpp†L1747-L1770】
-*   In the Plot Settings dialog you can set exact axis limits, reposition markers, choose grid and subgrid line styles/colors, and override the automatic major/minor tick spacing when the axes use linear scales.【F:plotmanager.cpp†L1297-L1409】
+*   Right-click and release on the plot to open the Plot Settings dialog without disturbing the current zoom; the shortcut works even while cursors are active.
+*   In the Plot Settings dialog you can set exact axis limits, reposition markers, choose grid and subgrid line styles/colors, and override the automatic major/minor tick spacing when the axes use linear scales.
 
-To add more Touchstone files after launch, select **File → Open…** (or press `Ctrl+O`) to use the file explorer; each chosen file is appended to the current session so you can compare multiple networks side by side.【F:mainwindow.cpp†L205-L211】
+To add more Touchstone files after launch, press `Ctrl+O` or drag files from your desktop into the window; each chosen file is appended to the current session so you can compare multiple networks side by side.
 
 ### Command-line interface
 
