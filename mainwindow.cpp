@@ -696,6 +696,11 @@ NetworkCascade* MainWindow::cascade() const
     return m_cascade;
 }
 
+QTableView* MainWindow::cascadeTableView() const
+{
+    return ui ? ui->tableViewCascade : nullptr;
+}
+
 void MainWindow::onFilesReceived(const QStringList &files)
 {
     processFiles(files);
@@ -2000,18 +2005,54 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         }
 
-        auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model) -> bool {
+        auto handleValueWheel = [&](QTableView *view, NetworkItemModel *model, bool cascadeView) -> bool {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             QModelIndex index = view->indexAt(wheelEvent->position().toPoint());
-            if (!index.isValid() || !isParameterValueColumn(index.column()))
+            if (!index.isValid())
                 return false;
 
-            int parameterIndex = parameterIndexFromColumn(index.column());
+            const int column = index.column();
+            const int row = index.row();
+
+            if (cascadeView && (column == ColumnTo || column == ColumnFrom)) {
+                if (!m_cascade)
+                    return false;
+                if (row < 0 || row >= m_cascade->getNetworks().size())
+                    return false;
+
+                int step = 0;
+                if (wheelEvent->angleDelta().y() > 0)
+                    step = 1;
+                else if (wheelEvent->angleDelta().y() < 0)
+                    step = -1;
+                if (step == 0)
+                    return false;
+
+                QStandardItem *valueItem = model->item(row, column);
+                if (!valueItem)
+                    return false;
+
+                bool ok = false;
+                int value = valueItem->text().toInt(&ok);
+                if (!ok) {
+                    const auto selection = m_cascade->networkPortSelection(row);
+                    value = (column == ColumnTo) ? selection.first : selection.second;
+                }
+
+                valueItem->setText(QString::number(value + step));
+                wheelEvent->accept();
+                return true;
+            }
+
+            if (!isParameterValueColumn(column))
+                return false;
+
+            int parameterIndex = parameterIndexFromColumn(column);
             if (parameterIndex < 0)
                 return false;
 
-            QStandardItem *ptrItem = model->item(index.row(), 0);
-            QStandardItem *valueItem = model->item(index.row(), index.column());
+            QStandardItem *ptrItem = model->item(row, 0);
+            QStandardItem *valueItem = model->item(row, column);
             if (!ptrItem || !valueItem)
                 return false;
 
@@ -2035,10 +2076,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         };
 
         if (obj == ui->tableViewNetworkLumped->viewport()) {
-            if (handleValueWheel(ui->tableViewNetworkLumped, m_network_lumped_model))
+            if (handleValueWheel(ui->tableViewNetworkLumped, m_network_lumped_model, false))
                 return true;
         } else if (obj == ui->tableViewCascade->viewport()) {
-            if (handleValueWheel(ui->tableViewCascade, m_network_cascade_model))
+            if (handleValueWheel(ui->tableViewCascade, m_network_cascade_model, true))
                 return true;
         }
     }
