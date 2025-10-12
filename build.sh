@@ -38,7 +38,7 @@ find_moc() {
         return 1
     fi
 
-    return 1
+    return 0
 }
 
 find_uic() {
