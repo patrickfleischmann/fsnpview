@@ -685,6 +685,12 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     m_currentPlotType = type;
     configureCursorStyles(type);
 
+    if (type != PlotType::Smith && m_keepAspectConnected) {
+        disconnect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        m_keepAspectConnected = false;
+    }
+
     if (type == PlotType::Smith) {
         m_plot->xAxis->setScaleType(QCPAxis::stLinear);
         m_plot->xAxis2->setScaleType(QCPAxis::stLinear);
@@ -1096,10 +1102,6 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             connect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
             m_keepAspectConnected = true;
         }
-    } else if (m_keepAspectConnected) {
-        disconnect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
-        disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
-        m_keepAspectConnected = false;
     }
 
 
@@ -1983,6 +1985,8 @@ void PlotManager::selectionChanged()
 
 void PlotManager::keepAspectRatio()
 {
+    if (m_currentPlotType != PlotType::Smith)
+        return;
     enforceSmithAspectRatio();
 }
 
