@@ -45,6 +45,7 @@ public:
     void setCascadePointCount(int pointCount);
     void initializeFrequencyControls(bool freqSpecified, double fmin, double fmax, int pointCount, bool hasInitialFiles);
     NetworkCascade* cascade() const;
+    QTableView* cascadeTableView() const;
 
 private slots:
     void on_actionOpen_triggered();

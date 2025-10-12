@@ -10,6 +10,7 @@ set -x
 # Debian based systems so that the script works out-of-the-box in CI images
 # that start without Qt preinstalled.
 MOC=""
+UIC=""
 
 find_moc() {
     if command -v qtpaths6 >/dev/null 2>&1; then
@@ -36,6 +37,32 @@ find_moc() {
     if [ -z "$MOC" ]; then
         return 1
     fi
+
+    return 0
+}
+
+find_uic() {
+    if command -v qtpaths6 >/dev/null 2>&1; then
+        local qt_bins
+        qt_bins="$(qtpaths6 --query QT_INSTALL_BINS || true)"
+        if [ -n "$qt_bins" ] && [ -x "$qt_bins/uic" ]; then
+            UIC="$qt_bins/uic"
+            return 0
+        fi
+        local qt_libexec
+        qt_libexec="$(qtpaths6 --query QT_INSTALL_LIBEXECS || true)"
+        if [ -n "$qt_libexec" ] && [ -x "$qt_libexec/uic" ]; then
+            UIC="$qt_libexec/uic"
+            return 0
+        fi
+    fi
+
+    for candidate in uic-qt6 uic; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            UIC="$(command -v "$candidate")"
+            return 0
+        fi
+    done
 
     return 0
 }
@@ -72,6 +99,22 @@ if ! find_moc; then
         exit 1
     fi
 fi
+
+if ! find_uic; then
+    if install_qt_dependencies && find_uic; then
+        :
+    else
+        echo "error: Qt 'uic' executable not found. Install qt6-base-dev or run ./setup.sh." >&2
+        exit 1
+    fi
+fi
+
+# Generate ui header
+if [ -z "$UIC" ]; then
+    echo "error: Qt 'uic' executable not found even after setup." >&2
+    exit 1
+fi
+"$UIC" mainwindow.ui -o ui_mainwindow.h
 
 # Ensure pkg-config can locate the Qt6 .pc files. Debian based systems install
 # them in a qt6 specific subdirectory that is not part of the default search
@@ -112,6 +155,9 @@ $MOC $MOC_INCLUDES network.h -o moc_network.cpp
 $MOC $MOC_INCLUDES networkfile.h -o moc_networkfile.cpp
 $MOC $MOC_INCLUDES networklumped.h -o moc_networklumped.cpp
 $MOC $MOC_INCLUDES networkcascade.h -o moc_networkcascade.cpp
+$MOC $MOC_INCLUDES networkitemmodel.h -o moc_networkitemmodel.cpp
+$MOC $MOC_INCLUDES mainwindow.h -o moc_mainwindow.cpp
+$MOC $MOC_INCLUDES server.h -o moc_server.cpp
 $MOC $MOC_INCLUDES qcustomplot.h -o moc_qcustomplot.cpp
 $MOC $MOC_INCLUDES parameterstyledialog.h -o moc_parameterstyledialog.cpp
 $MOC $MOC_INCLUDES plotsettingsdialog.h -o moc_plotsettingsdialog.cpp
@@ -158,6 +204,15 @@ g++ -std=c++17 -I/usr/include/eigen3 -I. \
     networkcascade.cpp parser_touchstone.cpp qcustomplot.cpp tdrcalculator.cpp \
     moc_plotmanager.cpp moc_plotsettingsdialog.cpp moc_network.cpp moc_networklumped.cpp moc_networkcascade.cpp moc_qcustomplot.cpp \
     -o plotmanager_mathplot_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport)
+
+g++ -std=c++17 -I/usr/include/eigen3 -I. \
+    tests/cascade_wheel_tests.cpp mainwindow.cpp networkitemmodel.cpp plotmanager.cpp plotsettingsdialog.cpp \
+    parameterstyledialog.cpp network.cpp networkfile.cpp networklumped.cpp networkcascade.cpp parser_touchstone.cpp \
+    qcustomplot.cpp tdrcalculator.cpp server.cpp cascadeio.cpp \
+    moc_mainwindow.cpp moc_networkitemmodel.cpp moc_plotmanager.cpp moc_plotsettingsdialog.cpp \
+    moc_parameterstyledialog.cpp moc_network.cpp moc_networkfile.cpp moc_networklumped.cpp moc_networkcascade.cpp \
+    moc_qcustomplot.cpp moc_server.cpp \
+    -o cascade_wheel_tests $(pkg-config --cflags --libs Qt6Widgets Qt6Gui Qt6Core Qt6PrintSupport Qt6Network)
 
 g++ -std=c++17 -I/usr/include/eigen3 -I. \
     tests/plotsettingsdialog_tests.cpp plotmanager.cpp plotsettingsdialog.cpp network.cpp networklumped.cpp \
