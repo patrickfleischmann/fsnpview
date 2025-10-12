@@ -17,6 +17,7 @@
 #include <QStringList>
 #include <QColor>
 #include <QPen>
+#include <QSignalBlocker>
 #include <QVector>
 
 namespace
@@ -684,6 +685,12 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     m_currentPlotType = type;
     configureCursorStyles(type);
 
+    if (type != PlotType::Smith && m_keepAspectConnected) {
+        disconnect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
+        m_keepAspectConnected = false;
+    }
+
     if (type == PlotType::Smith) {
         m_plot->xAxis->setScaleType(QCPAxis::stLinear);
         m_plot->xAxis2->setScaleType(QCPAxis::stLinear);
@@ -1095,15 +1102,13 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             connect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
             m_keepAspectConnected = true;
         }
-    } else if (m_keepAspectConnected) {
-        disconnect(m_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
-        disconnect(m_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), this, SLOT(keepAspectRatio()));
-        m_keepAspectConnected = false;
     }
 
-    m_plot->replot();
+
     selectionChanged();
     updateTracers();
+    m_plot->replot();
+
 }
 
 void PlotManager::autoscale()
@@ -1980,12 +1985,29 @@ void PlotManager::selectionChanged()
 
 void PlotManager::keepAspectRatio()
 {
+    if (m_currentPlotType != PlotType::Smith)
+        return;
     enforceSmithAspectRatio();
 }
 
 void PlotManager::enforceSmithAspectRatio()
 {
-    if (!m_plot)
+    if (!m_plot || !m_plot->xAxis || !m_plot->yAxis)
+        return;
+
+    if (m_plot->axisRectCount() <= 0)
+        return;
+
+    QCPAxisRect *rect = m_plot->axisRect();
+    if (!rect || rect->width() <= 0 || rect->height() <= 0)
+        return;
+
+    const QCPRange xRange = m_plot->xAxis->range();
+    const QCPRange yRange = m_plot->yAxis->range();
+    if (!std::isfinite(xRange.lower) || !std::isfinite(xRange.upper) || xRange.size() <= 0)
+        return;
+    if (!std::isfinite(yRange.lower) || !std::isfinite(yRange.upper) || yRange.size() <= 0)
+
         return;
 
     m_plot->xAxis->setScaleRatio(m_plot->yAxis, 1.0);
@@ -2128,8 +2150,16 @@ void PlotManager::setupSmithGrid()
         }
     }
 
-    m_plot->xAxis->setRange(-1.05, 1.05);
-    m_plot->yAxis->setRange(-1.05, 1.05);
+    const bool haveStoredSmithState = m_axisStates.value(PlotType::Smith).valid;
+    {
+        QSignalBlocker blockX(m_plot->xAxis);
+        QSignalBlocker blockY(m_plot->yAxis);
+        if (!haveStoredSmithState)
+        {
+            m_plot->xAxis->setRange(-1.05, 1.05);
+            m_plot->yAxis->setRange(-1.05, 1.05);
+        }
+    }
     m_plot->xAxis->setTicks(false);
     m_plot->yAxis->setTicks(false);
     m_plot->xAxis->setTickLabels(false);
