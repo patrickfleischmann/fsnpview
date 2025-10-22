@@ -606,16 +606,29 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     {
         bool visible = false;
         QString baseName;
-        double frequency = std::numeric_limits<double>::quiet_NaN();
+        double axisValue = std::numeric_limits<double>::quiet_NaN();
     };
 
-    auto captureTracerState = [&](QCPItemTracer *tracer) -> TracerState
+    auto updateStoredValue = [&](QMap<PlotType, double> &storage, PlotType storedType, double value)
+    {
+        if (std::isfinite(value))
+            storage[storedType] = value;
+        else
+            storage.remove(storedType);
+    };
+
+    auto captureTracerState = [&](QCPItemTracer *tracer, QMap<PlotType, double> &storage) -> TracerState
     {
         TracerState state;
         if (!tracer || !tracer->visible())
+        {
+            storage.remove(previousPlotType);
             return state;
+        }
 
         state.visible = true;
+
+        double currentValue = std::numeric_limits<double>::quiet_NaN();
 
         if (previousPlotType == PlotType::Smith)
         {
@@ -628,7 +641,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 {
                     const QVector<double> freqs = m_curveFreqs.value(curve);
                     if (idx < freqs.size())
-                        state.frequency = freqs.at(idx);
+                        currentValue = freqs.at(idx);
                 }
             }
         }
@@ -637,15 +650,18 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             if (QCPGraph *graph = tracer->graph())
             {
                 state.baseName = baseNameFor(graph->name(), previousPlotType);
-                state.frequency = tracer->graphKey();
+                currentValue = tracer->graphKey();
             }
         }
+
+        updateStoredValue(storage, previousPlotType, currentValue);
+        state.axisValue = storage.value(type, std::numeric_limits<double>::quiet_NaN());
 
         return state;
     };
 
-    TracerState tracerAState = captureTracerState(mTracerA);
-    TracerState tracerBState = captureTracerState(mTracerB);
+    TracerState tracerAState = captureTracerState(mTracerA, m_tracerStoredKeysA);
+    TracerState tracerBState = captureTracerState(mTracerB, m_tracerStoredKeysB);
 
     QStringList required_graphs;
     QString suffix;
@@ -985,7 +1001,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         if (targetGraph)
         {
             tracer->setGraph(targetGraph);
-            double key = state.frequency;
+            double key = state.axisValue;
             if (!std::isfinite(key))
             {
                 key = m_plot->xAxis->range().center();
@@ -1044,9 +1060,9 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             {
                 QVector<double> freqs = m_curveFreqs.value(targetCurve);
                 int index = 0;
-                if (!freqs.isEmpty() && std::isfinite(state.frequency))
+                if (!freqs.isEmpty() && std::isfinite(state.axisValue))
                 {
-                    auto lower = std::lower_bound(freqs.constBegin(), freqs.constEnd(), state.frequency);
+                    auto lower = std::lower_bound(freqs.constBegin(), freqs.constEnd(), state.axisValue);
                     if (lower == freqs.constEnd())
                         index = freqs.size() - 1;
                     else if (lower == freqs.constBegin())
@@ -1054,10 +1070,10 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                     else
                     {
                         index = lower - freqs.constBegin();
-                        double lowerDiff = qAbs(*lower - state.frequency);
+                        double lowerDiff = qAbs(*lower - state.axisValue);
                         auto prev = lower;
                         --prev;
-                        double prevDiff = qAbs(state.frequency - *prev);
+                        double prevDiff = qAbs(state.axisValue - *prev);
                         if (prevDiff <= lowerDiff)
                             index = prev - freqs.constBegin();
                     }
@@ -1143,6 +1159,7 @@ void PlotManager::setCursorAVisible(bool visible)
 
     if (!visible)
     {
+        m_tracerStoredKeysA.remove(m_currentPlotType);
         m_tracerCurves.remove(mTracerA);
         m_tracerIndices.remove(mTracerA);
     }
@@ -1210,6 +1227,7 @@ void PlotManager::setCursorBVisible(bool visible)
 
     if (!visible)
     {
+        m_tracerStoredKeysB.remove(m_currentPlotType);
         m_tracerCurves.remove(mTracerB);
         m_tracerIndices.remove(mTracerB);
     }
@@ -1588,6 +1606,8 @@ void PlotManager::setCartesianMarkerValue(QCPItemTracer *tracer, double value)
         tracer->position->setType(QCPItemPosition::ptPlotCoords);
         tracer->position->setCoords(value, m_plot->yAxis->range().center());
     }
+
+    storeMarkerValue(tracer, markerValue(tracer));
 }
 
 void PlotManager::setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency)
@@ -1640,6 +1660,27 @@ void PlotManager::setSmithMarkerFrequency(QCPItemTracer *tracer, double frequenc
     tracer->position->setCoords(it->key, it->value);
     m_tracerCurves[tracer] = targetCurve;
     m_tracerIndices[tracer] = index;
+    storeMarkerValue(tracer, markerValue(tracer));
+}
+
+void PlotManager::storeMarkerValue(QCPItemTracer *tracer, double value)
+{
+    if (!tracer)
+        return;
+
+    QMap<PlotType, double> *storage = nullptr;
+    if (tracer == mTracerA)
+        storage = &m_tracerStoredKeysA;
+    else if (tracer == mTracerB)
+        storage = &m_tracerStoredKeysB;
+
+    if (!storage)
+        return;
+
+    if (std::isfinite(value))
+        (*storage)[m_currentPlotType] = value;
+    else
+        storage->remove(m_currentPlotType);
 }
 
 void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
@@ -1808,7 +1849,13 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
     } else {
         if (!tracer->graph())
             return;
-        labelText = Network::formatEngineering(x) + "Hz " + Network::formatEngineering(y);
+        const QString xUnit = (m_currentPlotType == PlotType::TDR)
+                                   ? tr("m")
+                                   : tr("Hz");
+        labelText = QStringLiteral("%1%2 %3")
+                        .arg(Network::formatEngineering(x),
+                             xUnit,
+                             Network::formatEngineering(y));
         if (tracer == mTracerB && mTracerA->visible())
         {
             mTracerA->updatePosition();
@@ -1816,9 +1863,10 @@ void PlotManager::updateTracerText(QCPItemTracer *tracer, QCPItemText *text)
             double yA = mTracerA->position->coords().y();
             double dx = x - xA;
             double dy = y - yA;
-            labelText += QString("\nΔx: %1Hz Δy: %2")
-                             .arg(Network::formatEngineering(dx))
-                             .arg(Network::formatEngineering(dy));
+            labelText += QStringLiteral("\nΔx: %1%2 Δy: %3")
+                              .arg(Network::formatEngineering(dx),
+                                   xUnit,
+                                   Network::formatEngineering(dy));
         }
     }
 
