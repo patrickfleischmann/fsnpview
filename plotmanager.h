@@ -89,6 +89,7 @@ private:
     void setMarkerValue(QCPItemTracer *tracer, double value);
     void setCartesianMarkerValue(QCPItemTracer *tracer, double value);
     void setSmithMarkerFrequency(QCPItemTracer *tracer, double frequency);
+    void storeMarkerValue(QCPItemTracer *tracer, double value);
     QString markerLabelText(const QString &markerName) const;
     double currentTickStep(const QCPAxis *axis) const;
     void storeAxisState(PlotType type);
@@ -114,6 +115,8 @@ private:
     QMap<QCPCurve*, QVector<double>> m_curveFreqs;
     QMap<QCPItemTracer*, QCPCurve*> m_tracerCurves;
     QMap<QCPItemTracer*, int> m_tracerIndices;
+    QMap<PlotType, double> m_tracerStoredKeysA;
+    QMap<PlotType, double> m_tracerStoredKeysB;
     bool m_keepAspectConnected;
     PlotType m_currentPlotType;
     bool m_crosshairEnabled;
