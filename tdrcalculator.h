@@ -9,6 +9,7 @@
 class TDRCalculator
 {
 public:
+    enum class WindowType { Square, Hann, Blackman };
 
     struct Parameters
     {
@@ -18,13 +19,15 @@ public:
                              double speedOfLight = 299792458.0,
                              double risetime = 5e-12,
                              enum FilterType filter = Parameters::FilterType::Gaussian,
-                             double rolloff = 0.5)
+                             double rolloff = 0.5,
+                             WindowType window = WindowType::Hann)
             : referenceImpedance(referenceImpedance),
               effectivePermittivity(effectivePermittivity),
               speedOfLight(speedOfLight),
               risetime(risetime),
               filter(filter),
-              rolloff(rolloff)
+              rolloff(rolloff),
+              window(window)
         {
         }
 
@@ -35,6 +38,7 @@ public:
         double risetime;   // source risetime [s] (0 = ideal step)
         enum FilterType filter;
         double rolloff;    // only used for RaisedCosine, range 0..1
+        WindowType window;
     };
 
     struct Result
