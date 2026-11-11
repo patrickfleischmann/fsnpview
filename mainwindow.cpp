@@ -125,6 +125,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
     m_cascade->setColor(Qt::magenta);
 
+    ui->lineEditRiseTime->installEventFilter(this);
     ui->lineEditGateStart->installEventFilter(this);
     ui->lineEditGateStop->installEventFilter(this);
     ui->lineEditFminNetworks->installEventFilter(this);
@@ -143,6 +144,15 @@ MainWindow::MainWindow(QWidget *parent)
     refreshGateControls();
     ui->checkBoxGate->setChecked(gateSettings.enabled);
 
+    connect(ui->lineEditRiseTime, &QLineEdit::editingFinished, this, [this] {
+        const bool changed = applyGateSettingsFromUi();
+        refreshGateControls();
+        if (changed) updatePlots();
+    });
+    connect(ui->comboBoxTdrWindow, &QComboBox::currentIndexChanged, this, [this] {
+        const bool changed = applyGateSettingsFromUi();
+        if (changed) updatePlots();
+    });
     setupModels();
     setupViews();
     setupShortcuts();
@@ -1288,6 +1298,11 @@ bool MainWindow::applyGateSettingsFromUi()
         return ok ? value : fallback;
     };
 
+    double risetime = parseValue(ui->lineEditRiseTime, previous.risetime);
+    if (!std::isfinite(risetime)) risetime = previous.risetime;
+    settings.risetime = std::max(0.0, risetime);
+    settings.window = static_cast<TDRCalculator::WindowType>(ui->comboBoxTdrWindow->currentIndex());
+
     double start = parseValue(ui->lineEditGateStart, previous.startDistance);
     double stop = parseValue(ui->lineEditGateStop, previous.stopDistance);
     double epsilon = parseValue(ui->lineEditEpsilonR, previous.epsilonR);
@@ -1306,7 +1321,9 @@ bool MainWindow::applyGateSettingsFromUi()
     settings.stopDistance = stop;
     settings.epsilonR = epsilon;
 
-    bool changed = settings.enabled != previous.enabled
+    bool changed = settings.window != previous.window
+            || settings.risetime != previous.risetime
+            || settings.enabled != previous.enabled
             || !nearlyEqual(settings.startDistance, previous.startDistance)
             || !nearlyEqual(settings.stopDistance, previous.stopDistance)
             || !nearlyEqual(settings.epsilonR, previous.epsilonR);
@@ -1321,6 +1338,12 @@ void MainWindow::refreshGateControls()
 {
     Network::TimeGateSettings settings = Network::timeGateSettings();
 
+    {
+        QSignalBlocker blocker(ui->lineEditRiseTime);
+        ui->lineEditRiseTime->setText(Network::formatEngineering(settings.risetime, false));
+        QSignalBlocker windowBlocker(ui->comboBoxTdrWindow);
+        ui->comboBoxTdrWindow->setCurrentIndex(static_cast<int>(settings.window));
+    }
     {
         QSignalBlocker blocker(ui->lineEditGateStart);
         ui->lineEditGateStart->setText(Network::formatEngineering(settings.startDistance, false));
@@ -1964,7 +1987,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         }
 
-        if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop) {
+        if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop || obj == ui->lineEditRiseTime) {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             if (wheelEvent->angleDelta().y() == 0)
                 return true;
@@ -1976,14 +1999,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             Network::TimeGateSettings settings = Network::timeGateSettings();
             const double fallback = (obj == ui->lineEditGateStop)
                     ? settings.stopDistance
-                    : settings.startDistance;
+                    : (obj == ui->lineEditRiseTime ? settings.risetime : settings.startDistance);
 
             bool ok = false;
             double value = edit->text().trimmed().toDouble(&ok);
-            if (!ok)
+            if (!ok || !std::isfinite(value))
                 value = fallback;
 
-            const double magnitude = std::max(std::abs(value), 1e-3);
+            const double magnitude = std::max(std::abs(value), obj == ui->lineEditRiseTime ? 1e-12 : 1e-3);
             const double step = magnitude * 0.1;
             if (wheelEvent->angleDelta().y() > 0)
                 value += step;

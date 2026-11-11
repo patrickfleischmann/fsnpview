@@ -541,6 +541,27 @@
              </widget>
             </item>
             <item>
+             <widget class="QComboBox" name="comboBoxTdrWindow">
+              <property name="toolTip"><string>TDR frequency window</string></property>
+              <property name="currentIndex"><number>1</number></property>
+              <item><property name="text"><string>Square (none)</string></property></item>
+              <item><property name="text"><string>Hann</string></property></item>
+              <item><property name="text"><string>Blackman</string></property></item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="labelRiseTime">
+              <property name="text"><string>Rise time [s]</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="lineEditRiseTime">
+              <property name="maximumSize"><size><width>85</width><height>16777215</height></size></property>
+              <property name="toolTip"><string>Gaussian source rise time in seconds (0 disables filtering). Use scientific notation; scroll to adjust.</string></property>
+              <property name="text"><string>5e-12</string></property>
+             </widget>
+            </item>
+            <item>
              <spacer name="horizontalSpacer_3">
               <property name="orientation">
                <enum>Qt::Orientation::Horizontal</enum>

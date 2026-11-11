@@ -76,9 +76,44 @@ void test_step_response_has_plateau()
     std::cout << "TDR calculator step response test passed." << std::endl;
 }
 
+void test_frequency_windows_and_risetime()
+{
+    Eigen::ArrayXd frequency = Eigen::ArrayXd::LinSpaced(65, 0.0, 64e6);
+    Eigen::ArrayXcd reflection = Eigen::ArrayXcd::Constant(65, std::complex<double>(0.2, 0.0));
+    TDRCalculator calculator;
+    TDRCalculator::Parameters params;
+    assert(params.window == TDRCalculator::WindowType::Hann);
+    params.risetime = 0.0;
+    for (auto window : {TDRCalculator::WindowType::Square,
+                        TDRCalculator::WindowType::Hann,
+                        TDRCalculator::WindowType::Blackman}) {
+        params.window = window;
+        // Cover the entire time period, making the gate an identity operation.
+        auto result = calculator.applyGate(frequency, reflection, 0.0, 200.0, 1.0, params);
+        assert(result);
+        for (int i = 0; i < frequency.size(); ++i) {
+            const double x = frequency(i) / frequency(64);
+            double weight = 1.0;
+            if (window == TDRCalculator::WindowType::Hann)
+                weight = 0.5 * (1.0 + std::cos(kPi * x));
+            if (window == TDRCalculator::WindowType::Blackman)
+                weight = 0.42 + 0.5 * std::cos(kPi * x) + 0.08 * std::cos(2 * kPi * x);
+            assert(std::abs(result->gatedReflection(i) - 0.2 * weight) < 1e-10);
+        }
+    }
+    params.window = TDRCalculator::WindowType::Square;
+    params.risetime = 10e-9;
+    auto filtered = calculator.applyGate(frequency, reflection, 0.0, 200.0, 1.0, params);
+    assert(filtered);
+    assert(std::abs(filtered->gatedReflection(0).real() - 0.2) < 1e-10);
+    const double expected = 0.2 * std::exp(-std::pow(64e6 / (0.35 / params.risetime), 2));
+    assert(std::abs(filtered->gatedReflection(64).real() - expected) < 1e-10);
+}
+
 int main()
 {
     test_step_response_has_plateau();
+    test_frequency_windows_and_risetime();
     return 0;
 }
 

@@ -76,6 +76,8 @@ QPair<QVector<double>, QVector<double>> NetworkFile::getPlotData(int s_param_idx
     TDRCalculator calculator;
     TDRCalculator::Parameters tdrParams;
     tdrParams.effectivePermittivity = std::max(gateSettings.epsilonR, 1.0);
+    tdrParams.window = gateSettings.window;
+    tdrParams.risetime = gateSettings.risetime;
 
     std::optional<TDRCalculator::GateResult> gateResult;
     if (gateSettings.enabled && isReflectionParam) {

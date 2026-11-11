@@ -4,6 +4,8 @@
 #include <QWheelEvent>
 #include <QStandardItemModel>
 #include <QLineEdit>
+#include <QComboBox>
+#include <cmath>
 #include <QRect>
 #include <QEventLoop>
 
@@ -44,6 +46,37 @@ int main(int argc, char **argv)
     MainWindow window;
     window.show();
     QApplication::processEvents(QEventLoop::AllEvents);
+
+    auto *windowType = window.findChild<QComboBox*>("comboBoxTdrWindow");
+    auto *riseTime = window.findChild<QLineEdit*>("lineEditRiseTime");
+    if (!windowType || !riseTime || windowType->currentText() != "Hann"
+            || std::abs(Network::timeGateSettings().risetime - 5e-12) > 1e-20)
+        return 1;
+    windowType->setCurrentIndex(2);
+    if (Network::timeGateSettings().window != TDRCalculator::WindowType::Blackman)
+        return 1;
+    riseTime->setText("20e-12");
+    QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
+    if (std::abs(Network::timeGateSettings().risetime - 20e-12) > 1e-20)
+        return 1;
+    QWheelEvent riseWheel(QPointF(1, 1), QPointF(1, 1), QPoint(), QPoint(0, 120),
+                         Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QCoreApplication::sendEvent(riseTime, &riseWheel);
+    if (std::abs(Network::timeGateSettings().risetime - 22e-12) > 1e-20)
+        return 1;
+    for (const auto &text : {"invalid", "nan", "inf"}) {
+        riseTime->setText(text);
+        QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
+        if (std::abs(Network::timeGateSettings().risetime - 22e-12) > 1e-20)
+            return 1;
+    }
+    riseTime->setText("-1");
+    QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
+    if (Network::timeGateSettings().risetime != 0.0)
+        return 1;
+    QCoreApplication::sendEvent(riseTime, &riseWheel);
+    if (!(Network::timeGateSettings().risetime > 0.0))
+        return 1;
 
     auto *cascade = window.cascade();
     if (!cascade) {

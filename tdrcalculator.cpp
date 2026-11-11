@@ -52,15 +52,16 @@ inline std::size_t NextPow2(std::size_t n)
     return n + 1;
 }
 
-// Apply a cosine taper only at the high-frequency tail
-inline void ApplyHighEndCosineTaper(Eigen::ArrayXcd& oneSided, int edgeCount)
+// Positive half of a symmetric window: preserve DC and taper at measured fmax.
+inline void ApplyFrequencyWindow(Eigen::ArrayXcd& oneSided, const Eigen::ArrayXd& frequency,
+                                 double fmax, TDRCalculator::WindowType type)
 {
-    const int n = static_cast<int>(oneSided.size());
-    if (n <= 2 || edgeCount <= 0 || edgeCount >= n) return;
-
-    for (int i = n - edgeCount; i < n; ++i) {
-        const double x = double(i - (n - edgeCount)) / double(edgeCount - 1); // 0..1
-        const double w = 0.5 * (1.0 + std::cos(kPi * x)); // 1 → 0
+    if (type == TDRCalculator::WindowType::Square || !(fmax > 0.0)) return;
+    for (Eigen::Index i = 0; i < oneSided.size(); ++i) {
+        const double x = std::clamp(frequency(i) / fmax, 0.0, 1.0);
+        const double w = type == TDRCalculator::WindowType::Blackman
+                ? 0.42 + 0.5 * std::cos(kPi * x) + 0.08 * std::cos(2.0 * kPi * x)
+                : 0.5 * (1.0 + std::cos(kPi * x));
         oneSided(i) *= w;
     }
 }
@@ -161,10 +162,7 @@ std::optional<TransformContext> PrepareTransform(const Eigen::ArrayXd& frequency
         }
     }
 
-    {
-        const int edge = std::max<int>(1, int(0.10 * (nBins - 1)));
-        ApplyHighEndCosineTaper(ctx.spectrumPositive, edge);
-    }
+    ApplyFrequencyWindow(ctx.spectrumPositive, ctx.freqBins, fmaxMeas, params.window);
 
     ctx.spectrumFull.assign(ctx.Nfft, std::complex<double>(0.0, 0.0));
     for (std::size_t i = 0; i < nBins; ++i)
