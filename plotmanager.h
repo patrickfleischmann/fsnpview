@@ -38,6 +38,10 @@ public:
     void setCrosshairEnabled(bool enabled);
     void applySettingsFromDialog(const PlotSettingsDialog &dialog);
 
+    void setGateMarkersVisible(bool visible);
+signals:
+    void gateChanged();
+
 public slots:
     void mouseDoubleClick(QMouseEvent *event);
     void mousePress(QMouseEvent *event);
@@ -53,6 +57,13 @@ public slots:
     void handleBeforeReplot();
 
 private:
+    void updateGateMarkers();
+    QCPItemStraightLine *m_gateStartLine = nullptr;
+    QCPItemStraightLine *m_gateStopLine = nullptr;
+    QCPItemStraightLine *m_draggedGateLine = nullptr;
+    bool m_gateMarkersVisible = false;
+    QCP::SelectionRectMode m_gatePreviousSelectionMode = QCP::srmZoom;
+
     struct AxisState
     {
         bool valid = false;

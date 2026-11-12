@@ -5,6 +5,8 @@
 #include <QStandardItemModel>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QCheckBox>
+#include "qcustomplot.h"
 #include <cmath>
 #include <QRect>
 #include <QEventLoop>
@@ -48,35 +50,70 @@ int main(int argc, char **argv)
     QApplication::processEvents(QEventLoop::AllEvents);
 
     auto *windowType = window.findChild<QComboBox*>("comboBoxTdrWindow");
-    auto *riseTime = window.findChild<QLineEdit*>("lineEditRiseTime");
-    if (!windowType || !riseTime || windowType->currentText() != "Hann"
-            || std::abs(Network::timeGateSettings().risetime - 5e-12) > 1e-20)
+    if (!windowType || windowType->currentText() != "Hann"
+            || windowType->itemText(0) != "Square"
+            || window.findChild<QLineEdit*>("lineEditRiseTime")
+            || window.findChild<QWidget*>("labelRiseTime"))
         return 1;
+    if (windowType->sizePolicy().horizontalPolicy() != QSizePolicy::Fixed)
+        return 1;
+    for (const auto *name : {"lineEditGateStart", "lineEditGateStop", "lineEditEpsilonR"}) {
+        auto *edit = window.findChild<QLineEdit*>(name);
+        if (!edit || edit->minimumWidth() != edit->maximumWidth()
+                || edit->width() >= edit->sizeHint().width())
+            return 1;
+    }
     windowType->setCurrentIndex(2);
     if (Network::timeGateSettings().window != TDRCalculator::WindowType::Blackman)
         return 1;
-    riseTime->setText("20e-12");
-    QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
-    if (std::abs(Network::timeGateSettings().risetime - 20e-12) > 1e-20)
+
+    auto *gateMarkers = window.findChild<QCheckBox*>("checkBoxGateMarkers");
+    auto *tdr = window.findChild<QCheckBox*>("checkBoxTDR");
+    auto *plot = window.findChild<QCustomPlot*>("widgetGraph");
+    auto *startLine = plot ? plot->findChild<QCPItemStraightLine*>("gateStartLine") : nullptr;
+    auto *stopLine = plot ? plot->findChild<QCPItemStraightLine*>("gateStopLine") : nullptr;
+    if (!gateMarkers || !tdr || !startLine || !stopLine || startLine->visible())
         return 1;
-    QWheelEvent riseWheel(QPointF(1, 1), QPointF(1, 1), QPoint(), QPoint(0, 120),
-                         Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
-    QCoreApplication::sendEvent(riseTime, &riseWheel);
-    if (std::abs(Network::timeGateSettings().risetime - 22e-12) > 1e-20)
+    gateMarkers->setChecked(true);
+    if (startLine->visible()) // Frequency plots must not show distance markers.
         return 1;
-    for (const auto &text : {"invalid", "nan", "inf"}) {
-        riseTime->setText(text);
-        QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
-        if (std::abs(Network::timeGateSettings().risetime - 22e-12) > 1e-20)
-            return 1;
-    }
-    riseTime->setText("-1");
-    QMetaObject::invokeMethod(riseTime, "editingFinished", Qt::DirectConnection);
-    if (Network::timeGateSettings().risetime != 0.0)
+    tdr->setChecked(true);
+    plot->xAxis->setRange(0, 2);
+    plot->replot();
+    if (!startLine->visible() || !stopLine->visible()
+            || startLine->pen().style() != Qt::DashLine)
         return 1;
-    QCoreApplication::sendEvent(riseTime, &riseWheel);
-    if (!(Network::timeGateSettings().risetime > 0.0))
+    const auto dragLine = [&](QCPItemStraightLine *line, double target) {
+        const QPointF from(line->point1->pixelPosition().x(), plot->axisRect()->rect().center().y());
+        const QPointF to(plot->xAxis->coordToPixel(target), from.y());
+        QMouseEvent press(QEvent::MouseButtonPress, from, from, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(plot, &press);
+        QMouseEvent move(QEvent::MouseMove, to, to, Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(plot, &move);
+        QMouseEvent release(QEvent::MouseButtonRelease, to, to, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(plot, &release);
+    };
+    dragLine(stopLine, 1.5);
+    if (std::abs(Network::timeGateSettings().stopDistance - 1.5) > 0.02)
         return 1;
+    dragLine(startLine, 0.5);
+    if (std::abs(Network::timeGateSettings().startDistance - 0.5) > 0.02
+            || plot->selectionRectMode() != QCP::srmZoom)
+        return 1;
+    auto *startEdit = window.findChild<QLineEdit*>("lineEditGateStart");
+    if (!startEdit || std::abs(startEdit->text().toDouble() - 0.5) > 0.02)
+        return 1;
+    startEdit->setText("0.25");
+    QMetaObject::invokeMethod(startEdit, "editingFinished", Qt::DirectConnection);
+    if (std::abs(startLine->point1->key() - 0.25) > 1e-10)
+        return 1;
+    dragLine(startLine, 1.9);
+    if (Network::timeGateSettings().startDistance > Network::timeGateSettings().stopDistance)
+        return 1;
+    gateMarkers->setChecked(false);
+    if (startLine->visible() || stopLine->visible())
+        return 1;
+    tdr->setChecked(false);
 
     auto *cascade = window.cascade();
     if (!cascade) {

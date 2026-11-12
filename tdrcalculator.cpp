@@ -139,29 +139,6 @@ std::optional<TransformContext> PrepareTransform(const Eigen::ArrayXd& frequency
         }
     }
 
-    if (params.risetime > 0.0 && params.filter != TDRCalculator::Parameters::FilterType::None) {
-        const double fc = 0.35 / params.risetime;
-        for (std::size_t i = 0; i < nBins; ++i) {
-            const double fcur = ctx.freqBins(static_cast<Eigen::Index>(i));
-            double H = 1.0;
-            if (params.filter == TDRCalculator::Parameters::FilterType::Gaussian) {
-                H = std::exp(-std::pow(fcur / fc, 2.0));
-            } else if (params.filter == TDRCalculator::Parameters::FilterType::RaisedCosine) {
-                const double roll = std::clamp(params.rolloff, 0.0, 1.0);
-                const double f0 = (1.0 - roll) * fc;
-                const double f1 = (1.0 + roll) * fc;
-                if (fcur <= f0) {
-                    H = 1.0;
-                } else if (fcur >= f1) {
-                    H = 0.0;
-                } else {
-                    H = 0.5 * (1.0 + std::cos(kPi * (fcur - f0) / (2.0 * roll * fc)));
-                }
-            }
-            ctx.spectrumPositive(static_cast<Eigen::Index>(i)) *= H;
-        }
-    }
-
     ApplyFrequencyWindow(ctx.spectrumPositive, ctx.freqBins, fmaxMeas, params.window);
 
     ctx.spectrumFull.assign(ctx.Nfft, std::complex<double>(0.0, 0.0));

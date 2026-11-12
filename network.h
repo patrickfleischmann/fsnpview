@@ -44,7 +44,6 @@ public:
         double stopDistance = 0.0;
         double epsilonR = 1.0;
         TDRCalculator::WindowType window = TDRCalculator::WindowType::Hann;
-        double risetime = 5e-12; // seconds; zero disables the source rise-time filter
     };
 
     static void setTimeGateSettings(const TimeGateSettings& settings);

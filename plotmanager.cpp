@@ -94,6 +94,17 @@ PlotManager::PlotManager(QCustomPlot* plot, QObject *parent)
     m_plot->setSelectionRectMode(QCP::srmZoom);
     m_plot->setRangeDragButton(Qt::RightButton);
 
+    m_gateStartLine = new QCPItemStraightLine(m_plot);
+    m_gateStopLine = new QCPItemStraightLine(m_plot);
+    for (auto *line : {m_gateStartLine, m_gateStopLine}) {
+        line->setPen(QPen(QColor(100, 100, 100), 1.5, Qt::DashLine));
+        line->setSelectable(false);
+        line->setLayer("overlay");
+        line->setVisible(false);
+    }
+    m_gateStartLine->setObjectName("gateStartLine");
+    m_gateStopLine->setObjectName("gateStopLine");
+
     mTracerA = new QCPItemTracer(m_plot);
     mTracerA->setVisible(false);
     mTracerA->setInterpolating(true);
@@ -1283,6 +1294,25 @@ void PlotManager::setCursorBVisible(bool visible)
 }
 
 
+void PlotManager::setGateMarkersVisible(bool visible)
+{
+    m_gateMarkersVisible = visible;
+    updateGateMarkers();
+    m_plot->replot();
+}
+
+void PlotManager::updateGateMarkers()
+{
+    const auto settings = Network::timeGateSettings();
+    const bool visible = m_gateMarkersVisible && m_currentPlotType == PlotType::TDR;
+    m_gateStartLine->setVisible(visible);
+    m_gateStopLine->setVisible(visible);
+    m_gateStartLine->point1->setCoords(settings.startDistance, 0);
+    m_gateStartLine->point2->setCoords(settings.startDistance, 1);
+    m_gateStopLine->point1->setCoords(settings.stopDistance, 0);
+    m_gateStopLine->point2->setCoords(settings.stopDistance, 1);
+}
+
 void PlotManager::mousePress(QMouseEvent *event)
 {
     if (event->button() == Qt::RightButton)
@@ -1294,6 +1324,18 @@ void PlotManager::mousePress(QMouseEvent *event)
 
     if (event->button() == Qt::LeftButton)
     {
+        if (m_gateStartLine->visible() && m_plot->axisRect()->rect().contains(event->pos())) {
+            const double startDistance = std::abs(event->pos().x()
+                    - m_gateStartLine->point1->pixelPosition().x());
+            const double stopDistance = std::abs(event->pos().x()
+                    - m_gateStopLine->point1->pixelPosition().x());
+            if (std::min(startDistance, stopDistance) <= m_plot->selectionTolerance()) {
+                m_draggedGateLine = startDistance <= stopDistance ? m_gateStartLine : m_gateStopLine;
+                m_gatePreviousSelectionMode = m_plot->selectionRectMode();
+                m_plot->setSelectionRectMode(QCP::srmNone);
+                return;
+            }
+        }
         mDraggedTracer = nullptr;
         mDragMode = DragMode::None;
 
@@ -1721,6 +1763,22 @@ void PlotManager::checkForTracerDrag(QMouseEvent *event, QCPItemTracer *tracer)
 
 void PlotManager::mouseMove(QMouseEvent *event)
 {
+    if (m_draggedGateLine) {
+        const double distance = m_plot->xAxis->pixelToCoord(event->pos().x());
+        if (std::isfinite(distance)) {
+            auto settings = Network::timeGateSettings();
+            if (m_draggedGateLine == m_gateStartLine)
+                settings.startDistance = std::clamp(distance, 0.0, settings.stopDistance);
+            else
+                settings.stopDistance = std::max(distance, settings.startDistance);
+            Network::setTimeGateSettings(settings);
+            updateGateMarkers();
+            emit gateChanged();
+            m_plot->replot();
+        }
+        return;
+    }
+
     if (m_showPlotSettingsOnRightRelease && (event->buttons() & Qt::RightButton))
     {
         if ((event->pos() - m_rightClickPressPos).manhattanLength() > QApplication::startDragDistance())
@@ -1791,6 +1849,13 @@ void PlotManager::mouseMove(QMouseEvent *event)
 
 void PlotManager::mouseRelease(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton && m_draggedGateLine) {
+        mouseMove(event);
+        m_draggedGateLine = nullptr;
+        m_plot->setSelectionRectMode(m_gatePreviousSelectionMode);
+        return;
+    }
+
     if (event->button() == Qt::LeftButton)
     {
         if (mDraggedTracer)
@@ -2130,6 +2195,7 @@ void PlotManager::handleAxisRangeChanged(const QCPRange &newRange)
 
 void PlotManager::handleBeforeReplot()
 {
+    updateGateMarkers();
     if (m_currentPlotType == PlotType::Smith)
         enforceSmithAspectRatio();
 }

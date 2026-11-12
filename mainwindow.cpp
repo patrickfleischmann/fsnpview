@@ -124,8 +124,24 @@ MainWindow::MainWindow(QWidget *parent)
     ui->checkBoxCrossHair->setChecked(false);
     m_plot_manager = new PlotManager(ui->widgetGraph, this);
     m_cascade->setColor(Qt::magenta);
+    connect(ui->checkBoxGateMarkers, &QCheckBox::toggled,
+            m_plot_manager, &PlotManager::setGateMarkersVisible);
+    connect(m_plot_manager, &PlotManager::gateChanged, this, [this] {
+        refreshGateControls();
+        updatePlots();
+    });
 
-    ui->lineEditRiseTime->installEventFilter(this);
+    ui->comboBoxTdrWindow->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    ui->comboBoxTdrWindow->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    const auto setFieldWidth = [](QLineEdit *edit, int characters) {
+        const int padding = edit->sizeHint().width()
+                - edit->fontMetrics().horizontalAdvance(QString(17, QLatin1Char('x')));
+        edit->setFixedWidth(edit->fontMetrics().horizontalAdvance(
+                                QString(characters, QLatin1Char('0'))) + padding);
+    };
+    setFieldWidth(ui->lineEditGateStart, 6);
+    setFieldWidth(ui->lineEditGateStop, 6);
+    setFieldWidth(ui->lineEditEpsilonR, 5);
     ui->lineEditGateStart->installEventFilter(this);
     ui->lineEditGateStop->installEventFilter(this);
     ui->lineEditFminNetworks->installEventFilter(this);
@@ -144,11 +160,6 @@ MainWindow::MainWindow(QWidget *parent)
     refreshGateControls();
     ui->checkBoxGate->setChecked(gateSettings.enabled);
 
-    connect(ui->lineEditRiseTime, &QLineEdit::editingFinished, this, [this] {
-        const bool changed = applyGateSettingsFromUi();
-        refreshGateControls();
-        if (changed) updatePlots();
-    });
     connect(ui->comboBoxTdrWindow, &QComboBox::currentIndexChanged, this, [this] {
         const bool changed = applyGateSettingsFromUi();
         if (changed) updatePlots();
@@ -1298,9 +1309,6 @@ bool MainWindow::applyGateSettingsFromUi()
         return ok ? value : fallback;
     };
 
-    double risetime = parseValue(ui->lineEditRiseTime, previous.risetime);
-    if (!std::isfinite(risetime)) risetime = previous.risetime;
-    settings.risetime = std::max(0.0, risetime);
     settings.window = static_cast<TDRCalculator::WindowType>(ui->comboBoxTdrWindow->currentIndex());
 
     double start = parseValue(ui->lineEditGateStart, previous.startDistance);
@@ -1322,7 +1330,6 @@ bool MainWindow::applyGateSettingsFromUi()
     settings.epsilonR = epsilon;
 
     bool changed = settings.window != previous.window
-            || settings.risetime != previous.risetime
             || settings.enabled != previous.enabled
             || !nearlyEqual(settings.startDistance, previous.startDistance)
             || !nearlyEqual(settings.stopDistance, previous.stopDistance)
@@ -1339,8 +1346,6 @@ void MainWindow::refreshGateControls()
     Network::TimeGateSettings settings = Network::timeGateSettings();
 
     {
-        QSignalBlocker blocker(ui->lineEditRiseTime);
-        ui->lineEditRiseTime->setText(Network::formatEngineering(settings.risetime, false));
         QSignalBlocker windowBlocker(ui->comboBoxTdrWindow);
         ui->comboBoxTdrWindow->setCurrentIndex(static_cast<int>(settings.window));
     }
@@ -1987,7 +1992,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         }
 
-        if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop || obj == ui->lineEditRiseTime) {
+        if (obj == ui->lineEditGateStart || obj == ui->lineEditGateStop) {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             if (wheelEvent->angleDelta().y() == 0)
                 return true;
@@ -1999,14 +2004,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             Network::TimeGateSettings settings = Network::timeGateSettings();
             const double fallback = (obj == ui->lineEditGateStop)
                     ? settings.stopDistance
-                    : (obj == ui->lineEditRiseTime ? settings.risetime : settings.startDistance);
+                    : settings.startDistance;
 
             bool ok = false;
             double value = edit->text().trimmed().toDouble(&ok);
             if (!ok || !std::isfinite(value))
                 value = fallback;
 
-            const double magnitude = std::max(std::abs(value), obj == ui->lineEditRiseTime ? 1e-12 : 1e-3);
+            const double magnitude = std::max(std::abs(value), 1e-3);
             const double step = magnitude * 0.1;
             if (wheelEvent->angleDelta().y() > 0)
                 value += step;
