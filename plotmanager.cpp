@@ -19,6 +19,7 @@
 #include <QPen>
 #include <QSignalBlocker>
 #include <QVector>
+#include <QSet>
 
 namespace
 {
@@ -523,7 +524,13 @@ void PlotManager::updateMathPlots()
             }
         }
 
-        if (resolvedGraphs.size() != 2)
+        const bool hasNetworkSources = storedMeta.size() == 2 &&
+            std::all_of(storedMeta.cbegin(), storedMeta.cend(), [](const QVariant &source) {
+                const auto meta = source.toMap();
+                return meta.value(QStringLiteral("network_ptr")).value<quintptr>() != 0 &&
+                       !meta.value(QStringLiteral("sparam_key")).toString().isEmpty();
+            });
+        if (!hasNetworkSources && resolvedGraphs.size() != 2)
         {
             resolvedGraphs.clear();
             resolvedNames.clear();
@@ -617,6 +624,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     {
         bool visible = false;
         QString baseName;
+        quintptr networkId = 0;
         double axisValue = std::numeric_limits<double>::quiet_NaN();
     };
 
@@ -648,6 +656,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             if (curve)
             {
                 state.baseName = baseNameFor(curve->name(), previousPlotType);
+                state.networkId = curve->property("network_ptr").value<quintptr>();
                 if (idx >= 0)
                 {
                     const QVector<double> freqs = m_curveFreqs.value(curve);
@@ -661,6 +670,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             if (QCPGraph *graph = tracer->graph())
             {
                 state.baseName = baseNameFor(graph->name(), previousPlotType);
+                state.networkId = graph->property("network_ptr").value<quintptr>();
                 currentValue = tracer->graphKey();
             }
         }
@@ -674,7 +684,19 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     TracerState tracerAState = captureTracerState(mTracerA, m_tracerStoredKeysA);
     TracerState tracerBState = captureTracerState(mTracerB, m_tracerStoredKeysB);
 
-    QStringList required_graphs;
+    QSet<QPair<quintptr, QString>> requiredGraphs;
+    auto findPlottable = [&](quintptr networkId, const QString &name) -> QCPAbstractPlottable*
+    {
+        if (name.isEmpty())
+            return nullptr;
+        for (int i = 0; i < m_plot->plottableCount(); ++i) {
+            auto *plottable = m_plot->plottable(i);
+            if (plottable->name() == name &&
+                plottable->property("network_ptr").value<quintptr>() == networkId)
+                return plottable;
+        }
+        return nullptr;
+    };
     QString suffix;
 
     switch (type) {
@@ -757,7 +779,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         if (network->isVisible()) {
             for (const auto& sparam : sparams) {
                 QString graph_name = network->name() + "_" + sparam + suffix;
-                required_graphs << graph_name;
+                requiredGraphs.insert({reinterpret_cast<quintptr>(network), graph_name});
             }
         }
     }
@@ -766,7 +788,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
     if (cascadeHasActive) {
         for (const auto& sparam : sparams) {
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
-            required_graphs << graph_name;
+            requiredGraphs.insert({reinterpret_cast<quintptr>(m_cascade), graph_name});
         }
     }
 
@@ -778,7 +800,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         if (pl->property("math_plot").toBool())
             continue;
 
-        if (!required_graphs.contains(pl->name())) {
+        if (!requiredGraphs.contains({pl->property("network_ptr").value<quintptr>(), pl->name()})) {
             if (QCPCurve *curve = qobject_cast<QCPCurve*>(pl)) {
                 m_curveFreqs.remove(curve);
                 if (m_tracerCurves.value(mTracerA) == curve)
@@ -844,13 +866,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
 
             QString graph_name = network->name() + "_" + sparam + suffix;
             QPen pen = network->parameterPen(sparam);
-            QCPAbstractPlottable *pl = nullptr;
-            for (int i = 0; i < m_plot->plottableCount(); ++i) {
-                if (m_plot->plottable(i)->name() == graph_name) {
-                    pl = m_plot->plottable(i);
-                    break;
-                }
-            }
+            auto *pl = findPlottable(reinterpret_cast<quintptr>(network), graph_name);
 
             QPair<QVector<double>, QVector<double>> plotData;
             int sparam_idx_to_plot = indexForNetwork(network, sparam);
@@ -911,13 +927,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
                 pen.setColor(cascadeColor);
             }
             QString graph_name = m_cascade->name() + "_" + sparam + suffix;
-            QCPAbstractPlottable *pl = nullptr;
-            for (int i = 0; i < m_plot->plottableCount(); ++i) {
-                if (m_plot->plottable(i)->name() == graph_name) {
-                    pl = m_plot->plottable(i);
-                    break;
-                }
-            }
+            auto *pl = findPlottable(reinterpret_cast<quintptr>(m_cascade), graph_name);
 
             QPair<QVector<double>, QVector<double>> plotData;
             int sparam_idx_to_plot = indexForNetwork(m_cascade, sparam);
@@ -976,18 +986,6 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         return state.baseName + suffix;
     };
 
-    auto findPlottableByName = [&](const QString &name) -> QCPAbstractPlottable*
-    {
-        if (name.isEmpty())
-            return nullptr;
-        for (int i = 0; i < m_plot->plottableCount(); ++i)
-        {
-            if (m_plot->plottable(i)->name() == name)
-                return m_plot->plottable(i);
-        }
-        return nullptr;
-    };
-
     auto restoreCartesianTracer = [&](QCPItemTracer *tracer, const TracerState &state)
     {
         m_tracerCurves.remove(tracer);
@@ -1003,7 +1001,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
         }
 
         QCPGraph *targetGraph = nullptr;
-        if (QCPAbstractPlottable *pl = findPlottableByName(nameForCurrentType(state)))
+        if (QCPAbstractPlottable *pl = findPlottable(state.networkId, nameForCurrentType(state)))
             targetGraph = qobject_cast<QCPGraph*>(pl);
 
         if (!targetGraph)
@@ -1058,7 +1056,7 @@ void PlotManager::updatePlots(const QStringList& sparams, PlotType type)
             return;
 
         QCPCurve *targetCurve = nullptr;
-        if (QCPAbstractPlottable *pl = findPlottableByName(nameForCurrentType(state)))
+        if (QCPAbstractPlottable *pl = findPlottable(state.networkId, nameForCurrentType(state)))
             targetCurve = qobject_cast<QCPCurve*>(pl);
 
         if (!targetCurve)

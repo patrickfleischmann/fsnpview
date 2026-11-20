@@ -1,4 +1,7 @@
 #include <QApplication>
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
 #include "qcustomplot.h"
 #include "plotmanager.h"
 #include "networkfile.h"
@@ -116,6 +119,54 @@ int main(int argc, char **argv)
 
         if (!cascadeGraphFound) {
             std::cerr << "Cascade graph not found" << std::endl;
+            return 1;
+        }
+    }
+
+    {
+        QTemporaryDir temp;
+        QDir dir(temp.path());
+        const QString firstPath = dir.filePath(QStringLiteral("first/sample.s1p"));
+        const QString secondPath = dir.filePath(QStringLiteral("second/sample.s1p"));
+        auto writeTouchstone = [](const QString &path, const QByteArray &data) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(data) == data.size();
+        };
+        if (!temp.isValid() || !dir.mkdir(QStringLiteral("first")) ||
+            !dir.mkdir(QStringLiteral("second")) ||
+            !writeTouchstone(firstPath, "# GHz S RI R 50\n1 1 0\n") ||
+            !writeTouchstone(secondPath, "# GHz S RI R 50\n1 0.1 0\n")) {
+            std::cerr << "Could not create same-named Touchstone files" << std::endl;
+            return 1;
+        }
+
+        NetworkFile first(firstPath);
+        NetworkFile second(secondPath);
+        first.setVisible(true);
+        second.setVisible(true);
+        QCustomPlot duplicatePlot;
+        PlotManager duplicateManager(&duplicatePlot);
+        duplicateManager.setNetworks({&first, &second});
+        const QStringList parameters{QStringLiteral("s11")};
+        duplicateManager.updatePlots(parameters, PlotType::Magnitude);
+
+        auto checkTrace = [](QCPGraph *graph, const NetworkFile *source, double expectedDb) {
+            return graph->property("network_ptr").value<quintptr>() ==
+                       reinterpret_cast<quintptr>(source) &&
+                   graph->data()->size() == 1 &&
+                   std::abs(graph->data()->constBegin()->value - expectedDb) < 1e-6;
+        };
+        if (duplicatePlot.graphCount() != 2 ||
+            !checkTrace(duplicatePlot.graph(0), &first, 0.0) ||
+            !checkTrace(duplicatePlot.graph(1), &second, -20.0)) {
+            std::cerr << "Same-named files should produce two distinct traces" << std::endl;
+            return 1;
+        }
+
+        second.setVisible(false);
+        duplicateManager.updatePlots(parameters, PlotType::Magnitude);
+        if (duplicatePlot.graphCount() != 1 || !checkTrace(duplicatePlot.graph(0), &first, 0.0)) {
+            std::cerr << "Hiding one file should leave the other trace intact" << std::endl;
             return 1;
         }
     }

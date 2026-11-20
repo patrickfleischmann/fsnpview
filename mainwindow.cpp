@@ -501,7 +501,7 @@ void MainWindow::populateLumpedNetworkTable()
 void MainWindow::processFiles(const QStringList &files, bool autoscale)
 {
     for (const QString &file : files) {
-        Network* network = new NetworkFile(file);
+        auto *network = new NetworkFile(file);
         network->setColor(m_plot_manager->nextColor());
         QList<QStandardItem*> row;
         QStandardItem* checkItem = new QStandardItem();
@@ -516,6 +516,7 @@ void MainWindow::processFiles(const QStringList &files, bool autoscale)
         row.append(colorItem);
 
         QStandardItem* nameItem = new QStandardItem(network->name());
+        nameItem->setToolTip(network->filePath());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         row.append(nameItem);
 
